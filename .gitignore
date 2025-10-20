@@ -160,3 +160,6 @@ vite.config.ts.timestamp-*
 
 # typescript
 next-env.d.ts
+
+# changelog
+CHANGELOG.md
