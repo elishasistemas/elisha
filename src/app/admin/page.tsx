@@ -48,7 +48,7 @@ export default function AdminPage() {
       // const { data, error } = await supabase.from('companies').insert(companyForm)
       
       // Simulando criação
-      console.log('Criando empresa:', companyForm)
+      // Log removido para evitar ruído no console
       
       setMessage({ type: 'success', text: 'Empresa criada com sucesso!' })
       setCompanyForm({ name: '', cnpj: '', email: '', phone: '', address: '' })
@@ -75,7 +75,7 @@ export default function AdminPage() {
       // })
       
       // Simulando criação
-      console.log('Criando usuário:', userForm)
+      // Log removido para evitar ruído no console
       
       setMessage({ type: 'success', text: 'Usuário criado e email de convite enviado!' })
       setUserForm({ name: '', email: '', role: '', company_id: '' })

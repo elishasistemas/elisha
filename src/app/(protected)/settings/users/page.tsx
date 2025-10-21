@@ -21,15 +21,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Trash, RefreshDouble } from "iconoir-react";
 
 interface Profile {
-  user_id: string;
+  id: string;
   empresa_id: string;
   role: string;
   created_at: string;
-  email?: string;
+  email?: string; // pode não existir na tabela profiles
   name?: string;
 }
 
@@ -50,6 +52,13 @@ export default function UsersPage() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [empresaId, setEmpresaId] = useState<string>("");
+  // Search + pagination state
+  const [searchUsers, setSearchUsers] = useState("");
+  const [pageUsers, setPageUsers] = useState(1);
+  const [pageSizeUsers, setPageSizeUsers] = useState(10);
+  const [searchInvites, setSearchInvites] = useState("");
+  const [pageInvites, setPageInvites] = useState(1);
+  const [pageSizeInvites, setPageSizeInvites] = useState(10);
 
   useEffect(() => {
     loadData();
@@ -73,7 +82,7 @@ export default function UsersPage() {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("id", user.id)
         .single();
 
       if (profileError) {
@@ -88,7 +97,7 @@ export default function UsersPage() {
       // Carregar usuários da empresa
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("user_id, empresa_id, role, created_at")
+        .select("id, empresa_id, role, created_at")
         .eq("empresa_id", profile.empresa_id)
         .order("created_at", { ascending: false });
 
@@ -96,24 +105,9 @@ export default function UsersPage() {
         console.error("Erro ao buscar usuários:", profilesError);
         toast.error("Erro ao carregar usuários");
       } else {
-        // Buscar emails dos usuários via auth.users (se disponível)
-        const profilesWithEmails = await Promise.all(
-          (profilesData || []).map(async (p) => {
-            try {
-              // Tentar buscar email do auth
-              const { data: userData } = await supabase.auth.admin.getUserById(
-                p.user_id
-              );
-              return {
-                ...p,
-                email: userData?.user?.email,
-              };
-            } catch {
-              return p;
-            }
-          })
-        );
-        setProfiles(profilesWithEmails);
+        // Evitar uso de auth.admin no cliente (requer service role)
+        // Exibe dados disponíveis do perfil; email pode ser N/A
+        setProfiles((profilesData || []) as unknown as Profile[]);
       }
 
       // Carregar convites da empresa
@@ -257,10 +251,30 @@ export default function UsersPage() {
       {/* Usuários Ativos */}
       <Card>
         <CardHeader>
-          <CardTitle>Usuários ativos</CardTitle>
-          <CardDescription>
-            Colaboradores com acesso ao sistema
-          </CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Usuários ativos</CardTitle>
+              <CardDescription>
+                Colaboradores com acesso ao sistema
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Buscar por e-mail ou papel"
+                value={searchUsers}
+                onChange={(e) => { setSearchUsers(e.target.value); setPageUsers(1); }}
+                className="w-[260px]"
+              />
+              <Select value={String(pageSizeUsers)} onValueChange={(v) => { setPageSizeUsers(Number(v)); setPageUsers(1); }}>
+                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / página</SelectItem>
+                  <SelectItem value="20">20 / página</SelectItem>
+                  <SelectItem value="50">50 / página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -269,11 +283,26 @@ export default function UsersPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : profiles.length === 0 ? (
+          ) : (() => {
+            // Filter + paginate users
+            const q = searchUsers.trim().toLowerCase();
+            const filtered = !q ? profiles : profiles.filter((p) => {
+              const email = (p.email || "N/A").toLowerCase();
+              const role = (p.role || "").toLowerCase();
+              return email.includes(q) || role.includes(q);
+            });
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSizeUsers));
+            const currentPage = Math.min(pageUsers, totalPages);
+            const start = (currentPage - 1) * pageSizeUsers;
+            const end = start + pageSizeUsers;
+            const pageRows = filtered.slice(start, end);
+
+            return filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Nenhum usuário encontrado
+              Nenhum usuário {q ? 'encontrado' : 'cadastrado'}
             </p>
-          ) : (
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -283,8 +312,8 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {profiles.map((profile) => (
-                  <TableRow key={profile.user_id}>
+                {pageRows.map((profile) => (
+                  <TableRow key={profile.id}>
                     <TableCell className="font-medium">
                       {profile.email || "N/A"}
                     </TableCell>
@@ -300,17 +329,67 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
+            );
+          })()}
+          {(() => {
+            const q = searchUsers.trim().toLowerCase();
+            const filtered = !q ? profiles : profiles.filter((p) => {
+              const email = (p.email || "N/A").toLowerCase();
+              const role = (p.role || "").toLowerCase();
+              return email.includes(q) || role.includes(q);
+            });
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSizeUsers));
+            const currentPage = Math.min(pageUsers, totalPages);
+            const start = (currentPage - 1) * pageSizeUsers;
+            const end = start + pageSizeUsers;
+            return filtered.length > 0 ? (
+              <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+                <div>
+                  Mostrando {Math.min(end, total)} de {total}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPageUsers((p) => Math.max(1, p - 1))}>
+                    Anterior
+                  </Button>
+                  <span>Página {currentPage} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPageUsers((p) => Math.min(totalPages, p + 1))}>
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            ) : null;
+          })()}
         </CardContent>
       </Card>
 
       {/* Convites */}
       <Card>
         <CardHeader>
-          <CardTitle>Convites</CardTitle>
-          <CardDescription>
-            Convites enviados para novos colaboradores
-          </CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Convites</CardTitle>
+              <CardDescription>
+                Convites enviados para novos colaboradores
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Buscar por e-mail ou status"
+                value={searchInvites}
+                onChange={(e) => { setSearchInvites(e.target.value); setPageInvites(1); }}
+                className="w-[260px]"
+              />
+              <Select value={String(pageSizeInvites)} onValueChange={(v) => { setPageSizeInvites(Number(v)); setPageInvites(1); }}>
+                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / página</SelectItem>
+                  <SelectItem value="20">20 / página</SelectItem>
+                  <SelectItem value="50">50 / página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -318,11 +397,27 @@ export default function UsersPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : invites.length === 0 ? (
+          ) : (() => {
+            // Filter + paginate invites
+            const q = searchInvites.trim().toLowerCase();
+            const filtered = !q ? invites : invites.filter((i) => {
+              const email = (i.email || "").toLowerCase();
+              const status = (i.status || "").toLowerCase();
+              const role = (i.role || "").toLowerCase();
+              return email.includes(q) || status.includes(q) || role.includes(q);
+            });
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSizeInvites));
+            const currentPage = Math.min(pageInvites, totalPages);
+            const start = (currentPage - 1) * pageSizeInvites;
+            const end = start + pageSizeInvites;
+            const pageRows = filtered.slice(start, end);
+
+            return filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Nenhum convite criado ainda
+              Nenhum convite {q ? 'encontrado' : 'criado ainda'}
             </p>
-          ) : (
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -334,7 +429,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invites.map((invite) => (
+                {pageRows.map((invite) => (
                   <TableRow key={invite.id}>
                     <TableCell className="font-medium">
                       {invite.email}
@@ -366,10 +461,40 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
+            );
+          })()}
+          {(() => {
+            const q = searchInvites.trim().toLowerCase();
+            const filtered = !q ? invites : invites.filter((i) => {
+              const email = (i.email || "").toLowerCase();
+              const status = (i.status || "").toLowerCase();
+              const role = (i.role || "").toLowerCase();
+              return email.includes(q) || status.includes(q) || role.includes(q);
+            });
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSizeInvites));
+            const currentPage = Math.min(pageInvites, totalPages);
+            const start = (currentPage - 1) * pageSizeInvites;
+            const end = start + pageSizeInvites;
+            return filtered.length > 0 ? (
+              <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+                <div>
+                  Mostrando {Math.min(end, total)} de {total}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPageInvites((p) => Math.max(1, p - 1))}>
+                    Anterior
+                  </Button>
+                  <span>Página {currentPage} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPageInvites((p) => Math.min(totalPages, p + 1))}>
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            ) : null;
+          })()}
         </CardContent>
       </Card>
     </div>
   );
 }
-

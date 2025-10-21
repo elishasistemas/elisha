@@ -1,14 +1,37 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle } from 'lucide-react'
-import { useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
+import { getActiveRole, isGestor, isTecnico } from '@/utils/auth'
+import { OrderDialog } from '@/components/order-dialog'
+import { toast } from 'sonner'
+import type { OrdemServico } from '@/lib/supabase'
 
 const statusConfig = {
   parado: {
@@ -61,55 +84,64 @@ function formatDate(dateString: string) {
 
 export default function OrdersPage() {
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [ordemToDelete, setOrdemToDelete] = useState<OrdemServico | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
   const empresaId = empresas[0]?.id
+  const { user, session } = useAuth()
+  const { profile } = useProfile(user?.id)
+  const active = getActiveRole(session, profile)
+  const canGestor = isGestor(session, profile)
+  const canTecnico = isTecnico(session, profile)
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
   const { colaboradores, loading: colLoading, error: colError } = useColaboradores(empresaId)
-  const { ordens, loading, error } = useOrdensServico(empresaId)
+  const clienteId = clientes[0]?.id
+  const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
+  const orderBy = ordenacao === 'data' ? 'created_at' : (ordenacao === 'status' ? 'status' : 'prioridade')
+  const { ordens, loading, error, deleteOrdem, count } = useOrdensServico(empresaId, {
+    page,
+    pageSize,
+    search,
+    orderBy: orderBy as any,
+    tecnicoId: canTecnico ? (profile?.tecnico_id ?? undefined) : undefined,
+    refreshKey,
+  })
 
-  const isLoading = empresasLoading || clientesLoading || colLoading || loading
+  const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
 
-  // Ordenar ordens
-  const ordensOrdenadas = useMemo(() => {
-    // Função auxiliar para calcular peso da prioridade
-    const getPrioridadePeso = (ordem: typeof ordens[0]) => {
-      // OS paradas têm prioridade máxima
-      if (ordem.status === 'parado') return 0
-      
-      // Depois vem a prioridade da OS
-      if (ordem.prioridade === 'alta') return 1
-      if (ordem.prioridade === 'media') return 2
-      return 3 // baixa
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handleDelete = async () => {
+    if (!ordemToDelete) return
+
+    try {
+      const result = await deleteOrdem(ordemToDelete.id)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Ordem de serviço excluída com sucesso!')
+        handleRefresh()
+      }
+    } catch (error) {
+      toast.error('Erro ao excluir ordem')
+    } finally {
+      setDeleteDialogOpen(false)
+      setOrdemToDelete(null)
     }
+  }
 
-    // Aplicar ordenação
-    return [...ordens].sort((a, b) => {
-      if (ordenacao === 'prioridade') {
-        const pesoA = getPrioridadePeso(a)
-        const pesoB = getPrioridadePeso(b)
-        
-        if (pesoA !== pesoB) return pesoA - pesoB
-        
-        // Se tiverem o mesmo peso, ordenar por data (mais recente primeiro)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-      
-      if (ordenacao === 'data') {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-      
-      if (ordenacao === 'status') {
-        // Parado > Novo > Em andamento > Aguardando > Concluído > Cancelado
-        const statusOrdem = ['parado', 'novo', 'em_andamento', 'aguardando_assinatura', 'concluido', 'cancelado']
-        return statusOrdem.indexOf(a.status) - statusOrdem.indexOf(b.status)
-      }
-      
-      return 0
-    })
-  }, [ordens, ordenacao])
-
-  const total = useMemo(() => ordensOrdenadas.length, [ordensOrdenadas.length])
+  const total = count || 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const startIdx = total > 0 ? (page - 1) * pageSize + 1 : 0
+  const endIdx = Math.min(page * pageSize, total)
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full py-4 ">
@@ -118,15 +150,23 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
           <p className="text-muted-foreground">Crie, acompanhe e finalize ordens</p>
         </div>  
-        <Button disabled>Nova Ordem</Button>
+        {empresaId && clientes.length > 0 && canGestor && (
+          <OrderDialog 
+            empresaId={empresaId} 
+            clientes={clientes}
+            equipamentos={equipamentos}
+            colaboradores={colaboradores}
+            onSuccess={handleRefresh}
+          />
+        )}
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle>Lista de Ordens</CardTitle>
-              <CardDescription>{total} registros</CardDescription>
+              <CardDescription>{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Ordenar por:</span>
@@ -138,6 +178,20 @@ export default function OrdersPage() {
                   <SelectItem value="prioridade">Prioridade</SelectItem>
                   <SelectItem value="data">Data (Recente)</SelectItem>
                   <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Buscar número, tipo, status"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                className="w-[280px]"
+              />
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / página</SelectItem>
+                  <SelectItem value="20">20 / página</SelectItem>
+                  <SelectItem value="50">50 / página</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -163,10 +217,11 @@ export default function OrdersPage() {
                   <TableHead>Prioridade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead className="w-[70px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ordensOrdenadas.map((ordem) => {
+                {ordens.map((ordem) => {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
@@ -202,15 +257,92 @@ export default function OrdersPage() {
                         {status.label}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Abrir menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {canGestor && (
+                              <OrderDialog
+                              empresaId={empresaId!}
+                              ordem={ordem}
+                              clientes={clientes}
+                              equipamentos={equipamentos}
+                              colaboradores={colaboradores}
+                              mode="edit"
+                              onSuccess={handleRefresh}
+                              trigger={
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Editar
+                                </DropdownMenuItem>
+                              }
+                              />
+                            )}
+                            {canGestor && (
+                              <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={() => {
+                                setOrdemToDelete(ordem)
+                                setDeleteDialogOpen(true)
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   )
                 })}
               </TableBody>
             </Table>
           )}
+          {total > 0 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+              <div>
+                Mostrando {startIdx}-{endIdx} de {total}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  Anterior
+                </Button>
+                <span>Página {page} de {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a ordem de serviço <strong>{ordemToDelete?.numero_os || ordemToDelete?.id.slice(0, 8)}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
-

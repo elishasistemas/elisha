@@ -1,12 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { LayoutDashboard, ClipboardList, Building2, Cable, Users, HeadphonesIcon } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Building2, Cable, Users, HeadphonesIcon, CheckSquare, Shield } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { RoleSwitcher } from "@/components/role-switcher"
+import { useAuth, useProfile } from "@/hooks/use-supabase"
+import { getActiveRole, getRoles } from "@/utils/auth"
 import {
   Sidebar,
   SidebarContent,
@@ -30,15 +33,34 @@ const data = {
       url: "/orders",
       icon: ClipboardList,
     },
+    { title: "Checklists", url: "/checklists", icon: CheckSquare },
     { title: "Clientes", url: "/clients", icon: Building2 },
     { title: "Equipamentos", url: "/equipments", icon: Cable },
     { title: "Técnicos", url: "/technicians", icon: Users },
   ],
 }
 
-const supportLink = { title: "Suporte", url: "/support", icon: HeadphonesIcon }
+const supportLink = {
+  title: "Suporte",
+  url: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP_URL || "https://wa.me/",
+  icon: HeadphonesIcon,
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, session } = useAuth()
+  const { profile } = useProfile(user?.id)
+  const roles = getRoles(session ?? null, profile)
+  const active = getActiveRole(session ?? null, profile)
+
+  const filteredItems = ((): typeof data.navMain => {
+    if (active === 'tecnico') {
+      // Campo: priorizar execução. Exibir apenas OS por enquanto.
+      return data.navMain.filter((i) => i.url === '/orders')
+    }
+    // Gestão: tudo liberado
+    return data.navMain
+  })()
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader className="border-b border-sidebar-border/60 px-2 py-2">
@@ -66,16 +88,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={filteredItems} />
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border/60 px-3 py-3">
+        <div className="mb-2">
+          <RoleSwitcher />
+        </div>
         <SidebarMenu>
+          {profile?.is_elisha_admin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild size="sm">
+                <Link href="/admin/companies">
+                  <Shield className="size-4" />
+                  <span>Super Admin</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm">
-              <Link href={supportLink.url}>
+              <a href={supportLink.url} target="_blank" rel="noopener noreferrer">
                 <supportLink.icon className="size-4" />
                 <span>{supportLink.title}</span>
-              </Link>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

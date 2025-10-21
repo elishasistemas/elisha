@@ -85,16 +85,12 @@ export function useEmpresas() {
     const fetchEmpresas = async () => {
       try {
         setLoading(true)
-        console.log('[useEmpresas] Iniciando busca de empresas...')
         const { data, error } = await supabase
           .from('empresas')
           .select('*')
           .order('created_at', { ascending: false })
-
-        console.log('[useEmpresas] Resposta:', { data, error })
         if (error) throw error
         setEmpresas(data || [])
-        console.log('[useEmpresas] Empresas carregadas:', data?.length || 0)
       } catch (err) {
         console.error('[useEmpresas] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar empresas')
@@ -142,15 +138,15 @@ export function useEmpresas() {
   return { empresas, loading, error, createEmpresa, updateEmpresa }
 }
 
-export function useClientes(empresaId?: string) {
+export function useClientes(empresaId?: string, opts?: { page?: number; pageSize?: number; search?: string; refreshKey?: number }) {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [count, setCount] = useState<number>(0)
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
     if (!empresaId) {
-      console.log('[useClientes] Sem empresaId, pulando busca')
       setLoading(false)
       return
     }
@@ -158,17 +154,28 @@ export function useClientes(empresaId?: string) {
     const fetchClientes = async () => {
       try {
         setLoading(true)
-        console.log('[useClientes] Buscando clientes para empresa:', empresaId)
-        const { data, error } = await supabase
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const start = (page - 1) * pageSize
+        const end = start + pageSize - 1
+        let query = supabase
           .from('clientes')
-          .select('*')
+          .select('*', { count: 'exact' })
           .eq('empresa_id', empresaId)
           .order('created_at', { ascending: false })
 
-        console.log('[useClientes] Resposta:', { data, error })
+        const q = (opts?.search || '').trim()
+        if (q) {
+          const like = `%${q}%`
+          query = query.or(
+            `nome_local.ilike.${like},cnpj.ilike.${like},responsavel_nome.ilike.${like},responsavel_telefone.ilike.${like},responsavel_email.ilike.${like}`
+          )
+        }
+
+        const { data, error, count } = await query.range(start, end)
         if (error) throw error
         setClientes(data || [])
-        console.log('[useClientes] Clientes carregados:', data?.length || 0)
+        setCount(count || 0)
       } catch (err) {
         console.error('[useClientes] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar clientes')
@@ -178,7 +185,7 @@ export function useClientes(empresaId?: string) {
     }
 
     fetchClientes()
-  }, [empresaId, supabase])
+  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
   const createCliente = async (cliente: Omit<Cliente, 'id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -196,18 +203,50 @@ export function useClientes(empresaId?: string) {
     }
   }
 
-  return { clientes, loading, error, createCliente }
+  const updateCliente = async (id: string, updates: Partial<Omit<Cliente, 'id' | 'created_at' | 'updated_at'>>) => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setClientes(prev => prev.map(c => c.id === id ? data : c))
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar cliente' }
+    }
+  }
+
+  const deleteCliente = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setClientes(prev => prev.filter(c => c.id !== id))
+      return { error: null }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Erro ao deletar cliente' }
+    }
+  }
+
+  return { clientes, loading, error, count, createCliente, updateCliente, deleteCliente }
 }
 
-export function useEquipamentos(clienteId?: string) {
+export function useEquipamentos(clienteId?: string, opts?: { page?: number; pageSize?: number; search?: string; refreshKey?: number }) {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [count, setCount] = useState<number>(0)
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
     if (!clienteId) {
-      console.log('[useEquipamentos] Sem clienteId, pulando busca')
       setLoading(false)
       return
     }
@@ -215,17 +254,28 @@ export function useEquipamentos(clienteId?: string) {
     const fetchEquipamentos = async () => {
       try {
         setLoading(true)
-        console.log('[useEquipamentos] Buscando equipamentos para cliente:', clienteId)
-        const { data, error } = await supabase
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const start = (page - 1) * pageSize
+        const end = start + pageSize - 1
+        let query = supabase
           .from('equipamentos')
-          .select('*')
+          .select('*', { count: 'exact' })
           .eq('cliente_id', clienteId)
           .order('created_at', { ascending: false })
 
-        console.log('[useEquipamentos] Resposta:', { data, error })
+        const q = (opts?.search || '').trim()
+        if (q) {
+          const like = `%${q}%`
+          query = query.or(
+            `tipo.ilike.${like},fabricante.ilike.${like},modelo.ilike.${like},numero_serie.ilike.${like}`
+          )
+        }
+
+        const { data, error, count } = await query.range(start, end)
         if (error) throw error
         setEquipamentos(data || [])
-        console.log('[useEquipamentos] Equipamentos carregados:', data?.length || 0)
+        setCount(count || 0)
       } catch (err) {
         console.error('[useEquipamentos] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar equipamentos')
@@ -235,20 +285,20 @@ export function useEquipamentos(clienteId?: string) {
     }
 
     fetchEquipamentos()
-  }, [clienteId, supabase])
+  }, [clienteId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
-  return { equipamentos, loading, error }
+  return { equipamentos, loading, error, count }
 }
 
-export function useColaboradores(empresaId?: string) {
+export function useColaboradores(empresaId?: string, opts?: { page?: number; pageSize?: number; search?: string; refreshKey?: number }) {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [count, setCount] = useState<number>(0)
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
     if (!empresaId) {
-      console.log('[useColaboradores] Sem empresaId, pulando busca')
       setLoading(false)
       return
     }
@@ -256,18 +306,29 @@ export function useColaboradores(empresaId?: string) {
     const fetchColaboradores = async () => {
       try {
         setLoading(true)
-        console.log('[useColaboradores] Buscando colaboradores para empresa:', empresaId)
-        const { data, error } = await supabase
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const start = (page - 1) * pageSize
+        const end = start + pageSize - 1
+        let query = supabase
           .from('colaboradores')
-          .select('*')
+          .select('*', { count: 'exact' })
           .eq('empresa_id', empresaId)
           .eq('ativo', true)
           .order('created_at', { ascending: false })
 
-        console.log('[useColaboradores] Resposta:', { data, error })
+        const q = (opts?.search || '').trim()
+        if (q) {
+          const like = `%${q}%`
+          query = query.or(
+            `nome.ilike.${like},funcao.ilike.${like},whatsapp_numero.ilike.${like}`
+          )
+        }
+
+        const { data, error, count } = await query.range(start, end)
         if (error) throw error
         setColaboradores(data || [])
-        console.log('[useColaboradores] Colaboradores carregados:', data?.length || 0)
+        setCount(count || 0)
       } catch (err) {
         console.error('[useColaboradores] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar colaboradores')
@@ -277,20 +338,96 @@ export function useColaboradores(empresaId?: string) {
     }
 
     fetchColaboradores()
-  }, [empresaId, supabase])
+  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
-  return { colaboradores, loading, error }
+  const createColaborador = async (colaborador: Omit<Colaborador, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('colaboradores')
+        .insert([colaborador])
+        .select()
+        .single()
+
+      if (error) throw error
+      setColaboradores(prev => [data, ...prev])
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar colaborador' }
+    }
+  }
+
+  const updateColaborador = async (id: string, updates: Partial<Omit<Colaborador, 'id' | 'created_at' | 'updated_at'>>) => {
+    try {
+      const { data, error } = await supabase
+        .from('colaboradores')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setColaboradores(prev => prev.map(c => c.id === id ? data : c))
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar colaborador' }
+    }
+  }
+
+  const toggleAtivoColaborador = async (id: string, ativo: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from('colaboradores')
+        .update({ ativo })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setColaboradores(prev => prev.map(c => c.id === id ? data : c))
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar status' }
+    }
+  }
+
+  const deleteColaborador = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('colaboradores')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setColaboradores(prev => prev.filter(c => c.id !== id))
+      return { error: null }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Erro ao deletar colaborador' }
+    }
+  }
+
+  return { colaboradores, loading, error, count, createColaborador, updateColaborador, toggleAtivoColaborador, deleteColaborador }
 }
 
-export function useOrdensServico(empresaId?: string) {
+export function useOrdensServico(
+  empresaId?: string,
+  opts?: {
+    page?: number
+    pageSize?: number
+    search?: string
+    orderBy?: keyof OrdemServico | 'created_at' | 'status' | 'prioridade'
+    ascending?: boolean
+    tecnicoId?: string
+    refreshKey?: number
+  }
+) {
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [count, setCount] = useState<number>(0)
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
     if (!empresaId) {
-      console.log('[useOrdensServico] Sem empresaId, pulando busca')
       setLoading(false)
       return
     }
@@ -298,17 +435,50 @@ export function useOrdensServico(empresaId?: string) {
     const fetchOrdens = async () => {
       try {
         setLoading(true)
-        console.log('[useOrdensServico] Buscando ordens para empresa:', empresaId)
-        const { data, error } = await supabase
-          .from('ordens_servico')
-          .select('*')
-          .eq('empresa_id', empresaId)
-          .order('created_at', { ascending: false })
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const start = (page - 1) * pageSize
+        const end = start + pageSize - 1
 
-        console.log('[useOrdensServico] Resposta:', { data, error })
+        const orderBy = opts?.orderBy || 'created_at'
+        const fromName = orderBy === 'status' || orderBy === 'prioridade'
+          ? 'ordens_servico_enriquecida'
+          : 'ordens_servico'
+
+        let query = supabase
+          .from(fromName)
+          .select('*', { count: 'exact' })
+          .eq('empresa_id', empresaId)
+
+        const q = (opts?.search || '').trim()
+        if (q) {
+          const like = `%${q}%`
+          query = query.or(
+            `numero_os.ilike.${like},tipo.ilike.${like},status.ilike.${like}`
+          )
+        }
+
+        if (opts?.tecnicoId) {
+          query = query.eq('tecnico_id', opts.tecnicoId)
+        }
+
+        // Ordering preset via view weights
+        if (fromName === 'ordens_servico_enriquecida') {
+          if (orderBy === 'status') {
+            query = query.order('peso_status', { ascending: true }).order('created_at', { ascending: false })
+          } else {
+            // prioridade: status weight, then prioridade weight, then created_at desc
+            query = query.order('peso_status', { ascending: true }).order('peso_prioridade', { ascending: true }).order('created_at', { ascending: false })
+          }
+        } else {
+          const ascending = orderBy === 'created_at' ? false : !!opts?.ascending
+          query = query.order(orderBy as string, { ascending })
+        }
+
+        const { data, error, count } = await query.range(start, end)
         if (error) throw error
         setOrdens(data || [])
-        console.log('[useOrdensServico] Ordens carregadas:', data?.length || 0)
+        setCount(count || 0)
       } catch (err) {
         console.error('[useOrdensServico] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar ordens de serviço')
@@ -318,7 +488,23 @@ export function useOrdensServico(empresaId?: string) {
     }
 
     fetchOrdens()
-  }, [empresaId, supabase])
+  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.orderBy, opts?.ascending, opts?.refreshKey])
+
+  const createOrdem = async (ordem: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('ordens_servico')
+        .insert([ordem])
+        .select()
+        .single()
+
+      if (error) throw error
+      // Com paginação server-side, preferimos refetch externo
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar ordem' }
+    }
+  }
 
   const updateOrdem = async (id: string, updates: Partial<OrdemServico>) => {
     try {
@@ -330,6 +516,7 @@ export function useOrdensServico(empresaId?: string) {
         .single()
 
       if (error) throw error
+      // Opcional: atualizar página atual
       setOrdens(prev => prev.map(ordem => ordem.id === id ? data : ordem))
       return { data, error: null }
     } catch (err) {
@@ -337,5 +524,20 @@ export function useOrdensServico(empresaId?: string) {
     }
   }
 
-  return { ordens, loading, error, updateOrdem }
+  const deleteOrdem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('ordens_servico')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      // Preferir refetch após exclusão
+      return { error: null }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Erro ao deletar ordem' }
+    }
+  }
+
+  return { ordens, loading, error, count, createOrdem, updateOrdem, deleteOrdem }
 }

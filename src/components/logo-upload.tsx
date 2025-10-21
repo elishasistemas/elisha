@@ -23,8 +23,7 @@ export function LogoUpload({ empresa, onLogoUpdate }: LogoUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(empresa.logo_url)
 
-  console.log('[LogoUpload] Empresa:', empresa)
-  console.log('[LogoUpload] Current Logo URL:', currentLogoUrl)
+  // Logs removidos para evitar ruído no console; mantenha apenas erros quando necessário
 
   const empresaInitials = empresa.nome
     ? empresa.nome.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)

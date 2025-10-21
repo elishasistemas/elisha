@@ -16,6 +16,9 @@ export interface Profile {
   nome: string | null
   funcao: 'admin' | 'gestor' | 'tecnico'
   role: 'admin' | 'gestor' | 'tecnico'
+  roles?: string[] | null
+  active_role?: 'gestor' | 'tecnico' | null
+  tecnico_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -127,11 +130,13 @@ function createSupabaseStub() {
       select: () => ({
         eq: () => ({
           single: () => ({ data: null, error: null }),
-          order: () => ({ data: [], error: null }),
-          limit: () => ({ data: [], error: null })
+          order: () => ({ data: [], error: null, count: 0, range: () => ({ data: [], error: null, count: 0 }) }),
+          limit: () => ({ data: [], error: null }),
+          or: () => ({ data: [], error: null, count: 0, range: () => ({ data: [], error: null, count: 0 }) }),
         }),
-        order: () => ({ data: [], error: null }),
+        order: () => ({ data: [], error: null, count: 0, range: () => ({ data: [], error: null, count: 0 }) }),
         limit: () => ({ data: [], error: null }),
+        or: () => ({ data: [], error: null, count: 0, range: () => ({ data: [], error: null, count: 0 }) }),
         single: () => ({ data: null, error: null })
       }),
       insert: () => ({
@@ -151,20 +156,20 @@ function createSupabaseStub() {
   }
 }
 
+let browserClient: ReturnType<typeof createBrowserClient> | null = null
+
 export function createSupabaseBrowser() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  console.log('[Supabase] URL:', url ? 'Configurada' : 'Ausente')
-  console.log('[Supabase] Anon Key:', anon ? 'Configurada' : 'Ausente')
-  
+
   if (!url || !anon) {
+    // Somente log de erro quando faltar configuração
     console.error('[Supabase] Variáveis de ambiente ausentes. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY em .env.local')
     return createSupabaseStub()
   }
-  
-  const client = createBrowserClient(url, anon)
-  console.log('[Supabase] Cliente criado com sucesso')
-  return client
-}
 
+  if (!browserClient) {
+    browserClient = createBrowserClient(url, anon)
+  }
+  return browserClient
+}

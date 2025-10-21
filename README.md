@@ -7,6 +7,7 @@ Sistema de gestão completo para empresas brasileiras, desenvolvido com Next.js,
 - **Gestão de Clientes**: Cadastro e controle de clientes e contratos
 - **Equipamentos**: Controle de inventário e histórico de manutenção
 - **Ordens de Serviço**: Criação e acompanhamento de serviços técnicos
+- **Checklists Inteligentes**: Sistema completo de checklists com snapshot imutável e compliance score
 - **Colaboradores**: Gestão de equipe técnica
 - **Relatórios**: Geração de relatórios PDF e análises
 - **Feedbacks**: Coleta de avaliações dos clientes
@@ -106,7 +107,14 @@ O projeto é compatível com qualquer plataforma que suporte Next.js:
 
 ## 📚 Documentação
 
+### Sistema Elisha
 - [Diretrizes de Localização](./LOCALIZACAO.md) - Guia completo de português brasileiro
+- [Sistema de Checklist](./CHECKLIST_INDEX.md) - Índice completo do sistema de checklists
+  - [Guia Rápido](./CHECKLIST_QUICKSTART.md) - Setup em 5 minutos
+  - [Documentação Completa](./CHECKLIST_SYSTEM.md) - Referência técnica
+  - [Integração PDF](./CHECKLIST_RELATORIO_INTEGRATION.md) - Relatórios com checklist
+
+### Tecnologias
 - [Supabase Docs](https://supabase.com/docs) - Documentação do Supabase
 - [Next.js Docs](https://nextjs.org/docs) - Documentação do Next.js
 - [Shadcn UI](https://ui.shadcn.com/) - Componentes de UI
