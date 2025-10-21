@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Loader } from "iconoir-react";
+import { Loader2 } from "lucide-react";
 
 interface InviteData {
   id: string;
@@ -244,7 +244,7 @@ function SignupContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Verificando convite...</p>
         </div>
       </div>
@@ -393,7 +393,7 @@ export default function SignupPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <Loader className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >
