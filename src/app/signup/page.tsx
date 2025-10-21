@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react"; // Loading spinner icon
 
 interface InviteData {
   id: string;
