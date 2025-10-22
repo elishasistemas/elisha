@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { RoleSwitcher } from '@/components/role-switcher'
 
 export function ImpersonationBanner() {
   const [impersonating, setImpersonating] = useState<{
@@ -87,11 +88,14 @@ export function ImpersonationBanner() {
   return (
     <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950 mb-4">
       <Eye className="h-4 w-4" />
-      <AlertDescription className="flex items-center justify-between">
-        <span>
-          <strong>Modo Impersonation:</strong> Você está visualizando como{' '}
-          <strong>{impersonating.empresaNome}</strong>
-        </span>
+      <AlertDescription className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1">
+          <span>
+            <strong>Modo Impersonation:</strong> Você está visualizando como{' '}
+            <strong>{impersonating.empresaNome}</strong>
+          </span>
+          <RoleSwitcher className="ml-4" />
+        </div>
         <Button
           variant="outline"
           size="sm"

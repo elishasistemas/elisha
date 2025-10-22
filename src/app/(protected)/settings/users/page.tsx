@@ -28,11 +28,13 @@ import { Trash, RefreshDouble } from "iconoir-react";
 
 interface Profile {
   id: string;
-  empresa_id: string;
+  empresa_id: string | null;
   role: string;
   created_at: string;
   email?: string; // pode não existir na tabela profiles
   name?: string;
+  is_elisha_admin?: boolean;
+  impersonating_empresa_id?: string | null;
 }
 
 interface Invite {
@@ -81,7 +83,7 @@ export default function UsersPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, empresa_id, role, created_at, is_elisha_admin, impersonating_empresa_id")
         .eq("id", user.id)
         .single();
 
@@ -92,13 +94,27 @@ export default function UsersPage() {
       }
 
       setCurrentProfile(profile);
-      setEmpresaId(profile.empresa_id);
+      
+      // Se for elisha_admin impersonando, usar impersonating_empresa_id
+      // Caso contrário, usar empresa_id
+      const targetEmpresaId = profile.is_elisha_admin && profile.impersonating_empresa_id 
+        ? profile.impersonating_empresa_id 
+        : profile.empresa_id;
+      
+      setEmpresaId(targetEmpresaId);
+
+      // Validar se temos uma empresa para buscar
+      if (!targetEmpresaId) {
+        toast.error("Nenhuma empresa selecionada. Acesse via Super Admin para gerenciar empresas.");
+        setLoading(false);
+        return;
+      }
 
       // Carregar usuários da empresa
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
         .select("id, empresa_id, role, created_at")
-        .eq("empresa_id", profile.empresa_id)
+        .eq("empresa_id", targetEmpresaId)
         .order("created_at", { ascending: false });
 
       if (profilesError) {
@@ -114,7 +130,7 @@ export default function UsersPage() {
       const { data: invitesData, error: invitesError } = await supabase
         .from("invites")
         .select("*")
-        .eq("empresa_id", profile.empresa_id)
+        .eq("empresa_id", targetEmpresaId)
         .order("created_at", { ascending: false });
 
       if (invitesError) {

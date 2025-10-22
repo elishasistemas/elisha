@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { LogoutButton } from '@/components/admin/logout-button'
+import Link from 'next/link'
 
 /**
  * Layout para área admin (apenas Elisha admins)
@@ -46,6 +47,22 @@ export default async function AdminLayout({
               </span>
               <LogoutButton />
             </div>
+          </div>
+          
+          {/* Navegação */}
+          <div className="flex gap-4 mt-4 border-t pt-4">
+            <Link 
+              href="/admin/companies" 
+              className="text-sm font-medium hover:underline"
+            >
+              Empresas
+            </Link>
+            <Link 
+              href="/admin/users" 
+              className="text-sm font-medium hover:underline"
+            >
+              Usuários
+            </Link>
           </div>
         </div>
       </div>

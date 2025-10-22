@@ -106,20 +106,28 @@ export default function CompaniesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Atualizar profile com impersonating_empresa_id
+      // Atualizar profile com impersonating_empresa_id e dar todos os roles
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ impersonating_empresa_id: company.id })
+        .update({ 
+          impersonating_empresa_id: company.id,
+          roles: ['admin', 'gestor', 'tecnico'],
+          active_role: 'admin'
+        })
         .eq('id', user.id)
 
       if (updateError) throw updateError
 
       // Atualizar claims
-      await fetch('/api/auth/update-claims', {
+      const claimsResponse = await fetch('/api/auth/update-claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
       })
+
+      if (!claimsResponse.ok) {
+        throw new Error('Erro ao atualizar claims')
+      }
 
       // Criar log
       await supabase.from('impersonation_logs').insert({
@@ -127,6 +135,9 @@ export default function CompaniesPage() {
         empresa_id: company.id,
         started_at: new Date().toISOString()
       })
+
+      // Refresh session para carregar novos claims
+      await supabase.auth.refreshSession()
 
       toast.success(`Impersonando: ${company.nome}`)
       

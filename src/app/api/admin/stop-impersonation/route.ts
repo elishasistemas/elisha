@@ -36,16 +36,25 @@ export async function POST(request: Request) {
         .eq('id', activeLog.id)
     }
 
-    // 3. Remover impersonating_empresa_id do profile
+    // 3. Restaurar profile original (elisha_admin)
     await supabase
       .from('profiles')
-      .update({ impersonating_empresa_id: null })
+      .update({ 
+        impersonating_empresa_id: null,
+        roles: ['elisha_admin'],
+        active_role: 'elisha_admin',
+        empresa_id: null
+      })
       .eq('id', userId)
 
     // 4. Atualizar claims
     await supabase.auth.admin.updateUserById(userId, {
       app_metadata: {
-        impersonating_empresa_id: null
+        impersonating_empresa_id: null,
+        roles: ['elisha_admin'],
+        active_role: 'elisha_admin',
+        empresa_id: null,
+        is_elisha_admin: true
       }
     })
 

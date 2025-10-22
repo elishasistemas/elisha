@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Buscar dados do profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('empresa_id, active_role, tecnico_id, roles')
+      .select('empresa_id, active_role, tecnico_id, roles, is_elisha_admin, impersonating_empresa_id')
       .eq('id', userId)
       .single()
 
@@ -45,15 +45,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Se for elisha_admin impersonando, usar impersonating_empresa_id
+    const effectiveEmpresaId = profile.is_elisha_admin && profile.impersonating_empresa_id 
+      ? profile.impersonating_empresa_id 
+      : profile.empresa_id
+
     // Atualizar app_metadata do usuário no Auth
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       userId,
       {
         app_metadata: {
-          empresa_id: profile.empresa_id,
+          empresa_id: effectiveEmpresaId,
           active_role: profile.active_role,
           tecnico_id: profile.tecnico_id,
-          roles: profile.roles
+          roles: profile.roles,
+          is_elisha_admin: profile.is_elisha_admin,
+          impersonating_empresa_id: profile.impersonating_empresa_id
         }
       }
     )
@@ -69,10 +76,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true,
       claims: {
-        empresa_id: profile.empresa_id,
+        empresa_id: effectiveEmpresaId,
         active_role: profile.active_role,
         tecnico_id: profile.tecnico_id,
-        roles: profile.roles
+        roles: profile.roles,
+        is_elisha_admin: profile.is_elisha_admin,
+        impersonating_empresa_id: profile.impersonating_empresa_id
       }
     })
 

@@ -70,24 +70,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. Criar profile
+    // 2. Atualizar profile (trigger já criou o profile básico)
+    // Aguarda um pouco para garantir que o trigger terminou
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
-        id: authData.user.id,
+      .update({
         nome: name,
         empresa_id: empresaId,
         roles: [role || 'gestor'],
         active_role: role || 'gestor',
         is_elisha_admin: false
       })
+      .eq('id', authData.user.id)
 
     if (profileError) {
-      console.error('[create-company-user] Erro ao criar profile:', profileError)
+      console.error('[create-company-user] Erro ao atualizar profile:', profileError)
       // Tentar deletar o usuário criado
       await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
-        { error: `Erro ao criar profile: ${profileError.message}` },
+        { error: `Erro ao atualizar profile: ${profileError.message}` },
         { status: 500 }
       )
     }
