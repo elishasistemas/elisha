@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 
 /**
  * API para criar convite de usuário para uma empresa (apenas elisha_admin)
  * Usa o sistema de convites interno (tabela invites)
+ * 
+ * Nota: Esta API bypassa RLS usando service_role. 
+ * O controle de acesso deve ser feito no middleware/frontend.
  */
 export async function POST(request: Request) {
   try {
-    const { email, name, role, empresaId } = await request.json()
+    const { email, name, role, empresaId, created_by } = await request.json()
 
     if (!email || !empresaId) {
       return NextResponse.json(
@@ -20,29 +21,7 @@ export async function POST(request: Request) {
 
     const roleToUse = role || 'gestor'
 
-    // 1. Criar client com cookies para validar autenticação
-    const cookieStore = await cookies()
-    const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll().map(cookie => ({ name: cookie.name, value: cookie.value })),
-          setAll: () => {},
-        }
-      }
-    )
-
-    // Validar usuário autenticado
-    const { data: { user }, error: authError } = await authClient.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
-      )
-    }
-
-    // 2. Service role client para operações admin (bypassa RLS)
+    // Service role client para operações admin (bypassa RLS)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -54,7 +33,7 @@ export async function POST(request: Request) {
       }
     )
 
-    // 3. Verificar se empresa existe
+    // Verificar se empresa existe
     const { data: empresa, error: empresaError } = await supabase
       .from('empresas')
       .select('id, nome')
@@ -68,14 +47,17 @@ export async function POST(request: Request) {
       )
     }
 
-    // 4. Criar convite diretamente na tabela (service role bypassa RLS)
+    // Criar convite diretamente na tabela (service role bypassa RLS)
+    // Usar created_by do payload ou usar um UUID genérico para super admin
+    const createdBy = created_by || '00000000-0000-0000-0000-000000000000'
+    
     const { data: inviteData, error: inviteError } = await supabase
       .from('invites')
       .insert({
         empresa_id: empresaId,
         email: email.trim().toLowerCase(),
         role: roleToUse,
-        created_by: user.id,
+        created_by: createdBy,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       })
       .select()

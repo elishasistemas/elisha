@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Copy, Check } from 'lucide-react'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface Company {
   id: string
@@ -62,6 +63,14 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
     try {
       setLoading(true)
 
+      // Pegar user ID do usuário logado
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data: { user } } = await supabase.auth.getUser()
+      const createdBy = user?.id || undefined
+
       // Chamar API para criar convite
       const response = await fetch('/api/admin/create-company-user', {
         method: 'POST',
@@ -71,6 +80,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
           name: formData.name,
           role: formData.role,
           empresaId: company.id,
+          created_by: createdBy
         })
       })
 
