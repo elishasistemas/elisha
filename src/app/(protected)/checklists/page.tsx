@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -63,6 +64,9 @@ const origemColors = {
 }
 
 export default function ChecklistsPage() {
+  // Proteger rota: apenas admin pode acessar
+  const { isTecnico } = useAdminRoute()
+  
   const [checklists, setChecklists] = useState<Checklist[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -200,6 +204,11 @@ export default function ChecklistsPage() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
+  }
+
+  // Se for técnico, não renderiza nada (já redirecionou)
+  if (isTecnico) {
+    return null
   }
 
   return (

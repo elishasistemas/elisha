@@ -16,7 +16,8 @@ import {
 import { toast } from "sonner";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react"; // Loading spinner icon
+import { Loader2, Eye, EyeOff } from "lucide-react"; // Loading spinner icon
+import { PasswordStrength } from "@/components/password-strength";
 
 interface InviteData {
   id: string;
@@ -42,7 +43,7 @@ function SignupContent() {
   // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -64,30 +65,39 @@ function SignupContent() {
       } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
 
-      // Buscar dados do convite com nome da empresa
+      // Buscar dados do convite
+      console.log('[Signup] Buscando convite:', token);
       const { data: inviteData, error: inviteError } = await supabase
         .from("invites")
-        .select(`
-          *,
-          empresas:empresa_id (
-            nome
-          )
-        `)
+        .select("*")
         .eq("token", token)
         .single();
 
+      console.log('[Signup] Resultado convite:', { inviteData, inviteError });
+
       if (inviteError || !inviteData) {
-        console.error("Erro ao buscar convite:", inviteError);
+        console.error("[Signup] Erro ao buscar convite:", inviteError);
         setError("Convite inválido ou não encontrado");
         setLoading(false);
         return;
       }
 
+      // Buscar nome da empresa separadamente
+      const { data: empresaData } = await supabase
+        .from("empresas")
+        .select("nome")
+        .eq("id", inviteData.empresa_id)
+        .single();
+
+      console.log('[Signup] Nome da empresa:', empresaData);
+
       // Adicionar nome da empresa ao invite
       const inviteWithEmpresa = {
         ...inviteData,
-        empresa_nome: (inviteData as any).empresas?.nome || 'Empresa'
+        empresa_nome: empresaData?.nome || 'Empresa'
       }
+
+      console.log('[Signup] Convite completo:', inviteWithEmpresa);
 
       // Verificar se o convite expirou
       if (new Date(inviteWithEmpresa.expires_at) < new Date()) {
@@ -127,7 +137,7 @@ function SignupContent() {
     }
 
     // Validações
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password) {
       toast.error("Preencha todos os campos");
       return;
     }
@@ -139,11 +149,6 @@ function SignupContent() {
 
     if (password.length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("As senhas não conferem");
       return;
     }
 
@@ -163,17 +168,32 @@ function SignupContent() {
 
       if (signUpError) {
         console.error("Erro ao criar conta:", signUpError);
-        toast.error(signUpError.message || "Erro ao criar conta");
+        const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+        toast.error(translateAuthErrorMessage(signUpError));
         return;
       }
 
       if (signUpData.user) {
-        // Aceitar convite
-        await acceptInvite();
+        // Aguardar um pouco para garantir que a sessão foi estabelecida
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Verificar se o usuário está autenticado
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Aceitar convite
+          await acceptInvite();
+        } else {
+          toast.success("Conta criada! Verifique seu email para confirmar.");
+          setTimeout(() => {
+            router.push("/login");
+          }, 2000);
+        }
       }
     } catch (err: any) {
       console.error("Erro ao criar conta:", err);
-      toast.error(err.message || "Erro ao criar conta");
+      const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+      toast.error(translateAuthErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +219,8 @@ function SignupContent() {
 
       if (error) {
         console.error("Erro ao fazer login:", error);
-        toast.error(error.message || "Erro ao fazer login");
+        const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+        toast.error(translateAuthErrorMessage(error));
         return;
       }
 
@@ -209,7 +230,8 @@ function SignupContent() {
       }
     } catch (err: any) {
       console.error("Erro ao fazer login:", err);
-      toast.error(err.message || "Erro ao fazer login");
+      const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+      toast.error(translateAuthErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -221,20 +243,35 @@ function SignupContent() {
     try {
       const supabase = createSupabaseBrowser();
 
+      console.log('[Signup] Aceitando convite...', token);
       const { data, error } = await supabase.rpc("accept_invite", {
         p_token: token,
       });
 
+      console.log('[Signup] Resultado accept_invite:', { data, error });
+
       if (error) {
         console.error("Erro ao aceitar convite:", error);
-        toast.error(error.message || "Erro ao aceitar convite");
+        const errorMessage = error.message === "User not authenticated" 
+          ? "Sessão expirou. Faça login novamente para aceitar o convite."
+          : (error.message || "Erro ao aceitar convite");
+        toast.error(errorMessage);
+        
+        // Se não autenticado, redirecionar para login
+        if (error.message === "User not authenticated") {
+          setTimeout(() => {
+            router.push(`/login?redirect=/signup?token=${token}`);
+          }, 2000);
+        }
         return;
       }
 
+      console.log('[Signup] Convite aceito com sucesso! Dados:', data);
       toast.success("Convite aceito! Bem-vindo(a)!");
       
       // Redirect para dashboard
       setTimeout(() => {
+        console.log('[Signup] Redirecionando para dashboard...');
         router.push("/dashboard");
       }, 1000);
     } catch (err: any) {
@@ -305,7 +342,7 @@ function SignupContent() {
 
         <Card>
           <CardHeader className="space-y-3">
-            <CardTitle>🎉 Você foi convidado!</CardTitle>
+            <CardTitle>🎉 Olá, este é um convite exclusivo para você! </CardTitle>
             <CardDescription>
               <strong>{invite.empresa_nome}</strong> convidou você para acessar 
               o sistema como <Badge variant="secondary" className="ml-1">{getRoleLabel(invite.role)}</Badge>
@@ -345,33 +382,36 @@ function SignupContent() {
                 <Label htmlFor="password">
                   {isAuthenticated ? "Senha" : "Criar senha"}
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={submitting}
-                  required
-                  minLength={6}
-                  placeholder="Mínimo 6 caracteres"
-                />
-              </div>
-
-              {!isAuthenticated && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                <div className="relative">
                   <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     disabled={submitting}
                     required
                     minLength={6}
-                    placeholder="Digite a senha novamente"
+                    placeholder="Mínimo 6 caracteres"
+                    className="pr-10"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={submitting}
+                    title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
-              )}
+              </div>
+
+              <PasswordStrength password={password} />
 
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting
@@ -414,4 +454,3 @@ export default function SignupPage() {
     </Suspense>
   );
 }
-

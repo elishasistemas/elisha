@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import type { Session } from '@supabase/supabase-js'
+import { PasswordStrength } from '@/components/password-strength'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -59,7 +60,8 @@ export default function ResetPasswordPage() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) {
-        setError('Não foi possível atualizar a senha. Tente novamente.')
+        const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+        setError(translateAuthErrorMessage(updateError))
         return
       }
       setInfo('Senha atualizada com sucesso. Redirecionando...')
@@ -110,6 +112,15 @@ export default function ResetPasswordPage() {
                 required
               />
             </div>
+            <div className="rounded-md border p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Senha forte — dicas rápidas:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>12+ caracteres.</li>
+                <li>Misture letras, números e símbolos.</li>
+                <li>Evite dados pessoais e padrões (ex.: 123456, qwerty).</li>
+              </ul>
+            </div>
+            <PasswordStrength password={password} confirm={confirmPassword} />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {info ? <p className="text-sm text-green-600">{info}</p> : null}
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -121,5 +132,3 @@ export default function ResetPasswordPage() {
     </div>
   )
 }
-
-

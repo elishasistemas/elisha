@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import React from "react"
 import { LayoutDashboard, ClipboardList, Building2, Cable, Users, HeadphonesIcon, CheckSquare, Shield } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -52,12 +52,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const roles = getRoles(session ?? null, profile)
   const active = getActiveRole(session ?? null, profile)
 
+  // Debug: logs para entender o papel ativo
+  React.useEffect(() => {
+    console.log('[AppSidebar] Debug:', {
+      active,
+      roles,
+      profile_active_role: profile?.active_role,
+      is_elisha_admin: profile?.is_elisha_admin,
+      impersonating: profile?.impersonating_empresa_id,
+      jwt_metadata: session?.user?.app_metadata
+    })
+  }, [active, roles, profile, session])
+
   const filteredItems = ((): typeof data.navMain => {
     if (active === 'tecnico') {
-      // Campo: priorizar execução. Exibir apenas OS por enquanto.
-      return data.navMain.filter((i) => i.url === '/orders')
+      // Técnico: Dashboard (seus dados) + Ordens de Serviço
+      console.log('[AppSidebar] Modo técnico detectado - Dashboard + OS')
+      return data.navMain.filter((i) => 
+        i.url === '/dashboard' || i.url === '/orders'
+      )
     }
-    // Gestão: tudo liberado
+    // Admin: menu completo
+    console.log('[AppSidebar] Modo admin - mostrando menu completo')
     return data.navMain
   })()
 
@@ -98,12 +114,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {profile?.is_elisha_admin && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm">
-                <Link href="/admin/companies">
+                <Link href="/admin/companies" onClick={() => console.log('[AppSidebar] Link Super Admin clicado')}>
                   <Shield className="size-4" />
                   <span>Super Admin</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+          )}
+          {!profile?.is_elisha_admin && (
+            <div style={{ display: 'none' }}>
+              {console.log('[AppSidebar] Super Admin NÃO visível - is_elisha_admin:', profile?.is_elisha_admin)}
+            </div>
           )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm">

@@ -23,13 +23,21 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Trash, RefreshDouble } from "iconoir-react";
+import { Trash, RefreshDouble, Copy } from "iconoir-react";
 
 interface Profile {
   id: string;
   empresa_id: string | null;
   role: string;
+  roles?: string[];
+  active_role?: string;
   created_at: string;
   email?: string; // pode não existir na tabela profiles
   name?: string;
@@ -67,6 +75,7 @@ export default function UsersPage() {
   }, []);
 
   const loadData = async () => {
+    console.log('[UsersPage] loadData() chamado');
     setLoading(true);
     const supabase = createSupabaseBrowser();
 
@@ -83,7 +92,7 @@ export default function UsersPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, empresa_id, role, created_at, is_elisha_admin, impersonating_empresa_id")
+        .select("id, empresa_id, role, roles, active_role, created_at, is_elisha_admin, impersonating_empresa_id")
         .eq("id", user.id)
         .single();
 
@@ -110,33 +119,40 @@ export default function UsersPage() {
         return;
       }
 
-      // Carregar usuários da empresa
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, empresa_id, role, created_at")
-        .eq("empresa_id", targetEmpresaId)
-        .order("created_at", { ascending: false });
+      // Carregar usuários da empresa com emails (via API)
+      try {
+        const usersResponse = await fetch('/api/admin/users/list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empresaId: targetEmpresaId })
+        });
 
-      if (profilesError) {
-        console.error("Erro ao buscar usuários:", profilesError);
-        toast.error("Erro ao carregar usuários");
-      } else {
-        // Evitar uso de auth.admin no cliente (requer service role)
-        // Exibe dados disponíveis do perfil; email pode ser N/A
-        setProfiles((profilesData || []) as unknown as Profile[]);
+        const usersData = await usersResponse.json().catch(() => ({ error: 'Erro ao carregar usuários' }));
+        if (!usersResponse.ok) {
+          const msg = usersData?.error || 'Erro ao carregar usuários'
+          throw new Error(msg)
+        }
+        setProfiles((usersData.users || []) as unknown as Profile[]);
+      } catch (err) {
+        console.error("Erro ao buscar usuários:", err);
+        const message = err instanceof Error ? err.message : 'Erro ao carregar usuários'
+        toast.error(message);
+        setProfiles([]);
       }
 
-      // Carregar convites da empresa
+      // Carregar convites da empresa (apenas pendentes)
       const { data: invitesData, error: invitesError } = await supabase
         .from("invites")
         .select("*")
         .eq("empresa_id", targetEmpresaId)
+        .eq("status", "pending")
         .order("created_at", { ascending: false });
 
       if (invitesError) {
         console.error("Erro ao buscar convites:", invitesError);
         toast.error("Erro ao carregar convites");
       } else {
+        console.log('[UsersPage] Convites carregados:', invitesData?.length, invitesData);
         setInvites(invitesData || []);
       }
     } catch (err) {
@@ -171,11 +187,47 @@ export default function UsersPage() {
     }
   };
 
+  const handleCopyInviteLink = async (token: string) => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const inviteUrl = `${baseUrl}/signup?token=${token}`;
+    
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      toast.success("Link copiado para a área de transferência!");
+    } catch (err) {
+      console.error("Erro ao copiar link:", err);
+      toast.error("Erro ao copiar link");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Deseja realmente excluir este usuário? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao excluir usuário");
+      }
+
+      toast.success("Usuário excluído com sucesso");
+      loadData();
+    } catch (err: any) {
+      console.error("Erro ao excluir usuário:", err);
+      toast.error(`Erro ao excluir usuário: ${err.message}`);
+    }
+  };
+
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: "Administrador",
-      gestor: "Gestor",
       tecnico: "Técnico",
+      elisha_admin: "Elisha Admin",
     };
     return labels[role] || role;
   };
@@ -183,8 +235,8 @@ export default function UsersPage() {
   const getRoleBadgeVariant = (role: string) => {
     const variants: Record<string, "default" | "secondary" | "outline"> = {
       admin: "default",
-      gestor: "secondary",
       tecnico: "outline",
+      elisha_admin: "destructive",
     };
     return variants[role] || "outline";
   };
@@ -220,8 +272,18 @@ export default function UsersPage() {
     }).format(new Date(date));
   };
 
-  // Verificar se o usuário é admin
-  const isAdmin = currentProfile?.role === "admin";
+  // Verificar se o usuário é admin (verificar active_role ou roles)
+  const isAdmin = 
+    currentProfile?.active_role === "admin" || 
+    currentProfile?.roles?.includes("admin") ||
+    currentProfile?.is_elisha_admin;
+
+  console.log('[UsersPage] Permission check:', {
+    active_role: currentProfile?.active_role,
+    roles: currentProfile?.roles,
+    is_elisha_admin: currentProfile?.is_elisha_admin,
+    isAdmin
+  });
 
   if (!isAdmin && !loading) {
     return (
@@ -323,8 +385,10 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>E-mail</TableHead>
+                  <TableHead>Nome</TableHead>
                   <TableHead>Papel</TableHead>
-                  <TableHead>Data de cadastro</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -334,12 +398,34 @@ export default function UsersPage() {
                       {profile.email || "N/A"}
                     </TableCell>
                     <TableCell>
+                      {profile.name || profile.nome || "-"}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={getRoleBadgeVariant(profile.role)}>
                         {getRoleLabel(profile.role)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(profile.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteUser(profile.id)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Excluir usuário</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -463,14 +549,40 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {invite.status === "pending" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRevokeInvite(invite.id)}
-                        >
-                          <Trash className="h-4 w-4 mr-1" />
-                          Revogar
-                        </Button>
+                        <TooltipProvider>
+                          <div className="flex items-center justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleCopyInviteLink(invite.token)}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copiar link do convite</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleRevokeInvite(invite.id)}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Revogar convite</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       )}
                     </TableCell>
                   </TableRow>

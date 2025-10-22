@@ -86,9 +86,21 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
       const result = await response.json()
 
+      console.log('[user-dialog] Response status:', response.status)
+      console.log('[user-dialog] Response data:', result)
+
       if (!response.ok) {
         throw new Error(result.error || 'Erro ao criar convite')
       }
+
+      // Verificar se result.invite existe
+      if (!result.invite) {
+        console.error('[user-dialog] Resposta não contém "invite":', result)
+        toast.error('Erro: Resposta da API inválida')
+        return
+      }
+
+      console.log('[user-dialog] Invite data:', result.invite)
 
       // Mostrar resultado com link
       setInviteResult(result.invite)
@@ -177,14 +189,12 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">⚙️ Administrador</SelectItem>
-                    <SelectItem value="gestor">👔 Gestor</SelectItem>
                     <SelectItem value="tecnico">🔧 Técnico</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {formData.role === 'admin' && 'Acesso total ao sistema'}
-                  {formData.role === 'gestor' && 'Pode gerenciar clientes, equipamentos e ordens'}
-                  {formData.role === 'tecnico' && 'Pode executar e atualizar ordens de serviço'}
+                  {formData.role === 'tecnico' && 'Acesso apenas às suas ordens de serviço'}
                 </p>
               </div>
             </div>

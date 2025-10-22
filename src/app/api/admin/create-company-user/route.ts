@@ -48,18 +48,22 @@ export async function POST(request: Request) {
     }
 
     // Criar convite diretamente na tabela (service role bypassa RLS)
-    // Usar created_by do payload ou usar um UUID genérico para super admin
-    const createdBy = created_by || '00000000-0000-0000-0000-000000000000'
+    // Usar created_by do payload (se fornecido) ou NULL para super admin
+    const invitePayload: any = {
+      empresa_id: empresaId,
+      email: email.trim().toLowerCase(),
+      role: roleToUse,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    // Adicionar created_by apenas se fornecido e válido
+    if (created_by && created_by !== '') {
+      invitePayload.created_by = created_by
+    }
     
     const { data: inviteData, error: inviteError } = await supabase
       .from('invites')
-      .insert({
-        empresa_id: empresaId,
-        email: email.trim().toLowerCase(),
-        role: roleToUse,
-        created_by: createdBy,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      })
+      .insert(invitePayload)
       .select()
       .single()
 
@@ -82,6 +86,13 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const inviteUrl = `${baseUrl}/signup?token=${inviteData.token}`
 
+    console.log('[create-company-user] Convite criado:', {
+      token: inviteData.token,
+      email: email,
+      empresa: empresa.nome,
+      url: inviteUrl
+    })
+
     // 6. Enviar email de convite (sem bloquear a resposta)
     fetch(`${baseUrl}/api/send-invite-email`, {
       method: 'POST',
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
       // Não falha a criação do convite se o email falhar
     })
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       message: `Convite criado para ${email}`,
       invite: {
@@ -108,7 +119,11 @@ export async function POST(request: Request) {
         empresa: empresa.nome,
         expires_at: inviteData.expires_at
       }
-    })
+    }
+
+    console.log('[create-company-user] Retornando resposta:', responseData)
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('[create-company-user] Erro:', error)

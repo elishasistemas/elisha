@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
 import { Building2, AlertTriangle, Plus, Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PhoneIncoming, Calendar, PauseCircle } from 'lucide-react'
-import { useAuth, useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
+import { useAuth, useProfile, useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
@@ -63,7 +63,7 @@ function formatDate(dateString: string) {
 }
 
 export default function DashboardPage() {
-  useAuth()
+  const { user } = useAuth()
   const [periodoDias, setPeriodoDias] = useState('7')
   const [periodosChamados, setPeriodosChamados] = useState('7')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
@@ -71,6 +71,11 @@ export default function DashboardPage() {
   const { clientes, loading: clientesLoading } = useClientes(empresas[0]?.id)
   const { ordens, loading: ordensLoading } = useOrdensServico(empresas[0]?.id)
   const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresas[0]?.id)
+  
+  // Detectar se é técnico e buscar seu perfil
+  const { profile } = useProfile(user?.id)
+  const isTecnico = profile?.active_role === 'tecnico'
+  const tecnicoId = profile?.tecnico_id
 
   // Calcular data inicial baseada no período selecionado
   const dataInicial = useMemo(() => {
@@ -84,10 +89,15 @@ export default function DashboardPage() {
 
   // Filtrar e ordenar ordens pelo período
   const ordensFiltradas = useMemo(() => {
-    const filtradas = ordens.filter(ordem => {
+    let filtradas = ordens.filter(ordem => {
       const dataOrdem = new Date(ordem.created_at)
       return dataOrdem >= dataInicial
     })
+    
+    // Se for técnico, filtrar apenas suas OS
+    if (isTecnico && tecnicoId) {
+      filtradas = filtradas.filter(ordem => ordem.tecnico_id === tecnicoId)
+    }
 
     // Função auxiliar para calcular peso da prioridade
     const getPrioridadePeso = (ordem: typeof ordens[0]) => {
@@ -232,9 +242,14 @@ export default function DashboardPage() {
 
     // Indicador 2: Preventivas Programadas do Dia
     const hoje = new Date().toISOString().split('T')[0]
-    const preventivasHoje = ordens.filter(o => 
+    let preventivasHoje = ordens.filter(o => 
       o.tipo === 'preventiva' && o.data_programada === hoje
     )
+    
+    // Se for técnico, filtrar apenas suas OS
+    if (isTecnico && tecnicoId) {
+      preventivasHoje = preventivasHoje.filter(o => o.tecnico_id === tecnicoId)
+    }
     const preventivasProgramadas = preventivasHoje.length
     const preventivasConcluidas = preventivasHoje.filter(o => o.status === 'concluido').length
     const percentualConcluidas = preventivasProgramadas > 0 

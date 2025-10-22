@@ -10,13 +10,29 @@ interface UserMetadata {
 }
 
 export function getActiveRole(session?: Session | null, profile?: Profile | null): ActiveRole | null {
-  const meta = (session?.user?.user_metadata || {}) as UserMetadata
-  const fromMeta = meta.active_role
+  // Prioridade: app_metadata (JWT) > profile > cookie
+  const appMeta = (session?.user?.app_metadata || {}) as UserMetadata
+  const userMeta = (session?.user?.user_metadata || {}) as UserMetadata
+  
+  const fromAppMeta = appMeta.active_role
+  const fromUserMeta = userMeta.active_role
   const fromProfile = (profile?.active_role as ActiveRole | null) ?? null
   const fromCookie = typeof document !== 'undefined'
     ? (matchCookie('active_role') as ActiveRole | null)
     : null
-  return fromMeta || fromProfile || fromCookie || null
+    
+  const result = fromAppMeta || fromUserMeta || fromProfile || fromCookie || null
+  
+  // Debug log
+  console.log('[getActiveRole] Debug:', {
+    fromAppMeta,
+    fromUserMeta,
+    fromProfile,
+    fromCookie,
+    result
+  })
+  
+  return result
 }
 
 export function getRoles(session?: Session | null, profile?: Profile | null): string[] {

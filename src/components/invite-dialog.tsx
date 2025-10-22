@@ -33,7 +33,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "gestor" | "tecnico">("tecnico");
+  const [role, setRole] = useState<"admin" | "tecnico">("tecnico");
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -71,8 +71,10 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
       }
 
       if (data) {
+        console.log('[InviteDialog] Convite criado:', data);
         setInviteToken(data.token);
         toast.success("Convite criado com sucesso!");
+        console.log('[InviteDialog] Chamando onInviteCreated...');
         onInviteCreated?.();
       }
     } catch (err: any) {
@@ -167,14 +169,12 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="tecnico">Técnico</SelectItem>
-                    <SelectItem value="gestor">Gestor</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
                   {role === "admin" && "Acesso total ao sistema"}
-                  {role === "gestor" && "Pode gerenciar clientes, equipamentos e ordens"}
-                  {role === "tecnico" && "Pode executar e atualizar ordens de serviço"}
+                  {role === "tecnico" && "Acesso apenas às suas ordens de serviço"}
                 </p>
               </div>
             </div>

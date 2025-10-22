@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { CheckCircle } from 'iconoir-react'
+import { PasswordStrength } from '@/components/password-strength'
 
 function CreatePasswordContent() {
   const router = useRouter()
@@ -75,7 +76,8 @@ function CreatePasswordContent() {
       })
 
       if (updateError) {
-        setError('Erro ao criar senha. Tente novamente.')
+        const { translateAuthErrorMessage } = await import('@/utils/auth-error-pt')
+        setError(translateAuthErrorMessage(updateError))
         return
       }
 
@@ -155,6 +157,15 @@ function CreatePasswordContent() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
               />
+            </div>
+            <PasswordStrength password={password} confirm={confirmPassword} />
+            <div className="rounded-md border p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Senha forte — dicas rápidas:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>12+ caracteres.</li>
+                <li>Misture letras, números e símbolos.</li>
+                <li>Evite dados pessoais e padrões (ex.: 123456, qwerty).</li>
+              </ul>
             </div>
             {error && (
               <p className="text-sm text-destructive">{error}</p>
