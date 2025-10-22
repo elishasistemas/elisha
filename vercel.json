@@ -1,0 +1,10 @@
+{
+  "buildCommand": "pnpm run build",
+  "framework": "nextjs",
+  "build": {
+    "env": {
+      "TURBO_FORCE": "true"
+    }
+  }
+}
+
