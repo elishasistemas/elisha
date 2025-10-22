@@ -3,21 +3,27 @@ import type { Profile } from '@/lib/supabase'
 
 export type ActiveRole = 'gestor' | 'tecnico'
 
+interface UserMetadata {
+  active_role?: ActiveRole;
+  roles?: string[];
+  role?: string;
+}
+
 export function getActiveRole(session?: Session | null, profile?: Profile | null): ActiveRole | null {
-  const meta = session?.user?.user_metadata as any
-  const fromMeta = meta?.active_role as ActiveRole | undefined
+  const meta = (session?.user?.user_metadata || {}) as UserMetadata
+  const fromMeta = meta.active_role
   const fromProfile = (profile?.active_role as ActiveRole | null) ?? null
   const fromCookie = typeof document !== 'undefined'
     ? (matchCookie('active_role') as ActiveRole | null)
     : null
-  return (fromMeta as ActiveRole) || fromProfile || fromCookie || null
+  return fromMeta || fromProfile || fromCookie || null
 }
 
 export function getRoles(session?: Session | null, profile?: Profile | null): string[] {
-  const meta = session?.user?.user_metadata as any
-  const r: unknown = meta?.roles || profile?.roles
+  const meta = (session?.user?.user_metadata || {}) as UserMetadata
+  const r: unknown = meta.roles || profile?.roles
   if (Array.isArray(r)) return r as string[]
-  const single = profile?.role || meta?.role
+  const single = profile?.role || meta.role
   return single ? [String(single)] : []
 }
 

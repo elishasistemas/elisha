@@ -304,7 +304,7 @@ export function ChecklistDialog({
                 <CardContent className="py-8 text-center text-muted-foreground">
                   <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>Nenhum item adicionado</p>
-                  <p className="text-sm">Clique em "Adicionar Item" para começar</p>
+                  <p className="text-sm">Clique em &quot;Adicionar Item&quot; para começar</p>
                 </CardContent>
               </Card>
             ) : (
@@ -443,4 +443,3 @@ export function ChecklistDialog({
     </Dialog>
   )
 }
-

@@ -54,7 +54,11 @@ export async function PATCH(
       .single()
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Partial<UpdateRespostaDTO> & { 
+      updated_at: string;
+      respondido_por?: string;
+      respondido_em?: string;
+    } = {
       ...body,
       updated_at: new Date().toISOString()
     }
