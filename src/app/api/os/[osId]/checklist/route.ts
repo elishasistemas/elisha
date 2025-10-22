@@ -12,9 +12,12 @@ import { computeComplianceScore, validateChecklistCompletion } from '@/utils/che
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { osId: string } }
+  { params }: { params: Promise<{ osId: string }> }
 ) {
   try {
+    // Await params (Next.js 15+)
+    const { osId } = await params
+    
     // Create Supabase client with user context
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -47,7 +50,7 @@ export async function GET(
     const { data: osChecklist, error: checklistError } = await supabase
       .from('os_checklists')
       .select('*')
-      .eq('os_id', params.osId)
+      .eq('os_id', osId)
       .maybeSingle()
 
     if (checklistError) {

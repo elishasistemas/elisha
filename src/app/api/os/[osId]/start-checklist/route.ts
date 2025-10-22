@@ -12,9 +12,12 @@ import { cookies } from 'next/headers'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { osId: string } }
+  { params }: { params: Promise<{ osId: string }> }
 ) {
   try {
+    // Await params (Next.js 15+)
+    const { osId } = await params
+    
     // Parse request body
     const body = await request.json()
     const { checklistId } = body as { checklistId: string }
@@ -56,7 +59,7 @@ export async function POST(
 
     // Start checklist (idempotent)
     const result = await startChecklistForOS(
-      { osId: params.osId, checklistId },
+      { osId, checklistId },
       supabase
     )
 

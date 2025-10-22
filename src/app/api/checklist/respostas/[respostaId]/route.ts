@@ -12,9 +12,12 @@ import type { UpdateRespostaDTO } from '@/types/checklist'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { respostaId: string } }
+  { params }: { params: Promise<{ respostaId: string }> }
 ) {
   try {
+    // Await params (Next.js 15+)
+    const { respostaId } = await params
+    
     // Parse request body
     const body = await request.json() as UpdateRespostaDTO
 
@@ -77,7 +80,7 @@ export async function PATCH(
     const { data: resposta, error: updateError } = await supabase
       .from('checklist_respostas')
       .update(updateData)
-      .eq('id', params.respostaId)
+      .eq('id', respostaId)
       .select()
       .single()
 
