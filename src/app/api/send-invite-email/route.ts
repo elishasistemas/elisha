@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 /**
  * API para enviar email de convite via Resend
  */
@@ -16,6 +14,9 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Lazy instantiate Resend to avoid build-time errors
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
