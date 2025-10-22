@@ -112,7 +112,7 @@ export default function AdminUsersPage() {
       } else {
         const usersData = await usersResponse.json()
         const usersWithEmpresas = usersData.map((user: any) => {
-          const empresa = empresasData?.find(e => e.id === user.empresa_id)
+          const empresa = empresasData?.find((e: any) => e.id === user.empresa_id)
           return {
             ...user,
             empresa_nome: empresa?.nome || 'Sem empresa'
