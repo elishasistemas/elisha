@@ -59,8 +59,8 @@ export async function PATCH(
     // Prepare update data
     const updateData: Partial<UpdateRespostaDTO> & { 
       updated_at: string;
-      respondido_por?: string;
-      respondido_em?: string;
+      respondido_por?: string | null;
+      respondido_em?: string | null;
     } = {
       ...body,
       updated_at: new Date().toISOString()

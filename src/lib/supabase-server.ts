@@ -10,6 +10,12 @@ function createSupabaseStub() {
       async getSession() {
         return { data: { session: null }, error: null }
       },
+      async getUser() {
+        return { 
+          data: { user: null }, 
+          error: { message: 'Supabase não configurado. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.' }
+        }
+      },
       async signInWithPassword() {
         return {
           data: { user: null, session: null },
@@ -36,12 +42,36 @@ function createSupabaseStub() {
         return { data: { subscription } }
       },
     },
-    from: () => ({
-      select: () => ({ data: [], error: null }),
-      insert: () => ({ data: null, error: null }),
-      update: () => ({ data: null, error: null }),
-      delete: () => ({ data: null, error: null }),
-    }),
+    from: () => {
+      const queryBuilder = {
+        select: () => queryBuilder,
+        insert: () => queryBuilder,
+        update: () => queryBuilder,
+        delete: () => queryBuilder,
+        eq: () => queryBuilder,
+        neq: () => queryBuilder,
+        gt: () => queryBuilder,
+        gte: () => queryBuilder,
+        lt: () => queryBuilder,
+        lte: () => queryBuilder,
+        like: () => queryBuilder,
+        ilike: () => queryBuilder,
+        is: () => queryBuilder,
+        in: () => queryBuilder,
+        contains: () => queryBuilder,
+        containedBy: () => queryBuilder,
+        range: () => queryBuilder,
+        match: () => queryBuilder,
+        not: () => queryBuilder,
+        or: () => queryBuilder,
+        order: () => queryBuilder,
+        limit: () => queryBuilder,
+        single: () => Promise.resolve({ data: null, error: null }),
+        maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        then: (resolve: (value: { data: []; error: null }) => void) => resolve({ data: [], error: null }),
+      }
+      return queryBuilder
+    },
   }
 }
 

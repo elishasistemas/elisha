@@ -62,7 +62,16 @@ export default function CompaniesPage() {
 
       // Para cada empresa, buscar contagens
       const companiesWithCounts = await Promise.all(
-        (data || []).map(async (company) => {
+        (data || []).map(async (company: { 
+          id: string; 
+          nome: string; 
+          cnpj: string; 
+          telefone?: string; 
+          email?: string; 
+          ativo?: boolean; 
+          created_at?: string; 
+          updated_at?: string;
+        }) => {
           const [profilesCount, ordersCount] = await Promise.all([
             supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('empresa_id', company.id),
             supabase.from('ordens_servico').select('id', { count: 'exact', head: true }).eq('empresa_id', company.id),

@@ -17,8 +17,10 @@ export interface Profile {
   funcao: 'admin' | 'gestor' | 'tecnico'
   role: 'admin' | 'gestor' | 'tecnico'
   roles?: string[] | null
-  active_role?: 'gestor' | 'tecnico' | null
+  active_role?: 'gestor' | 'tecnico' | 'elisha_admin' | null
   tecnico_id?: string | null
+  is_elisha_admin?: boolean | null
+  impersonating_empresa_id?: string | null
   created_at: string
   updated_at: string
 }
