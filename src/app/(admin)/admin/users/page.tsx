@@ -131,8 +131,8 @@ export default function AdminUsersPage() {
       if (invitesError) {
         console.error('Erro ao buscar convites:', invitesError)
       } else {
-        const invitesWithEmpresas = (invitesData || []).map(invite => {
-          const empresa = empresasData?.find(e => e.id === invite.empresa_id)
+        const invitesWithEmpresas = (invitesData || []).map((invite: any) => {
+          const empresa = empresasData?.find((e: any) => e.id === invite.empresa_id)
           return {
             ...invite,
             empresa_nome: empresa?.nome || 'Sem empresa'
