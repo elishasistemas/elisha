@@ -236,7 +236,7 @@ export default function UsersPage() {
     const variants: Record<string, "default" | "secondary" | "outline"> = {
       admin: "default",
       tecnico: "outline",
-      elisha_admin: "destructive",
+      elisha_admin: "secondary",
     };
     return variants[role] || "outline";
   };
@@ -398,7 +398,7 @@ export default function UsersPage() {
                       {profile.email || "N/A"}
                     </TableCell>
                     <TableCell>
-                      {profile.name || profile.nome || "-"}
+                      {profile.name || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getRoleBadgeVariant(profile.role)}>

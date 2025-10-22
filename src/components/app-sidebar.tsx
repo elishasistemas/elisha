@@ -121,11 +121,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!profile?.is_elisha_admin && (
-            <div style={{ display: 'none' }}>
-              {console.log('[AppSidebar] Super Admin NÃO visível - is_elisha_admin:', profile?.is_elisha_admin)}
-            </div>
-          )}
+          {!profile?.is_elisha_admin && console.log('[AppSidebar] Super Admin NÃO visível - is_elisha_admin:', profile?.is_elisha_admin)}
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm">
               <a href={supportLink.url} target="_blank" rel="noopener noreferrer">
