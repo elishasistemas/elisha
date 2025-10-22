@@ -25,6 +25,7 @@ interface InviteData {
   status: string;
   expires_at: string;
   empresa_id: string;
+  empresa_nome?: string;
 }
 
 function SignupContent() {
@@ -63,10 +64,15 @@ function SignupContent() {
       } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
 
-      // Buscar dados do convite (sem RLS, então fazemos uma query básica)
+      // Buscar dados do convite com nome da empresa
       const { data: inviteData, error: inviteError } = await supabase
         .from("invites")
-        .select("*")
+        .select(`
+          *,
+          empresas:empresa_id (
+            nome
+          )
+        `)
         .eq("token", token)
         .single();
 
@@ -77,22 +83,28 @@ function SignupContent() {
         return;
       }
 
+      // Adicionar nome da empresa ao invite
+      const inviteWithEmpresa = {
+        ...inviteData,
+        empresa_nome: (inviteData as any).empresas?.nome || 'Empresa'
+      }
+
       // Verificar se o convite expirou
-      if (new Date(inviteData.expires_at) < new Date()) {
+      if (new Date(inviteWithEmpresa.expires_at) < new Date()) {
         setError("Este convite expirou. Entre em contato com o administrador.");
         setLoading(false);
         return;
       }
 
       // Verificar se o convite já foi aceito
-      if (inviteData.status !== "pending") {
+      if (inviteWithEmpresa.status !== "pending") {
         setError("Este convite já foi utilizado ou revogado.");
         setLoading(false);
         return;
       }
 
-      setInvite(inviteData);
-      setEmail(inviteData.email);
+      setInvite(inviteWithEmpresa);
+      setEmail(inviteWithEmpresa.email);
 
       // Se já está autenticado, aceitar convite automaticamente
       if (user) {
@@ -293,9 +305,10 @@ function SignupContent() {
 
         <Card>
           <CardHeader className="space-y-3">
-            <CardTitle>Aceitar convite</CardTitle>
+            <CardTitle>🎉 Você foi convidado!</CardTitle>
             <CardDescription>
-              Você foi convidado(a) para acessar o sistema
+              <strong>{invite.empresa_nome}</strong> convidou você para acessar 
+              o sistema como <Badge variant="secondary" className="ml-1">{getRoleLabel(invite.role)}</Badge>
             </CardDescription>
             
             {/* Info do convite */}

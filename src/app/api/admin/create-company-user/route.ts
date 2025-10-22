@@ -2,18 +2,21 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 /**
- * API para criar usuário de uma empresa (apenas elisha_admin)
+ * API para criar convite de usuário para uma empresa (apenas elisha_admin)
+ * Usa o sistema de convites interno (tabela invites)
  */
 export async function POST(request: Request) {
   try {
     const { email, name, role, empresaId } = await request.json()
 
-    if (!email || !name || !empresaId) {
+    if (!email || !empresaId) {
       return NextResponse.json(
-        { error: 'Email, nome e empresaId são obrigatórios' },
+        { error: 'Email e empresaId são obrigatórios' },
         { status: 400 }
       )
     }
+
+    const roleToUse = role || 'gestor'
 
     // Service role client
     const supabase = createClient(
@@ -41,77 +44,52 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Criar usuário e enviar invite
-    const { data: authData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-      email,
-      {
-        data: {
-          name,
-          empresa_id: empresaId,
-          active_role: role || 'gestor',
-          roles: [role || 'gestor']
-        },
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-      }
-    )
+    // Pegar o usuário autenticado (super admin)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Não autenticado' },
+        { status: 401 }
+      )
+    }
+
+    // Criar convite usando RPC (bypassa RLS)
+    const { data: inviteData, error: inviteError } = await supabase.rpc('create_invite', {
+      p_empresa_id: empresaId,
+      p_email: email.trim().toLowerCase(),
+      p_role: roleToUse,
+      p_expires_days: 7
+    })
 
     if (inviteError) {
-      console.error('[create-company-user] Erro ao convidar:', inviteError)
+      console.error('[create-company-user] Erro ao criar convite:', inviteError)
       return NextResponse.json(
-        { error: `Erro ao convidar: ${inviteError.message}` },
+        { error: `Erro ao criar convite: ${inviteError.message}` },
         { status: 500 }
       )
     }
 
-    if (!authData || !authData.user) {
+    if (!inviteData || !inviteData.token) {
       return NextResponse.json(
-        { error: 'Usuário não foi criado' },
+        { error: 'Convite não foi criado' },
         { status: 500 }
       )
     }
 
-    // 2. Atualizar profile (trigger já criou o profile básico)
-    // Aguarda um pouco para garantir que o trigger terminou
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        nome: name,
-        empresa_id: empresaId,
-        roles: [role || 'gestor'],
-        active_role: role || 'gestor',
-        is_elisha_admin: false
-      })
-      .eq('id', authData.user.id)
-
-    if (profileError) {
-      console.error('[create-company-user] Erro ao atualizar profile:', profileError)
-      // Tentar deletar o usuário criado
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json(
-        { error: `Erro ao atualizar profile: ${profileError.message}` },
-        { status: 500 }
-      )
-    }
-
-    // 3. Atualizar app_metadata
-    await supabase.auth.admin.updateUserById(authData.user.id, {
-      app_metadata: {
-        empresa_id: empresaId,
-        active_role: role || 'gestor',
-        roles: [role || 'gestor'],
-        is_elisha_admin: false
-      }
-    })
+    // Gerar link de convite
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const inviteUrl = `${baseUrl}/signup?token=${inviteData.token}`
 
     return NextResponse.json({
       success: true,
-      message: `Convite enviado para ${email}`,
-      user: {
-        id: authData.user.id,
-        email: authData.user.email,
-        empresa: empresa.nome
+      message: `Convite criado para ${email}`,
+      invite: {
+        token: inviteData.token,
+        url: inviteUrl,
+        email: email,
+        role: roleToUse,
+        empresa: empresa.nome,
+        expires_at: inviteData.expires_at
       }
     })
 
