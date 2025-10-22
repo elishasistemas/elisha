@@ -74,6 +74,15 @@ export async function DELETE(
   try {
     const { userId } = await params
 
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'userId é obrigatório' },
+        { status: 400 }
+      )
+    }
+
+    console.log('[admin/users/delete] Tentando deletar usuário:', userId)
+
     // Service role client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -86,20 +95,48 @@ export async function DELETE(
       }
     )
 
-    // Deletar usuário (cascadeará para profile)
-    const { error } = await supabase.auth.admin.deleteUser(userId)
+    // Verificar se service role key está configurada
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[admin/users/delete] SUPABASE_SERVICE_ROLE_KEY não configurada')
+      return NextResponse.json(
+        { error: 'Service role key não configurada' },
+        { status: 500 }
+      )
+    }
+
+    // Primeiro verificar se o usuário existe no profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, user_id, nome, email')
+      .eq('id', userId)
+      .single()
+
+    if (profileError) {
+      console.error('[admin/users/delete] Erro ao buscar profile:', profileError)
+      return NextResponse.json(
+        { error: `Perfil não encontrado: ${profileError.message}` },
+        { status: 404 }
+      )
+    }
+
+    console.log('[admin/users/delete] Profile encontrado:', profile)
+
+    // Deletar usuário (cascadeará para profile via FK)
+    const { error } = await supabase.auth.admin.deleteUser(profile.user_id)
 
     if (error) {
+      console.error('[admin/users/delete] Erro ao deletar usuário:', error)
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
       )
     }
 
+    console.log('[admin/users/delete] Usuário deletado com sucesso:', userId)
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('[admin/users/delete] Erro:', error)
+    console.error('[admin/users/delete] Erro interno:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

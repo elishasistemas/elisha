@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 /**
  * API para criar convite de usuário para uma empresa (apenas elisha_admin)
@@ -18,7 +20,29 @@ export async function POST(request: Request) {
 
     const roleToUse = role || 'gestor'
 
-    // Service role client
+    // 1. Criar client com cookies para validar autenticação
+    const cookieStore = await cookies()
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll().map(cookie => ({ name: cookie.name, value: cookie.value })),
+          setAll: () => {},
+        }
+      }
+    )
+
+    // Validar usuário autenticado
+    const { data: { user }, error: authError } = await authClient.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Não autenticado' },
+        { status: 401 }
+      )
+    }
+
+    // 2. Service role client para operações admin (bypassa RLS)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -30,7 +54,7 @@ export async function POST(request: Request) {
       }
     )
 
-    // Verificar se empresa existe
+    // 3. Verificar se empresa existe
     const { data: empresa, error: empresaError } = await supabase
       .from('empresas')
       .select('id, nome')
@@ -44,22 +68,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Pegar o usuário autenticado (super admin)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
-      )
-    }
-
-    // Criar convite usando RPC (bypassa RLS)
-    const { data: inviteData, error: inviteError } = await supabase.rpc('create_invite', {
-      p_empresa_id: empresaId,
-      p_email: email.trim().toLowerCase(),
-      p_role: roleToUse,
-      p_expires_days: 7
-    })
+    // 4. Criar convite diretamente na tabela (service role bypassa RLS)
+    const { data: inviteData, error: inviteError } = await supabase
+      .from('invites')
+      .insert({
+        empresa_id: empresaId,
+        email: email.trim().toLowerCase(),
+        role: roleToUse,
+        created_by: user.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      })
+      .select()
+      .single()
 
     if (inviteError) {
       console.error('[create-company-user] Erro ao criar convite:', inviteError)
@@ -76,9 +96,24 @@ export async function POST(request: Request) {
       )
     }
 
-    // Gerar link de convite
+    // 5. Gerar link de convite
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const inviteUrl = `${baseUrl}/signup?token=${inviteData.token}`
+
+    // 6. Enviar email de convite (sem bloquear a resposta)
+    fetch(`${baseUrl}/api/send-invite-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        empresaNome: empresa.nome,
+        role: roleToUse,
+        inviteUrl: inviteUrl
+      })
+    }).catch(err => {
+      console.error('[create-company-user] Erro ao enviar email (não-bloqueante):', err)
+      // Não falha a criação do convite se o email falhar
+    })
 
     return NextResponse.json({
       success: true,
