@@ -29,14 +29,15 @@ export default function ProtectedLayout({
           router.replace('/login')
           setHasSession(false)
         } else {
-          // Verificar se é super admin e redirecionar para /admin/companies
+          // Verificar se é super admin SEM estar impersonando
           const { data: profile } = await supabase
             .from('profiles')
-            .select('is_elisha_admin')
+            .select('is_elisha_admin, impersonating_empresa_id')
             .eq('user_id', session.user.id)
             .single()
           
-          if (profile?.is_elisha_admin) {
+          // Se é super admin MAS NÃO está impersonando, redireciona para /admin/companies
+          if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
             router.replace('/admin/companies')
             return
           }
