@@ -4,14 +4,15 @@
   - Assets estáticos: cache-first com atualização em segundo plano
 */
 
-const CACHE_NAME = 'elisha-pwa-v1';
+const CACHE_NAME = 'elisha-pwa-v2';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      await cache.addAll([OFFLINE_URL, '/manifest.webmanifest', '/favicon.ico']);
+      // Pré-cache mínimo para offline
+      await cache.addAll([OFFLINE_URL]);
       await self.skipWaiting();
     })()
   );
@@ -47,6 +48,17 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return; // ignora POST/PUT/...
 
+  // Não interceptar manifest para evitar desatualização de ícones/metadata
+  if (request.destination === 'manifest') {
+    event.respondWith(
+      (async () => {
+        try { return await fetch(request); } 
+        catch (_) { return await caches.match(request) || Response.error(); }
+      })()
+    );
+    return;
+  }
+
   // Navegações: network-first com fallback offline
   if (isNavigateRequest(request)) {
     event.respondWith(
@@ -66,7 +78,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets da mesma origem: cache-first
+  // Assets da mesma origem: cache-first com atualização em segundo plano
   const url = new URL(request.url);
   if (url.origin === self.location.origin) {
     event.respondWith(
@@ -99,4 +111,3 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
-
