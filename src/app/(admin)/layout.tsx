@@ -1,33 +1,84 @@
-import { redirect } from 'next/navigation'
-import { createSupabaseServer } from '@/lib/supabase-server'
+'use client'
+
+import { useEffect, useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { createSupabaseBrowser } from '@/lib/supabase'
 import { LogoutButton } from '@/components/admin/logout-button'
 import Link from 'next/link'
 
 /**
  * Layout para área admin (apenas Elisha admins)
  */
-export default async function AdminLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createSupabaseServer()
+  const router = useRouter()
+  const supabase = useMemo(() => createSupabaseBrowser(), [])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   
-  const { data: { user } } = await supabase.auth.getUser()
+  useEffect(() => {
+    let mounted = true
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!mounted) return
+        
+        if (!user) {
+          router.replace('/login')
+          return
+        }
+
+        // Verificar se é elisha_admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_elisha_admin')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!profile?.is_elisha_admin) {
+          router.replace('/dashboard')
+          return
+        }
+        
+        setUserEmail(user.email || '')
+        setIsAuthorized(true)
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    }
+    
+    checkAuth()
+    
+    return () => {
+      mounted = false
+    }
+  }, [router, supabase])
   
-  if (!user) {
-    redirect('/login')
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
   }
-
-  // Verificar se é elisha_admin
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_elisha_admin')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_elisha_admin) {
-    redirect('/dashboard')
+  
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -43,7 +94,7 @@ export default async function AdminLayout({
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
-                {user.email}
+                {userEmail}
               </span>
               <LogoutButton />
             </div>

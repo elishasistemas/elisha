@@ -29,6 +29,18 @@ export default function ProtectedLayout({
           router.replace('/login')
           setHasSession(false)
         } else {
+          // Verificar se é super admin e redirecionar para /admin/companies
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_elisha_admin')
+            .eq('user_id', session.user.id)
+            .single()
+          
+          if (profile?.is_elisha_admin) {
+            router.replace('/admin/companies')
+            return
+          }
+          
           setHasSession(true)
         }
       } finally {

@@ -79,13 +79,6 @@ export default function DashboardPage() {
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
 
-  // Redirecionar Super Admin para /admin/companies
-  useEffect(() => {
-    if (profile?.is_elisha_admin) {
-      router.replace('/admin/companies')
-    }
-  }, [profile, router])
-
   // Calcular data inicial baseada no período selecionado
   const dataInicial = useMemo(() => {
     const hoje = new Date()
