@@ -121,7 +121,21 @@ export async function DELETE(
 
     console.log('[admin/users/delete] Profile encontrado:', profile)
 
-    // Deletar usuário (cascadeará para profile via FK)
+    // Primeiro deletar profile
+    const { error: deleteProfileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (deleteProfileError) {
+      console.error('[admin/users/delete] Erro ao deletar profile:', deleteProfileError)
+      return NextResponse.json(
+        { error: `Erro ao deletar profile: ${deleteProfileError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // Depois deletar usuário do auth
     const { error } = await supabase.auth.admin.deleteUser(profile.user_id)
 
     if (error) {

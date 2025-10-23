@@ -49,18 +49,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // Buscar emails dos usuários usando auth.admin
+    // Buscar emails dos usuários usando auth.admin e filtrar órfãos
     const usersWithEmail = await Promise.all(
       (profiles || []).map(async (profile) => {
         // ✅ Usar user_id (não id) para buscar no auth.users
         const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.user_id)
         
-        if (authError) {
-          console.warn(`[admin/users/list] Erro ao buscar email do usuário ${profile.user_id}:`, authError)
-          return {
-            ...profile,
-            email: 'N/A'
-          }
+        if (authError || !authUser.user) {
+          console.warn(`[admin/users/list] Usuário deletado ou não encontrado ${profile.user_id}, removendo profile órfão...`)
+          
+          // Remover profile órfão
+          await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', profile.id)
+            .catch(err => console.error('Erro ao deletar profile órfão:', err))
+          
+          return null // Marcar para filtrar
         }
 
         console.log(`[admin/users/list] Email encontrado para ${profile.user_id}: ${authUser.user?.email}`)
@@ -71,9 +76,12 @@ export async function POST(request: Request) {
       })
     )
     
-    console.log(`[admin/users/list] Total de usuários com email: ${usersWithEmail.length}`)
+    // Filtrar profiles órfãos (null)
+    const validUsers = usersWithEmail.filter(user => user !== null)
+    
+    console.log(`[admin/users/list] Total de usuários válidos: ${validUsers.length}`)
 
-    return NextResponse.json({ users: usersWithEmail })
+    return NextResponse.json({ users: validUsers })
 
   } catch (error) {
     console.error('[admin/users/list] Erro interno:', error)
