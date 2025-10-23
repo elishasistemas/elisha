@@ -1,14 +1,12 @@
 # 🔐 Credenciais Super Admin
 
-⚠️ **IMPORTANTE**: O usuário foi deletado e precisa ser recriado manualmente via Dashboard do Supabase.
-
-📖 **Ver instruções completas em**: `CRIAR_SUPER_ADMIN_MANUAL.md`
+✅ **Super Admin criado e configurado com sucesso!**
 
 ## Acesso Principal
 
 **Email:** `iverson.ux@gmail.com`  
 **Senha:** `ElishaAdmin2025!`  
-**User ID:** _(será gerado ao criar via Dashboard)_
+**User ID:** `653c7519-6bb4-419c-86eb-69c1ac958fa6`
 
 ## Permissões
 
