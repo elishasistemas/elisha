@@ -23,14 +23,25 @@ export default function LoginPage() {
 
   // Debug removido para evitar spam no console
 
-  // Se já estiver autenticado, redireciona para o dashboard
+  // Se já estiver autenticado, redireciona para o dashboard ou admin/companies
   useEffect(() => {
     let mounted = true
     const check = async () => {
       const { data } = await supabase.auth.getSession()
       if (!mounted) return
       if (data.session) {
-        router.replace('/dashboard')
+        // Verificar se é Elisha Admin (Super Admin)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_elisha_admin')
+          .eq('user_id', data.session.user.id)
+          .single()
+        
+        if (profile?.is_elisha_admin) {
+          router.replace('/admin/companies')
+        } else {
+          router.replace('/dashboard')
+        }
       }
     }
     check()
@@ -56,12 +67,21 @@ export default function LoginPage() {
       }
 
       if (data.user) {
+        // Verificar se é Elisha Admin (Super Admin)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_elisha_admin')
+          .eq('user_id', data.user.id)
+          .single()
+        
+        const redirectPath = profile?.is_elisha_admin ? '/admin/companies' : '/dashboard'
+        
         // Tentar redirecionamento com Next.js router
-        router.replace('/dashboard')
+        router.replace(redirectPath)
         
         // Fallback com window.location para garantir redirecionamento
         setTimeout(() => {
-          window.location.href = '/dashboard'
+          window.location.href = redirectPath
         }, 100)
 
       } else {

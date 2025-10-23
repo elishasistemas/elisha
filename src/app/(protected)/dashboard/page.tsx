@@ -10,7 +10,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
 import { Building2, AlertTriangle, Plus, Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PhoneIncoming, Calendar, PauseCircle } from 'lucide-react'
 import { useAuth, useProfile, useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 const statusConfig = {
@@ -63,6 +64,7 @@ function formatDate(dateString: string) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const [periodoDias, setPeriodoDias] = useState('7')
   const [periodosChamados, setPeriodosChamados] = useState('7')
@@ -76,6 +78,13 @@ export default function DashboardPage() {
   const { profile } = useProfile(user?.id)
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
+
+  // Redirecionar Super Admin para /admin/companies
+  useEffect(() => {
+    if (profile?.is_elisha_admin) {
+      router.replace('/admin/companies')
+    }
+  }, [profile, router])
 
   // Calcular data inicial baseada no período selecionado
   const dataInicial = useMemo(() => {

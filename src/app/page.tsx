@@ -17,7 +17,18 @@ export default function HomePage() {
         const { data } = await supabase.auth.getSession()
         if (!mounted) return
         if (data.session) {
-          router.replace('/dashboard')
+          // Verificar se é Elisha Admin (Super Admin)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_elisha_admin')
+            .eq('user_id', data.session.user.id)
+            .single()
+          
+          if (profile?.is_elisha_admin) {
+            router.replace('/admin/companies')
+          } else {
+            router.replace('/dashboard')
+          }
         } else {
           router.replace('/login')
         }
