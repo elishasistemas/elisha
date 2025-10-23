@@ -22,7 +22,6 @@ function useIsStandalone() {
   React.useEffect(() => {
     const isStandalone =
       (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-      // @ts-expect-error - iOS Safari
       (typeof navigator !== "undefined" && (navigator as any).standalone === true);
     setStandalone(isStandalone);
   }, []);
