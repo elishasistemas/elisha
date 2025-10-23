@@ -22,7 +22,7 @@ function useIsStandalone() {
   React.useEffect(() => {
     const isStandalone =
       (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-      // @ts-ignore - iOS Safari
+      // @ts-expect-error - iOS Safari
       (typeof navigator !== "undefined" && (navigator as any).standalone === true);
     setStandalone(isStandalone);
   }, []);
@@ -93,7 +93,9 @@ export default function PWAInstall() {
       } else {
         setShowBar(false);
       }
-    } catch (_) {}
+    } catch {
+      // Ignora erros silenciosamente
+    }
   };
 
   const onDismiss = () => {
@@ -131,7 +133,7 @@ export default function PWAInstall() {
               Para iPhone/iPad (Safari):
               <ol className="mt-3 space-y-2 list-decimal list-inside text-foreground">
                 <li>Toque no botão Compartilhar (ícone de quadrado com seta).</li>
-                <li>Escolha "Adicionar à Tela de Início".</li>
+                <li>Escolha &quot;Adicionar à Tela de Início&quot;.</li>
                 <li>Confirme o nome e toque em Adicionar.</li>
               </ol>
             </DialogDescription>
