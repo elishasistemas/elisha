@@ -17,14 +17,14 @@ export function RoleSwitch() {
 
   useEffect(() => {
     const current = getActiveRole((user as any)?.session ?? null, profile)
-    setActive(current || (roles.includes('gestor') ? 'gestor' : roles.includes('tecnico') ? 'tecnico' : null))
+    setActive(current || (roles.includes('admin') ? 'admin' : roles.includes('tecnico') ? 'tecnico' : null))
   }, [user, profile, roles])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && (e.key === 'g' || e.key === 'G')) {
+      if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault()
-        toggle('gestor')
+        toggle('admin')
       }
       if (e.ctrlKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault()
@@ -56,19 +56,19 @@ export function RoleSwitch() {
 
   if (!roles.length) return null
 
-  const gestorEnabled = roles.includes('gestor')
+  const adminEnabled = roles.includes('admin')
   const tecnicoEnabled = roles.includes('tecnico')
 
   return (
     <div className="flex items-center gap-2">
       <Button
-        variant={active === 'gestor' ? 'default' : 'outline'}
+        variant={active === 'admin' ? 'default' : 'outline'}
         size="sm"
-        onClick={() => toggle('gestor')}
-        disabled={!gestorEnabled || pending}
-        title="Ctrl+G"
+        onClick={() => toggle('admin')}
+        disabled={!adminEnabled || pending}
+        title="Ctrl+A"
       >
-        <LayoutDashboard className="h-4 w-4 mr-1" /> Gestão
+        <LayoutDashboard className="h-4 w-4 mr-1" /> Admin
       </Button>
       <Button
         variant={active === 'tecnico' ? 'default' : 'outline'}

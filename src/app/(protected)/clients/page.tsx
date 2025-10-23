@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useEmpresas, useClientes, useAuth, useProfile } from '@/hooks/use-supabase'
-import { isGestor } from '@/utils/auth'
+import { isAdmin } from '@/utils/auth'
 import { ClientDialog } from '@/components/client-dialog'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ export default function ClientsPage() {
   const { clientes, loading, error, deleteCliente } = useClientes(empresaId)
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
-  const canGestor = isGestor(session, profile)
+  const canAdmin = isAdmin(session, profile)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -101,7 +101,7 @@ export default function ClientsPage() {
           <h1 className="text-2xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">Gerencie clientes e contratos</p>
         </div>
-        {empresaId && canGestor && (
+        {empresaId && canAdmin && (
           <ClientDialog empresaId={empresaId} onSuccess={handleRefresh} />
         )}
       </div>
@@ -141,7 +141,7 @@ export default function ClientsPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <p className="mb-4">Nenhum cliente {search ? 'encontrado' : 'cadastrado'}</p>
-              {empresaId && canGestor && (
+              {empresaId && canAdmin && (
                 <ClientDialog empresaId={empresaId} onSuccess={handleRefresh} />
               )}
             </div>
@@ -180,7 +180,7 @@ export default function ClientsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {canGestor && (
+                          {canAdmin && (
                             <ClientDialog
                             empresaId={empresaId!}
                             cliente={c}
@@ -194,7 +194,7 @@ export default function ClientsPage() {
                             }
                             />
                           )}
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem
                             className="text-destructive"
                             onSelect={() => {

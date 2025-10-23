@@ -49,7 +49,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
   const [formData, setFormData] = useState({
     email: '',
     name: '',
-    role: 'admin' as 'admin' | 'gestor' | 'tecnico',
+    role: 'admin' as 'admin' | 'tecnico',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,7 +129,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: 'Administrador',
-      gestor: 'Gestor',
+      admin: 'Admin',
       tecnico: 'Técnico',
     }
     return labels[role] || role
@@ -179,7 +179,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <Label htmlFor="role">Papel / Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'gestor' | 'tecnico') => 
+                  onValueChange={(value: 'admin' | 'tecnico') => 
                     setFormData({ ...formData, role: value })
                   }
                   disabled={loading}

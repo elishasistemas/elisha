@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
-import { getActiveRole, isGestor, isTecnico } from '@/utils/auth'
+import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
 import { OrderDialog } from '@/components/order-dialog'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
@@ -96,7 +96,7 @@ export default function OrdersPage() {
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
   const active = getActiveRole(session, profile)
-  const canGestor = isGestor(session, profile)
+  const canAdmin = isAdmin(session, profile)
   const canTecnico = isTecnico(session, profile)
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
   const { colaboradores, loading: colLoading, error: colError } = useColaboradores(empresaId)
@@ -150,7 +150,7 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
           <p className="text-muted-foreground">Crie, acompanhe e finalize ordens</p>
         </div>  
-        {empresaId && clientes.length > 0 && canGestor && (
+        {empresaId && clientes.length > 0 && canAdmin && (
           <OrderDialog 
             empresaId={empresaId} 
             clientes={clientes}
@@ -268,7 +268,7 @@ export default function OrdersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {canGestor && (
+                            {canAdmin && (
                               <OrderDialog
                               empresaId={empresaId!}
                               ordem={ordem}
@@ -285,7 +285,7 @@ export default function OrdersPage() {
                               }
                               />
                             )}
-                            {canGestor && (
+                            {canAdmin && (
                               <DropdownMenuItem
                               className="text-destructive"
                               onSelect={() => {

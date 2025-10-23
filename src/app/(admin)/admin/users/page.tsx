@@ -83,7 +83,7 @@ export default function AdminUsersPage() {
   const [inviteForm, setInviteForm] = useState({
     email: '',
     name: '',
-    role: 'gestor',
+    role: 'admin',
     empresa_id: ''
   })
 
@@ -153,7 +153,7 @@ export default function AdminUsersPage() {
     setEditForm({
       nome: user.nome || '',
       empresa_id: user.empresa_id || '',
-      role: user.active_role || 'gestor',
+      role: user.active_role || 'admin',
       is_elisha_admin: user.is_elisha_admin || false
     })
     setEditDialogOpen(true)
@@ -230,7 +230,7 @@ export default function AdminUsersPage() {
 
       toast.success('Convite enviado com sucesso!')
       setInviteDialogOpen(false)
-      setInviteForm({ email: '', name: '', role: 'gestor', empresa_id: '' })
+      setInviteForm({ email: '', name: '', role: 'admin', empresa_id: '' })
       loadData()
     } catch (error: any) {
       console.error('Erro ao convidar:', error)
@@ -486,7 +486,7 @@ export default function AdminUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>
                   <SelectItem value="elisha_admin">Elisha Admin</SelectItem>
                 </SelectContent>
@@ -572,7 +572,7 @@ export default function AdminUsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>
                 </SelectContent>
               </Select>

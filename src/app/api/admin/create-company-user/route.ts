@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const roleToUse = role || 'gestor'
+    const roleToUse = role || 'admin'
 
     // Service role client para operações admin (bypassa RLS)
     const supabase = createClient(

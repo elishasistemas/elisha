@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useEmpresas, useColaboradores, useAuth, useProfile } from '@/hooks/use-supabase'
-import { isGestor } from '@/utils/auth'
+import { isAdmin } from '@/utils/auth'
 import { TechnicianDialog } from '@/components/technician-dialog'
 import { MoreHorizontal, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
 import { toast } from 'sonner'
@@ -38,7 +38,7 @@ export default function TechniciansPage() {
   const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId)
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
-  const canGestor = isGestor(session, profile)
+  const canAdmin = isAdmin(session, profile)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -113,7 +113,7 @@ export default function TechniciansPage() {
           <h1 className="text-2xl font-bold">Técnicos</h1>
           <p className="text-muted-foreground">Gestão de equipe técnica</p>   
         </div>
-        {empresaId && canGestor && (
+        {empresaId && canAdmin && (
           <TechnicianDialog empresaId={empresaId} onSuccess={handleRefresh} />
         )}
       </div>
@@ -153,7 +153,7 @@ export default function TechniciansPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               <p className="mb-4">Nenhum técnico encontrado</p>
-              {empresaId && canGestor && (
+              {empresaId && canAdmin && (
                 <TechnicianDialog empresaId={empresaId} onSuccess={handleRefresh} />
               )}
             </div>
@@ -192,7 +192,7 @@ export default function TechniciansPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {canGestor && (
+                          {canAdmin && (
                             <TechnicianDialog
                             empresaId={empresaId!}
                             colaborador={t}
@@ -206,7 +206,7 @@ export default function TechniciansPage() {
                             }
                             />
                           )}
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem onSelect={() => handleToggleAtivo(t)}>
                               {t.ativo ? (
                                 <>
@@ -221,7 +221,7 @@ export default function TechniciansPage() {
                               )}
                             </DropdownMenuItem>
                           )}
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem
                             className="text-destructive"
                             onSelect={() => {

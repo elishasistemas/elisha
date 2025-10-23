@@ -111,7 +111,7 @@ export default function CompaniesPage() {
         .from('profiles')
         .update({ 
           impersonating_empresa_id: company.id,
-          roles: ['admin', 'gestor', 'tecnico'],
+          roles: ['admin', 'tecnico'],
           active_role: 'admin'
         })
         .eq('id', user.id)

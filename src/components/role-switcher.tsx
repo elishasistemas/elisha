@@ -98,7 +98,7 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      gestor: '👔 Gestor',
+      admin: '👔 Admin',
       tecnico: '🔧 Técnico',
       admin: '⚙️ Admin'
     }

@@ -283,7 +283,7 @@ function SignupContent() {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: "Administrador",
-      gestor: "Gestor",
+      admin: "Admin",
       tecnico: "Técnico",
     };
     return labels[role] || role;

@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ChecklistDialog } from '@/components/checklist-dialog'
 import { useAuth, useEmpresas, useProfile } from '@/hooks/use-supabase'
-import { isGestor } from '@/utils/auth'
+import { isAdmin } from '@/utils/auth'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { toast } from 'sonner'
 import type { Checklist } from '@/types/checklist'
@@ -82,7 +82,7 @@ export default function ChecklistsPage() {
   const supabase = createSupabaseBrowser()
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
-  const canGestor = isGestor(session, profile)
+  const canAdmin = isAdmin(session, profile)
 
   // Load checklists
   const loadChecklists = async () => {
@@ -220,7 +220,7 @@ export default function ChecklistsPage() {
             Gerencie templates de checklist para ordens de serviço
           </p>
         </div>
-        {empresaId && canGestor && (
+        {empresaId && canAdmin && (
           <ChecklistDialog 
             empresaId={empresaId} 
             onSuccess={loadChecklists}
@@ -266,7 +266,7 @@ export default function ChecklistsPage() {
               <p className="text-muted-foreground mb-4">
                 Crie seu primeiro template de checklist para começar
               </p>
-              {empresaId && canGestor && (
+              {empresaId && canAdmin && (
                 <ChecklistDialog 
                   empresaId={empresaId} 
                   onSuccess={loadChecklists}
@@ -331,7 +331,7 @@ export default function ChecklistsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {canGestor && (
+                          {canAdmin && (
                             <ChecklistDialog
                             empresaId={empresaId!}
                             checklist={checklist}
@@ -345,20 +345,20 @@ export default function ChecklistsPage() {
                             }
                             />
                           )}
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem onClick={() => handleDuplicate(checklist)}>
                               <Copy className="mr-2 h-4 w-4" />
                               Duplicar
                             </DropdownMenuItem>
                           )}
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem onClick={() => handleToggleActive(checklist)}>
                               <FileText className="mr-2 h-4 w-4" />
                               {checklist.ativo ? 'Desativar' : 'Ativar'}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          {canGestor && (
+                          {canAdmin && (
                             <DropdownMenuItem
                             className="text-destructive"
                             onSelect={() => {

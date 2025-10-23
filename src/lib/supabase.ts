@@ -14,10 +14,10 @@ export interface Profile {
   id: string
   empresa_id: string | null
   nome: string | null
-  funcao: 'admin' | 'gestor' | 'tecnico'
-  role: 'admin' | 'gestor' | 'tecnico'
+  funcao: 'admin' | 'tecnico'
+  role: 'admin' | 'tecnico' | 'elisha_admin'
   roles?: string[] | null
-  active_role?: 'gestor' | 'tecnico' | 'elisha_admin' | null
+  active_role?: 'admin' | 'tecnico' | 'elisha_admin' | null
   tecnico_id?: string | null
   is_elisha_admin?: boolean | null
   impersonating_empresa_id?: string | null

@@ -6,7 +6,7 @@ import { createSupabaseBrowser } from '@/lib/supabase'
 interface UserRoleData {
   activeRole: string | null
   availableRoles: string[]
-  isGestor: boolean
+  isAdmin: boolean
   isTecnico: boolean
   tecnicoId: string | null
   loading: boolean
@@ -16,17 +16,17 @@ interface UserRoleData {
  * Hook para acessar informações do role ativo do usuário
  * 
  * @example
- * const { activeRole, isGestor, isTecnico } = useActiveRole()
+ * const { activeRole, isAdmin, isTecnico } = useActiveRole()
  * 
- * if (isGestor) {
- *   // Mostrar controles de gestor
+ * if (isAdmin) {
+ *   // Mostrar controles de admin
  * }
  */
 export function useActiveRole(): UserRoleData {
   const [data, setData] = useState<UserRoleData>({
     activeRole: null,
     availableRoles: [],
-    isGestor: false,
+    isAdmin: false,
     isTecnico: false,
     tecnicoId: null,
     loading: true
@@ -43,7 +43,7 @@ export function useActiveRole(): UserRoleData {
           setData({
             activeRole: null,
             availableRoles: [],
-            isGestor: false,
+            isAdmin: false,
             isTecnico: false,
             tecnicoId: null,
             loading: false
@@ -66,7 +66,7 @@ export function useActiveRole(): UserRoleData {
         setData({
           activeRole: profile.active_role,
           availableRoles: profile.roles || [],
-          isGestor: profile.active_role === 'gestor',
+          isAdmin: profile.active_role === 'admin',
           isTecnico: profile.active_role === 'tecnico',
           tecnicoId: profile.tecnico_id,
           loading: false
@@ -97,7 +97,7 @@ export function useActiveRole(): UserRoleData {
  * Hook para verificar se o usuário tem uma permissão específica
  * 
  * @example
- * const canEdit = useHasPermission('gestor')
+ * const canEdit = useHasPermission('admin')
  * 
  * return (
  *   <Button disabled={!canEdit}>Editar</Button>
@@ -126,7 +126,7 @@ export function useHasPermission(requiredRole: string | string[]): boolean {
  * const canAccessOS = useCanAccessOS(osId)
  */
 export function useCanAccessOS(osId: string | null): boolean {
-  const { isGestor, isTecnico, tecnicoId } = useActiveRole()
+  const { isAdmin, isTecnico, tecnicoId } = useActiveRole()
   const [canAccess, setCanAccess] = useState(false)
   const [loading, setLoading] = useState(true)
   const supabase = createSupabaseBrowser()
@@ -138,8 +138,8 @@ export function useCanAccessOS(osId: string | null): boolean {
       return
     }
 
-    // Gestor tem acesso a tudo
-    if (isGestor) {
+    // Admin tem acesso a tudo
+    if (isAdmin) {
       setCanAccess(true)
       setLoading(false)
       return
@@ -164,7 +164,7 @@ export function useCanAccessOS(osId: string | null): boolean {
       setCanAccess(false)
       setLoading(false)
     }
-  }, [osId, isGestor, isTecnico, tecnicoId, supabase])
+  }, [osId, isAdmin, isTecnico, tecnicoId, supabase])
 
   return canAccess
 }

@@ -6,9 +6,9 @@ export function isSelfApproval(report: { creatorUserId: string; executedByUserId
 }
 
 export type ApprovalContext = {
-  active_role: 'gestor' | 'tecnico' | null
+  active_role: 'admin' | 'tecnico' | null
   empresa: { requireDualApproval?: boolean }
-  hasAnotherGestor: boolean
+  hasAnotherAdmin: boolean
   ip?: string
 }
 
@@ -22,8 +22,8 @@ export async function handleSelfApproval(
     approve: () => Promise<void>
   }
 ) {
-  const { active_role, empresa, hasAnotherGestor, ip } = ctx
-  if (empresa.requireDualApproval && hasAnotherGestor) {
+  const { active_role, empresa, hasAnotherAdmin, ip } = ctx
+  if (empresa.requireDualApproval && hasAnotherAdmin) {
     await actions.showApprovalRequest()
     return
   }

@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/supabase'
 
-export type ActiveRole = 'gestor' | 'tecnico'
+export type ActiveRole = 'admin' | 'tecnico' | 'elisha_admin'
 
 interface UserMetadata {
   active_role?: ActiveRole;
@@ -43,16 +43,20 @@ export function getRoles(session?: Session | null, profile?: Profile | null): st
   return single ? [String(single)] : []
 }
 
-export function isGestor(session?: Session | null, profile?: Profile | null) {
+export function isAdmin(session?: Session | null, profile?: Profile | null) {
   const roles = getRoles(session, profile)
   const active = getActiveRole(session, profile)
-  return roles.includes('gestor') && active === 'gestor'
+  return roles.includes('admin') && active === 'admin'
 }
 
 export function isTecnico(session?: Session | null, profile?: Profile | null) {
   const roles = getRoles(session, profile)
   const active = getActiveRole(session, profile)
   return roles.includes('tecnico') && active === 'tecnico'
+}
+
+export function isElishaAdmin(session?: Session | null, profile?: Profile | null) {
+  return profile?.is_elisha_admin === true
 }
 
 export async function setActiveRoleClient(role: ActiveRole) {
