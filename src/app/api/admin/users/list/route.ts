@@ -59,11 +59,14 @@ export async function POST(request: Request) {
           console.warn(`[admin/users/list] Usuário deletado ou não encontrado ${profile.user_id}, removendo profile órfão...`)
           
           // Remover profile órfão
-          await supabase
+          const { error: deleteError } = await supabase
             .from('profiles')
             .delete()
             .eq('id', profile.id)
-            .catch(err => console.error('Erro ao deletar profile órfão:', err))
+          
+          if (deleteError) {
+            console.error('Erro ao deletar profile órfão:', deleteError)
+          }
           
           return null // Marcar para filtrar
         }
