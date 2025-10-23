@@ -14,7 +14,13 @@ async function main() {
 
   const projectRoot = process.cwd()
   const srcCandidates = [
+    // Preferências no diretório /public/icons
     path.join(projectRoot, 'public', 'icons', 'source.png'),
+    path.join(projectRoot, 'public', 'icons', 'source.jpg'),
+    path.join(projectRoot, 'public', 'icons', 'source.jpeg'),
+    path.join(projectRoot, 'public', 'icons', 'source.webp'),
+    path.join(projectRoot, 'public', 'icons', 'source.svg'),
+    // Fallbacks no /public
     path.join(projectRoot, 'public', 'logo-white.png'),
     path.join(projectRoot, 'public', 'logo-white.jpg'),
     path.join(projectRoot, 'public', 'logo.jpeg'),
@@ -26,7 +32,7 @@ async function main() {
   }
 
   if (!inputPath) {
-    console.error('[gen:icons] Arquivo de origem não encontrado. Coloque a sua logo em public/icons/source.png')
+    console.error('[gen:icons] Arquivo de origem não encontrado. Coloque a sua logo em public/icons/source.(png|jpg|jpeg|webp|svg)')
     process.exit(1)
   }
 
@@ -72,4 +78,3 @@ main().catch((err) => {
   console.error('[gen:icons] Erro:', err)
   process.exit(1)
 })
-
