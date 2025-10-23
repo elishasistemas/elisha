@@ -9,11 +9,18 @@
 ## Permissões
 
 - ✅ Elisha Admin (Super Admin)
-- ✅ Acesso a todas as empresas
-- ✅ Todos os perfis: Admin, Gestor, Técnico
+- ✅ Acesso a todas as empresas  
+- ✅ Todos os perfis: Admin, Técnico, Elisha Admin
 - ✅ Pode criar/gerenciar empresas
 - ✅ Pode criar/gerenciar usuários
 - ✅ Pode fazer impersonation de empresas
+
+## Roles do Sistema
+
+O sistema possui apenas 3 roles:
+- **admin**: Administrador da empresa (pode gerenciar tudo na empresa)
+- **tecnico**: Técnico de campo (acesso limitado às suas OSs)
+- **elisha_admin**: Super Admin do time Elisha (acesso total + impersonation)
 
 ## Status
 
