@@ -327,6 +327,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
         const { data, error, count } = await query.range(start, end)
         if (error) throw error
+        
         setColaboradores(data || [])
         setCount(count || 0)
       } catch (err) {
