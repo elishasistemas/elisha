@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Trash, RefreshDouble, Copy } from "iconoir-react";
+import { isAdmin } from "@/utils/auth";
+import { useAuth, useProfile } from "@/hooks/use-supabase";
 
 interface Profile {
   id: string;
@@ -57,6 +59,8 @@ interface Invite {
 }
 
 export default function UsersPage() {
+  const { user, session } = useAuth();
+  const { profile: userProfile } = useProfile(user?.id);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -69,6 +73,9 @@ export default function UsersPage() {
   const [searchInvites, setSearchInvites] = useState("");
   const [pageInvites, setPageInvites] = useState(1);
   const [pageSizeInvites, setPageSizeInvites] = useState(10);
+  
+  // Verificar se é admin usando a função correta
+  const canAdmin = isAdmin(session, userProfile);
 
   useEffect(() => {
     loadData();
@@ -275,20 +282,14 @@ export default function UsersPage() {
     }).format(new Date(date));
   };
 
-  // Verificar se o usuário é admin (verificar active_role ou roles)
-  const isAdmin = 
-    currentProfile?.active_role === "admin" || 
-    currentProfile?.roles?.includes("admin") ||
-    currentProfile?.is_elisha_admin;
-
   console.log('[UsersPage] Permission check:', {
-    active_role: currentProfile?.active_role,
-    roles: currentProfile?.roles,
-    is_elisha_admin: currentProfile?.is_elisha_admin,
-    isAdmin
+    active_role: userProfile?.active_role,
+    roles: userProfile?.roles,
+    is_elisha_admin: userProfile?.is_elisha_admin,
+    canAdmin
   });
 
-  if (!isAdmin && !loading) {
+  if (!canAdmin && !loading) {
     return (
       <div className="container py-10">
         <Card>
@@ -320,7 +321,7 @@ export default function UsersPage() {
             <RefreshDouble className="h-4 w-4 mr-2" />
             Atualizar
           </Button>
-          {isAdmin && empresaId && (
+          {canAdmin && empresaId && (
             <InviteDialog
               empresaId={empresaId}
               onInviteCreated={loadData}
