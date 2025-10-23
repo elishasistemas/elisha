@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import PWAInstall from "@/components/pwa-install";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,6 +21,13 @@ export const metadata: Metadata = {
   description: "Sistema inteligente de gestão para empresas de manutenção de elevadores",
   icons: {
     icon: "/icon.ico",
+  },
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0ea5e9",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Elisha Admin",
   },
 };
 
@@ -40,6 +48,8 @@ export default function RootLayout({
         {/* Vercel Analytics & Speed Insights */}
         <Analytics />
         <SpeedInsights />
+        {/* PWA: registro do SW e onboarding de instalação */}
+        <PWAInstall />
       </body>
     </html>
   );
