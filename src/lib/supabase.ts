@@ -171,7 +171,22 @@ export function createSupabaseBrowser() {
   }
 
   if (!browserClient) {
-    browserClient = createBrowserClient(url, anon)
+    browserClient = createBrowserClient(url, anon, {
+      auth: {
+        // Aumentar tempo de sessão para 7 dias (604800 segundos)
+        // Padrão é 1 hora (3600 segundos)
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storageKey: 'elisha-auth-token',
+      },
+      global: {
+        headers: {
+          'x-client-info': 'elisha-web-admin',
+        },
+      },
+    })
   }
   return browserClient
 }

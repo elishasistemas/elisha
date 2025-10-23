@@ -52,7 +52,10 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        toast.error('Usuário não autenticado')
+        toast.error('Sessão expirada. Redirecionando para login...')
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 1500)
         return
       }
 

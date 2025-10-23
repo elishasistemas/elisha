@@ -86,7 +86,10 @@ export default function UsersPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        toast.error("Usuário não autenticado");
+        toast.error("Sessão expirada. Redirecionando para login...");
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
         return;
       }
 

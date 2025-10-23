@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   description: "Sistema inteligente de gestão para empresas de manutenção de elevadores",
   icons: {
     icon: "/icon.ico",
+    apple: "/logo-white.png",
   },
   manifest: "/manifest.webmanifest",
   themeColor: "#0ea5e9",

@@ -3,7 +3,7 @@
   "short_name": "Elisha Admin",
   "description": "Sistema inteligente de gestão para empresas de manutenção de elevadores",
   "id": "com.elisha.admin",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -22,4 +22,3 @@
     }
   ]
 }
-
