@@ -398,7 +398,7 @@ export default function UsersPage() {
                       {profile.email || "N/A"}
                     </TableCell>
                     <TableCell>
-                      {profile.name || profile.nome || "-"}
+                      {profile.name || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getRoleBadgeVariant(profile.role)}>
