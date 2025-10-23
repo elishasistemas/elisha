@@ -100,7 +100,6 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
     const labels: Record<string, string> = {
       admin: '👔 Admin',
       tecnico: '🔧 Técnico',
-      admin: '⚙️ Admin'
     }
     return labels[role] || role
   }
