@@ -128,7 +128,6 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      admin: 'Administrador',
       admin: 'Admin',
       tecnico: 'Técnico',
     }
