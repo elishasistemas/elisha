@@ -19,7 +19,6 @@ export async function POST(request: Request) {
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     const roleLabels: Record<string, string> = {
-      admin: 'Administrador',
       admin: 'Admin',
       tecnico: 'Técnico',
     }
