@@ -22,11 +22,11 @@ export default async function AdminLayout({
   // Verificar se é elisha_admin
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_elisha_admin, active_role')
+    .select('is_elisha_admin')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.is_elisha_admin || profile.active_role !== 'elisha_admin') {
+  if (!profile?.is_elisha_admin) {
     redirect('/dashboard')
   }
 
