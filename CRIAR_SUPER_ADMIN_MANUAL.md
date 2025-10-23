@@ -29,7 +29,11 @@
 
 Após criar, você verá o usuário na lista. **Copie o UUID/ID do usuário** (algo como: `4570ca9d-...`)
 
-### 4. Executar SQL para Configurar como Super Admin
+### 4. Aguardar Alguns Segundos
+
+O sistema criará automaticamente um profile para o usuário. **Aguarde 5-10 segundos**.
+
+### 5. Executar SQL para Configurar como Super Admin
 
 1. No menu lateral, clique em **SQL Editor**
 2. Clique em **"New query"**
@@ -44,23 +48,16 @@ SET
   roles = ARRAY['admin', 'tecnico', 'elisha_admin']::text[],
   active_role = 'admin',
   empresa_id = null,
-  nome = 'Iverson Dantas (Super Admin)'
+  nome = 'Iverson Dantas (Super Admin)',
+  funcao = 'admin'
 WHERE user_id = 'USER_UUID_AQUI';
 
 -- Atualizar app_metadata do usuário
 UPDATE auth.users
-SET raw_app_meta_data = jsonb_set(
-  jsonb_set(
-    jsonb_set(
-      raw_app_meta_data,
-      '{is_elisha_admin}',
-      'true'::jsonb
-    ),
-    '{roles}',
-    '["admin", "tecnico", "elisha_admin"]'::jsonb
-  ),
-  '{active_role}',
-  '"admin"'::jsonb
+SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object(
+  'is_elisha_admin', true,
+  'roles', ARRAY['admin', 'tecnico', 'elisha_admin']::text[],
+  'active_role', 'admin'
 )
 WHERE id = 'USER_UUID_AQUI';
 
@@ -68,8 +65,10 @@ WHERE id = 'USER_UUID_AQUI';
 SELECT 
   u.email,
   p.is_elisha_admin,
+  p.role,
   p.roles,
   p.active_role,
+  p.funcao,
   u.raw_app_meta_data->>'is_elisha_admin' as meta_elisha_admin
 FROM auth.users u
 LEFT JOIN public.profiles p ON p.user_id = u.id
@@ -78,18 +77,20 @@ WHERE u.id = 'USER_UUID_AQUI';
 
 4. Clique em **"Run"** ou pressione **Ctrl+Enter**
 
-### 5. Verificar
+### 6. Verificar
 
 Você deve ver uma resposta mostrando:
 ```
 email: iverson.ux@gmail.com
 is_elisha_admin: true
+role: admin
 roles: {admin, tecnico, elisha_admin}
 active_role: admin
+funcao: admin
 meta_elisha_admin: true
 ```
 
-### 6. Testar Login
+### 7. Testar Login
 
 1. Acesse: http://localhost:3000/login (ou seu domínio de produção)
 2. Email: `iverson.ux@gmail.com`
