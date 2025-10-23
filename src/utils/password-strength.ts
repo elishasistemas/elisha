@@ -43,7 +43,8 @@ export function evaluatePasswordStrength(password: string): StrengthResult {
   if (len < 6) score = 0
 
   const percent = [10, 25, 50, 75, 100][score]
-  const label: StrengthLabel = ['Muito fraca', 'Fraca', 'Média', 'Forte', 'Muito forte'][score]
+  const labels: StrengthLabel[] = ['Muito fraca', 'Fraca', 'Média', 'Forte', 'Muito forte']
+  const label: StrengthLabel = labels[score]
 
   const suggestions: string[] = []
   if (len < 12) suggestions.push('Use 12 ou mais caracteres')
