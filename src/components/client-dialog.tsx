@@ -7,9 +7,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Cliente } from '@/lib/supabase'
+
+interface Equipamento {
+  id?: string
+  nome: string
+  tipo: string
+  pavimentos: string
+  marca: string
+  capacidade: string
+}
 
 interface ClientDialogProps {
   empresaId: string
@@ -34,6 +43,18 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
     data_inicio_contrato: cliente?.data_inicio_contrato || '',
     data_fim_contrato: cliente?.data_fim_contrato || '',
     status_contrato: cliente?.status_contrato || 'ativo',
+    valor_mensal_contrato: '',
+    numero_art: '',
+  })
+
+  // Equipamentos state
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
+  const [novoEquipamento, setNovoEquipamento] = useState<Equipamento>({
+    nome: '',
+    tipo: '',
+    pavimentos: '',
+    marca: '',
+    capacidade: '',
   })
 
   const handleChange = (field: string, value: string) => {
@@ -62,6 +83,37 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
     return value
   }
 
+  const formatCurrency = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    const amount = Number(numbers) / 100
+    return amount.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  const addEquipamento = () => {
+    if (!novoEquipamento.nome.trim() || !novoEquipamento.tipo.trim()) {
+      toast.error('Nome e Tipo são obrigatórios para o equipamento')
+      return
+    }
+
+    setEquipamentos([...equipamentos, novoEquipamento])
+    setNovoEquipamento({
+      nome: '',
+      tipo: '',
+      pavimentos: '',
+      marca: '',
+      capacidade: '',
+    })
+    toast.success('Equipamento adicionado à lista')
+  }
+
+  const removeEquipamento = (index: number) => {
+    setEquipamentos(equipamentos.filter((_, i) => i !== index))
+    toast.success('Equipamento removido da lista')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -83,7 +135,10 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         return
       }
 
-      // Preparar dados
+      // Preparar dados do cliente
+      const valorMensal = formData.valor_mensal_contrato.replace(/\D/g, '')
+      const valorMensalNumerico = valorMensal ? Number(valorMensal) / 100 : null
+
       const clienteData = {
         empresa_id: empresaId,
         nome_local: formData.nome_local.trim(),
@@ -95,7 +150,11 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         data_inicio_contrato: formData.data_inicio_contrato || null,
         data_fim_contrato: formData.data_fim_contrato || null,
         status_contrato: formData.status_contrato as 'ativo' | 'em_renovacao' | 'encerrado',
+        valor_mensal_contrato: valorMensalNumerico,
+        numero_art: formData.numero_art.trim() || null,
       }
+
+      let clienteId: string
 
       if (mode === 'edit' && cliente) {
         // Atualizar cliente
@@ -106,21 +165,49 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
         if (error) throw error
 
+        clienteId = cliente.id
         toast.success('Cliente atualizado com sucesso!')
       } else {
         // Criar novo cliente
-        const { error } = await supabase
+        const { data: newCliente, error } = await supabase
           .from('clientes')
           .insert([clienteData])
+          .select('id')
+          .single()
 
         if (error) throw error
+        if (!newCliente) throw new Error('Erro ao criar cliente')
 
-        toast.success('Cliente criado com sucesso!')
+        clienteId = newCliente.id
+
+        // Criar equipamentos se houver
+        if (equipamentos.length > 0) {
+          const equipamentosData = equipamentos.map(eq => ({
+            cliente_id: clienteId,
+            empresa_id: empresaId,
+            nome: eq.nome,
+            tipo: eq.tipo,
+            pavimentos: eq.pavimentos || null,
+            fabricante: eq.marca || null,
+            capacidade: eq.capacidade || null,
+            ativo: true,
+          }))
+
+          const { error: eqError } = await supabase
+            .from('equipamentos')
+            .insert(equipamentosData)
+
+          if (eqError) {
+            console.error('Erro ao criar equipamentos:', eqError)
+            toast.warning('Cliente criado, mas houve erro ao adicionar alguns equipamentos')
+          }
+        }
+
+        toast.success(`Cliente criado com sucesso${equipamentos.length > 0 ? ` com ${equipamentos.length} equipamento(s)` : ''}!`)
       }
 
       setOpen(false)
-      if (onSuccess) onSuccess()
-
+      
       // Resetar form
       setFormData({
         nome_local: '',
@@ -132,7 +219,22 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         data_inicio_contrato: '',
         data_fim_contrato: '',
         status_contrato: 'ativo',
+        valor_mensal_contrato: '',
+        numero_art: '',
       })
+      setEquipamentos([])
+      setNovoEquipamento({
+        nome: '',
+        tipo: '',
+        pavimentos: '',
+        marca: '',
+        capacidade: '',
+      })
+
+      // Chamar onSuccess APÓS fechar o diálogo para atualizar a lista
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 100)
+      }
     } catch (error) {
       console.error('Erro ao salvar cliente:', error)
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar cliente')
@@ -291,8 +393,130 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   onChange={(e) => handleChange('data_fim_contrato', e.target.value)}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="valor_mensal_contrato">Valor Mensal</Label>
+                <Input
+                  id="valor_mensal_contrato"
+                  value={formData.valor_mensal_contrato}
+                  onChange={(e) => handleChange('valor_mensal_contrato', formatCurrency(e.target.value))}
+                  placeholder="0,00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="numero_art">Número da ART</Label>
+                <Input
+                  id="numero_art"
+                  value={formData.numero_art}
+                  onChange={(e) => handleChange('numero_art', e.target.value)}
+                  placeholder="Ex: 123456789"
+                />
+              </div>
             </div>
           </div>
+
+          {/* Equipamentos - Apenas no modo criar */}
+          {mode === 'create' && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Equipamentos</h3>
+                <span className="text-xs text-muted-foreground">
+                  {equipamentos.length} equipamento(s) adicionado(s)
+                </span>
+              </div>
+              
+              {/* Lista de equipamentos adicionados */}
+              {equipamentos.length > 0 && (
+                <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                  {equipamentos.map((eq, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm p-2 border rounded bg-background">
+                      <div className="flex-1">
+                        <p className="font-medium">{eq.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {eq.tipo} • {eq.marca} • {eq.capacidade}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeEquipamento(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulário para adicionar novo equipamento */}
+              <div className="grid grid-cols-2 gap-3 p-3 border rounded-md bg-muted/10">
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="eq_nome">Nome do Equipamento</Label>
+                  <Input
+                    id="eq_nome"
+                    value={novoEquipamento.nome}
+                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, nome: e.target.value })}
+                    placeholder="Ex: Elevador Principal"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eq_tipo">Tipo</Label>
+                  <Input
+                    id="eq_tipo"
+                    value={novoEquipamento.tipo}
+                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, tipo: e.target.value })}
+                    placeholder="Ex: Elevador, Escada Rolante"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eq_marca">Marca</Label>
+                  <Input
+                    id="eq_marca"
+                    value={novoEquipamento.marca}
+                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, marca: e.target.value })}
+                    placeholder="Ex: Otis, Schindler"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eq_pavimentos">Pavimentos</Label>
+                  <Input
+                    id="eq_pavimentos"
+                    value={novoEquipamento.pavimentos}
+                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, pavimentos: e.target.value })}
+                    placeholder="Ex: Térreo ao 10º"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eq_capacidade">Capacidade</Label>
+                  <Input
+                    id="eq_capacidade"
+                    value={novoEquipamento.capacidade}
+                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, capacidade: e.target.value })}
+                    placeholder="Ex: 8 pessoas, 600kg"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addEquipamento}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Equipamento
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
