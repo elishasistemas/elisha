@@ -130,7 +130,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
           Convidar colaborador
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-full max-w-[80%]">
         <DialogHeader>
           <DialogTitle>Convidar novo colaborador</DialogTitle>
           <DialogDescription>

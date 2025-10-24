@@ -153,7 +153,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-full max-w-[80%]">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar Técnico' : 'Novo Técnico'}</DialogTitle>
           <DialogDescription>

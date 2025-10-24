@@ -283,7 +283,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
           <DialogDescription>

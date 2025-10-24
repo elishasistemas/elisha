@@ -143,7 +143,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   return (
     <Dialog open onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="w-full max-w-[80%]">
         <DialogHeader>
           <DialogTitle>
             {inviteResult ? 'Convite Criado!' : 'Convidar Usuário'}

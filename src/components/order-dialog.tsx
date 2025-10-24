@@ -251,7 +251,7 @@ export function OrderDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}</DialogTitle>
           <DialogDescription>
