@@ -61,10 +61,28 @@ export function OrderDialog({
     data_programada: ordem?.data_programada ? ordem.data_programada.split('T')[0] : '',
     observacoes: ordem?.observacoes || '',
     numero_os: ordem?.numero_os || '',
+    data_abertura: new Date().toISOString().slice(0,16),
+    quem_solicitou: ordem?.quem_solicitou || '',
   })
 
   // Filtrar equipamentos do cliente selecionado
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([])
+  // Accordions com persistência
+  const [secCliente, setSecCliente] = useState(true)
+  const [secDetalhes, setSecDetalhes] = useState(true)
+  const [secChecklist, setSecChecklist] = useState(true)
+  const [secObs, setSecObs] = useState(true)
+  const key = (s: string) => `order_dialog:${s}`
+  useEffect(() => {
+    if (!open) return
+    try {
+      setSecCliente((localStorage.getItem(key('cliente')) ?? '1') === '1')
+      setSecDetalhes((localStorage.getItem(key('detalhes')) ?? '1') === '1')
+      setSecChecklist((localStorage.getItem(key('checklist')) ?? '1') === '1')
+      setSecObs((localStorage.getItem(key('obs')) ?? '1') === '1')
+    } catch {}
+  }, [open])
+  const persist = (name: string, val: boolean) => { try { localStorage.setItem(key(name), val ? '1' : '0') } catch {} }
 
   useEffect(() => {
     const loadEquip = async () => {
@@ -159,10 +177,11 @@ export function OrderDialog({
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
         status: formData.status as 'novo' | 'em_andamento' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado',
-        data_abertura: new Date().toISOString(),
+        data_abertura: formData.data_abertura ? new Date(formData.data_abertura).toISOString() : new Date().toISOString(),
         data_programada: formData.data_programada ? new Date(formData.data_programada).toISOString() : null,
-        observacoes: formData.observacoes.trim() || null,
+        observacoes: formData.observacoes?.trim() || null,
         numero_os: formData.numero_os.trim() || null,
+        quem_solicitou: formData.quem_solicitou?.trim() || null,
         origem: 'painel' as const,
       }
 
@@ -241,6 +260,8 @@ export function OrderDialog({
         data_programada: '',
         observacoes: '',
         numero_os: '',
+        data_abertura: new Date().toISOString().slice(0,16),
+        quem_solicitou: '',
       })
     } catch (error) {
       console.error('Erro ao salvar ordem de serviço:', error)
@@ -289,8 +310,12 @@ export function OrderDialog({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Cliente e Equipamento */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Cliente e Equipamento</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Cliente e Equipamento</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secCliente; setSecCliente(v); persist('cliente', v) }}>{secCliente ? 'Recolher' : 'Expandir'}</Button>
+            </div>
             
+            {secCliente && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cliente_id">
@@ -336,12 +361,17 @@ export function OrderDialog({
                 </Select>
               </div>
             </div>
+            )}
           </div>
 
           {/* Detalhes da OS */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Detalhes da Ordem</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Detalhes da Ordem</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secDetalhes; setSecDetalhes(v); persist('detalhes', v) }}>{secDetalhes ? 'Recolher' : 'Expandir'}</Button>
+            </div>
             
+            {secDetalhes && (
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
@@ -389,7 +419,9 @@ export function OrderDialog({
                 </Select>
               </div>
             </div>
+            )}
 
+            {secDetalhes && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tecnico_id">Técnico Responsável</Label>
@@ -421,8 +453,20 @@ export function OrderDialog({
                   disabled={isView}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
+                <Input
+                  id="data_abertura"
+                  type="datetime-local"
+                  value={formData.data_abertura}
+                  onChange={(e) => handleChange('data_abertura', e.target.value)}
+                  disabled={isView}
+                />
+              </div>
             </div>
+            )}
 
+            {secDetalhes && (
             <div className="space-y-2">
               <Label htmlFor="numero_os">Número da OS (opcional)</Label>
               <Input
@@ -433,12 +477,29 @@ export function OrderDialog({
                 disabled={isView}
               />
             </div>
+            )}
+            {secDetalhes && (
+            <div className="space-y-2">
+              <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
+              <Input
+                id="quem_solicitou"
+                value={formData.quem_solicitou}
+                onChange={(e) => handleChange('quem_solicitou', e.target.value)}
+                placeholder="Nome de quem solicitou"
+                disabled={isView}
+              />
+            </div>
+            )}
           </div>
 
           {/* Checklist Template (Create mode) */}
           {mode === 'create' && !isView && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Checklist</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Checklist</h3>
+                <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secChecklist; setSecChecklist(v); persist('checklist', v) }}>{secChecklist ? 'Recolher' : 'Expandir'}</Button>
+              </div>
+              {secChecklist && (
               <div className="space-y-2">
                 <Label htmlFor="checklist_id">Template sugerido pelo tipo</Label>
                 <Select
@@ -463,14 +524,19 @@ export function OrderDialog({
                 <p className="text-xs text-muted-foreground">
                   Selecionamos automaticamente com base no tipo da OS. Você pode trocar se preferir.
                 </p>
-              </div>
+               </div>
+              )}
             </div>
           )}
 
           {/* Observações */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Observações</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Observações</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secObs; setSecObs(v); persist('obs', v) }}>{secObs ? 'Recolher' : 'Expandir'}</Button>
+            </div>
             
+            {secObs && (
             <div className="space-y-2">
               <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
               <Textarea
@@ -482,6 +548,7 @@ export function OrderDialog({
                 disabled={isView}
               />
             </div>
+            )}
           </div>
 
           <DialogFooter>

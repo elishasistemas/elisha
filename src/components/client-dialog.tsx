@@ -27,13 +27,16 @@ interface ClientDialogProps {
   trigger?: React.ReactNode
   mode?: 'create' | 'edit' | 'view'
   onRequestEdit?: () => void
+  defaultOpen?: boolean
+  hideTrigger?: boolean
 }
 
-export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit }: ClientDialogProps) {
+export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit, defaultOpen, hideTrigger }: ClientDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
   // Accordion state persistido
   const [secBasic, setSecBasic] = useState(true)
   const [secResp, setSecResp] = useState(true)
@@ -290,23 +293,25 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            {mode === 'edit' ? (
-              <>
-                <Pencil className="h-4 w-4 mr-2" />
-                Editar
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Cliente
-              </>
-            )}
-          </Button>
-        )}
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button>
+              {mode === 'edit' ? (
+                <>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Cliente
+                </>
+              )}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">

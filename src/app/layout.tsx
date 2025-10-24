@@ -28,12 +28,15 @@ export const metadata: Metadata = {
     apple: { url: "/icons/apple-touch-icon.png?v=20251023", sizes: "180x180", type: "image/png" },
   },
   manifest: "/manifest.webmanifest",
-  themeColor: "#0ea5e9",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Elisha Admin",
   },
+};
+
+export const viewport = {
+  themeColor: "#0ea5e9",
 };
 
 export default function RootLayout({

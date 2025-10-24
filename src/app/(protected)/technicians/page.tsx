@@ -48,6 +48,7 @@ export default function TechniciansPage() {
 
   const isLoading = empresasLoading || loading
   const hasError = empresasError || error
+  const [viewTec, setViewTec] = useState<Colaborador | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -171,7 +172,7 @@ export default function TechniciansPage() {
               </TableHeader>
               <TableBody>
                 {pageRows.map((t) => (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} className="cursor-pointer" onClick={() => setViewTec(t)}>
                     <TableCell className="font-medium">{t.nome}</TableCell>
                     <TableCell>{t.funcao || '-'}</TableCell>
                     <TableCell>{t.telefone || '-'}</TableCell>
@@ -181,7 +182,7 @@ export default function TechniciansPage() {
                         {t.ativo ? 'Ativo' : 'Inativo'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -259,6 +260,18 @@ export default function TechniciansPage() {
           )}
         </CardContent>
       </Card>
+
+      {viewTec && empresaId && (
+        <TechnicianDialog
+          empresaId={empresaId}
+          colaborador={viewTec}
+          mode="view"
+          hideTrigger
+          defaultOpen
+          onRequestEdit={() => setViewTec({ ...viewTec })}
+          onSuccess={() => { setViewTec(null); handleRefresh() }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

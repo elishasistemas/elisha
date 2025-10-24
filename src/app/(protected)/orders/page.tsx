@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
+import { useSearchParams } from 'next/navigation'
 import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
 import { OrderDialog } from '@/components/order-dialog'
 import { toast } from 'sonner'
@@ -83,6 +84,8 @@ function formatDate(dateString: string) {
 }
 
 export default function OrdersPage() {
+  const searchParams = useSearchParams()
+  const newParam = searchParams?.get('new')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [ordemToDelete, setOrdemToDelete] = useState<OrdemServico | null>(null)
@@ -114,6 +117,15 @@ export default function OrdersPage() {
 
   const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
+  const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
+
+  const [openCreate, setOpenCreate] = useState(false)
+  // Abre automaticamente o diálogo de criação quando new=true
+  useEffect(() => {
+    if (newParam === 'true' && empresaId && clientes.length > 0 && canAdmin) {
+      setOpenCreate(true)
+    }
+  }, [newParam, empresaId, clientes.length, canAdmin])
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1)
@@ -152,11 +164,13 @@ export default function OrdersPage() {
         </div>  
         {empresaId && clientes.length > 0 && canAdmin && (
           <OrderDialog 
-            empresaId={empresaId} 
+            empresaId={empresaId}
             clientes={clientes}
-            equipamentos={equipamentos}
             colaboradores={colaboradores}
-            onSuccess={handleRefresh}
+            defaultOpen={openCreate}
+            hideTrigger={true}
+            defaultTipo={'chamado'}
+            onSuccess={() => { handleRefresh(); setOpenCreate(false) }}
           />
         )}
       </div>
@@ -226,14 +240,14 @@ export default function OrdersPage() {
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   return (
-                    <TableRow key={ordem.id}>
+                    <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">{ordem.numero_os || ordem.id.slice(0, 8)}</TableCell>
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {ordem.tipo === 'preventiva' ? 'Preventiva' : ordem.tipo === 'corretiva' ? 'Corretiva' : ordem.tipo === 'emergencial' ? 'Emergencial' : ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -257,7 +271,7 @@ export default function OrdersPage() {
                         {status.label}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -324,6 +338,20 @@ export default function OrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      {viewOrder && empresaId && (
+        <OrderDialog
+          empresaId={empresaId}
+          ordem={viewOrder}
+          clientes={clientes}
+          colaboradores={colaboradores}
+          mode="view"
+          hideTrigger
+          defaultOpen
+          onRequestEdit={() => setViewOrder({ ...viewOrder })}
+          onSuccess={() => { setViewOrder(null); handleRefresh() }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

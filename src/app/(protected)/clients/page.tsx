@@ -41,6 +41,7 @@ export default function ClientsPage() {
   const { profile } = useProfile(user?.id)
   const canAdmin = isAdmin(session, profile)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [viewCliente, setViewCliente] = useState<Cliente | null>(null)
   const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
@@ -159,7 +160,7 @@ export default function ClientsPage() {
               </TableHeader>
               <TableBody>
                 {pageRows.map((c) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => setViewCliente(c)}>
                     <TableCell className="font-medium">{c.nome_local}</TableCell>
                     <TableCell>{c.cnpj}</TableCell>
                     <TableCell>{c.responsavel_nome || '-'}</TableCell>
@@ -169,7 +170,7 @@ export default function ClientsPage() {
                         {c.status_contrato === 'ativo' ? 'Ativo' : c.status_contrato === 'em_renovacao' ? 'Em Renovação' : 'Encerrado'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -252,6 +253,18 @@ export default function ClientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {viewCliente && empresaId && (
+        <ClientDialog
+          empresaId={empresaId}
+          cliente={viewCliente}
+          mode="view"
+          hideTrigger
+          defaultOpen
+          onRequestEdit={() => setViewCliente({ ...viewCliente })}
+          onSuccess={() => { setViewCliente(null); handleRefresh() }}
+        />
+      )}
     </div>
   )
 }

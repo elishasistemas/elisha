@@ -84,6 +84,7 @@ export interface OrdemServico {
   observacoes: string | null
   origem: 'whatsapp' | 'painel'
   numero_os: string | null
+  quem_solicitou: string | null
   created_at: string
   updated_at: string
 }
