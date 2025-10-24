@@ -166,7 +166,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         if (error) throw error
 
         clienteId = cliente.id
-        toast.success('Cliente atualizado com sucesso!')
       } else {
         // Criar novo cliente
         const { data: newCliente, error } = await supabase
@@ -179,32 +178,35 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         if (!newCliente) throw new Error('Erro ao criar cliente')
 
         clienteId = newCliente.id
-
-        // Criar equipamentos se houver
-        if (equipamentos.length > 0) {
-          const equipamentosData = equipamentos.map(eq => ({
-            cliente_id: clienteId,
-            empresa_id: empresaId,
-            nome: eq.nome,
-            tipo: eq.tipo,
-            pavimentos: eq.pavimentos || null,
-            fabricante: eq.marca || null,
-            capacidade: eq.capacidade || null,
-            ativo: true,
-          }))
-
-          const { error: eqError } = await supabase
-            .from('equipamentos')
-            .insert(equipamentosData)
-
-          if (eqError) {
-            console.error('Erro ao criar equipamentos:', eqError)
-            toast.warning('Cliente criado, mas houve erro ao adicionar alguns equipamentos')
-          }
-        }
-
-        toast.success(`Cliente criado com sucesso${equipamentos.length > 0 ? ` com ${equipamentos.length} equipamento(s)` : ''}!`)
       }
+
+      // Criar equipamentos se houver (funciona tanto para criar quanto para editar)
+      if (equipamentos.length > 0) {
+        const equipamentosData = equipamentos.map(eq => ({
+          cliente_id: clienteId,
+          empresa_id: empresaId,
+          nome: eq.nome,
+          tipo: eq.tipo,
+          pavimentos: eq.pavimentos || null,
+          fabricante: eq.marca || null,
+          capacidade: eq.capacidade || null,
+          ativo: true,
+        }))
+
+        const { error: eqError } = await supabase
+          .from('equipamentos')
+          .insert(equipamentosData)
+
+        if (eqError) {
+          console.error('Erro ao criar equipamentos:', eqError)
+          toast.warning(`Cliente ${mode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar alguns equipamentos`)
+        }
+      }
+
+      // Mensagem de sucesso
+      const actionText = mode === 'edit' ? 'atualizado' : 'criado'
+      const equipMsg = equipamentos.length > 0 ? ` e ${equipamentos.length} equipamento(s) ${mode === 'edit' ? 'adicionado(s)' : 'criado(s)'}` : ''
+      toast.success(`Cliente ${actionText} com sucesso${equipMsg}!`)
 
       setOpen(false)
       
@@ -416,15 +418,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
             </div>
           </div>
 
-          {/* Equipamentos - Apenas no modo criar */}
-          {mode === 'create' && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Equipamentos</h3>
-                <span className="text-xs text-muted-foreground">
-                  {equipamentos.length} equipamento(s) adicionado(s)
-                </span>
-              </div>
+          {/* Equipamentos */}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Equipamentos</h3>
+              <span className="text-xs text-muted-foreground">
+                {equipamentos.length} equipamento(s) {mode === 'edit' ? 'para adicionar' : 'adicionado(s)'}
+              </span>
+            </div>
               
               {/* Lista de equipamentos adicionados */}
               {equipamentos.length > 0 && (
@@ -516,7 +517,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>

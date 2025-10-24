@@ -155,6 +155,9 @@ vite.config.ts.timestamp-*
 .DS_Store
 *.pem
 
+# docs archive
+docs/archive/
+
 # vercel
 .vercel
 
