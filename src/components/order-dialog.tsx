@@ -16,12 +16,15 @@ interface OrderDialogProps {
   empresaId: string
   ordem?: OrdemServico | null
   clientes: Cliente[]
-  equipamentos: Equipamento[]
+  equipamentos?: Equipamento[]
   colaboradores: Colaborador[]
   onSuccess?: () => void
   trigger?: React.ReactNode
   mode?: 'create' | 'edit' | 'view'
   onRequestEdit?: () => void
+  defaultOpen?: boolean
+  hideTrigger?: boolean
+  defaultTipo?: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado'
 }
 
 export function OrderDialog({ 
@@ -34,11 +37,15 @@ export function OrderDialog({
   trigger, 
   mode = 'create',
   onRequestEdit,
+  defaultOpen,
+  hideTrigger,
+  defaultTipo,
 }: OrderDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
   const [allChecklists, setAllChecklists] = useState<Checklist[]>([])
   const [filteredTemplates, setFilteredTemplates] = useState<Checklist[]>([])
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null)
@@ -48,7 +55,7 @@ export function OrderDialog({
     cliente_id: ordem?.cliente_id || '',
     equipamento_id: ordem?.equipamento_id || '',
     tecnico_id: ordem?.tecnico_id || '',
-    tipo: ordem?.tipo || 'preventiva',
+    tipo: ordem?.tipo || defaultTipo || 'preventiva',
     prioridade: ordem?.prioridade || 'media',
     status: ordem?.status || 'novo',
     data_programada: ordem?.data_programada ? ordem.data_programada.split('T')[0] : '',
@@ -60,18 +67,23 @@ export function OrderDialog({
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([])
 
   useEffect(() => {
-    if (formData.cliente_id) {
-      const equipamentos = allEquipamentos.filter(e => e.cliente_id === formData.cliente_id)
-      setEquipamentosFiltrados(equipamentos)
-      
-      // Se o equipamento selecionado não pertence ao cliente, limpar
-      if (formData.equipamento_id && !equipamentos.some(e => e.id === formData.equipamento_id)) {
-        setFormData(prev => ({ ...prev, equipamento_id: '' }))
+    const loadEquip = async () => {
+      if (!formData.cliente_id) { setEquipamentosFiltrados([]); return }
+      try {
+        const { createSupabaseBrowser } = await import('@/lib/supabase')
+        const supabase = createSupabaseBrowser()
+        const { data } = await supabase.from('equipamentos').select('*').eq('cliente_id', formData.cliente_id).order('created_at', { ascending: false })
+        const list = (data || []) as Equipamento[]
+        setEquipamentosFiltrados(list)
+        if (formData.equipamento_id && !list.some(e => e.id === formData.equipamento_id)) {
+          setFormData(prev => ({ ...prev, equipamento_id: '' }))
+        }
+      } catch {
+        setEquipamentosFiltrados([])
       }
-    } else {
-      setEquipamentosFiltrados([])
     }
-  }, [formData.cliente_id, allEquipamentos, formData.equipamento_id])
+    loadEquip()
+  }, [formData.cliente_id])
 
   // Load checklists when dialog opens (create mode)
   useEffect(() => {
@@ -240,23 +252,25 @@ export function OrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            {mode === 'edit' ? (
-              <>
-                <Pencil className="h-4 w-4 mr-2" />
-                Editar
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Ordem
-              </>
-            )}
-          </Button>
-        )}
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button>
+              {mode === 'edit' ? (
+                <>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Ordem
+                </>
+              )}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
