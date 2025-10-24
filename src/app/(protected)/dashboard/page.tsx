@@ -316,9 +316,9 @@ export default function DashboardPage() {
         <div className='flex items-center gap-2'>
           <h2 className='text-2xl font-medium'>Bem vindo de volta</h2>
         </div>
-        <Button>
+        <Button onClick={() => router.push('/orders?new=true')}>
           <Plus className="mr-2 h-4 w-4" />
-          Nova Ordem
+          Novo Chamado
         </Button>
       </div>
 

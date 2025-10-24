@@ -485,12 +485,19 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
                 <div className="space-y-2">
                   <Label htmlFor="eq_tipo">Tipo</Label>
-                  <Input
-                    id="eq_tipo"
+                  <Select
                     value={novoEquipamento.tipo}
-                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, tipo: e.target.value })}
-                    placeholder="Ex: Elevador, Escada Rolante"
-                  />
+                    onValueChange={(value) => setNovoEquipamento({ ...novoEquipamento, tipo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Elétrico">Elétrico</SelectItem>
+                      <SelectItem value="Hidráulico">Hidráulico</SelectItem>
+                      <SelectItem value="Plataforma">Plataforma</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">

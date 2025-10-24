@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { LayoutDashboard, ClipboardList, Building2, Cable, Users, HeadphonesIcon, CheckSquare, Shield } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -35,7 +35,6 @@ const data = {
     },
     { title: "Checklists", url: "/checklists", icon: CheckSquare },
     { title: "Clientes", url: "/clients", icon: Building2 },
-    { title: "Equipamentos", url: "/equipments", icon: Cable },
     { title: "Técnicos", url: "/technicians", icon: Users },
   ],
 }
