@@ -174,6 +174,17 @@ function SignupContent() {
       }
 
       if (signUpData.user) {
+        // Telemetry: signup iniciado
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel: 'auth',
+            event: 'Signup Success',
+            icon: '🎉',
+            tags: { source: 'invite' },
+          }),
+        }).catch(() => {})
         // Aguardar um pouco para garantir que a sessão foi estabelecida
         await new Promise(resolve => setTimeout(resolve, 1000));
         
@@ -267,6 +278,17 @@ function SignupContent() {
       }
 
       console.log('[Signup] Convite aceito com sucesso! Dados:', data);
+      // Telemetry: convite aceito
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'auth',
+          event: 'Invite Accepted',
+          icon: '✅',
+          tags: { token: token?.slice(0, 6) + '…' },
+        }),
+      }).catch(() => {})
       toast.success("Convite aceito! Bem-vindo(a)!");
       
       // Redirect para dashboard

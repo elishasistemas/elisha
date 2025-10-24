@@ -69,13 +69,19 @@ export default function DashboardPage() {
   const [periodoDias, setPeriodoDias] = useState('7')
   const [periodosChamados, setPeriodosChamados] = useState('7')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
-  const { empresas, loading: empresasLoading } = useEmpresas()
-  const { clientes, loading: clientesLoading } = useClientes(empresas[0]?.id)
-  const { ordens, loading: ordensLoading } = useOrdensServico(empresas[0]?.id)
-  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresas[0]?.id)
   
-  // Detectar se é técnico e buscar seu perfil
+  // Buscar perfil primeiro para determinar empresa correta
   const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaAtiva = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  const { empresas, loading: empresasLoading } = useEmpresas()
+  const { clientes, loading: clientesLoading } = useClientes(empresaAtiva)
+  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva)
+  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva)
+  
+  // Detectar se é técnico
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
 

@@ -69,6 +69,17 @@ export default function LoginPage() {
       }
 
       if (data.user) {
+        // Telemetry: login bem-sucedido (não bloqueante)
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            channel: 'auth',
+            event: 'Login Success',
+            icon: '🔐',
+            tags: { method: 'password' },
+          }),
+        }).catch(() => {})
         // Verificar se é Elisha Admin (Super Admin) e se está impersonando
         const { data: profile } = await supabase
           .from('profiles')

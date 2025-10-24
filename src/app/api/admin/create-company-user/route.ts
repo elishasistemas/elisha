@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logEvent } from '@/lib/logsnag'
 
 /**
  * API para criar convite de usuário para uma empresa (apenas elisha_admin)
@@ -93,6 +94,21 @@ export async function POST(request: Request) {
       url: inviteUrl
     })
 
+    // LogSnag: convite criado
+    logEvent({
+      channel: 'invites',
+      event: 'Invite Created',
+      icon: '✉️',
+      description: `${email} convidado(a) para ${empresa.nome}`,
+      tags: {
+        empresa_id: empresaId,
+        empresa_nome: empresa.nome,
+        role: roleToUse,
+        created_by: created_by || 'system',
+      },
+      notify: false,
+    }).catch(() => {})
+
     // 6. Enviar email de convite (sem bloquear a resposta)
     fetch(`${baseUrl}/api/send-invite-email`, {
       method: 'POST',
@@ -133,4 +149,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

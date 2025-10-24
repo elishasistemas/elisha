@@ -158,6 +158,12 @@ export function OrderDialog({
         if (error) throw error
 
         toast.success('Ordem de serviço atualizada com sucesso!')
+        // Telemetry
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: ordem.id } }),
+        }).catch(() => {})
       } else {
         // Criar nova ordem
         const { data, error } = await supabase
@@ -169,6 +175,14 @@ export function OrderDialog({
         if (error) throw error
 
         toast.success('Ordem de serviço criada com sucesso!')
+        // Telemetry
+        if (data?.id) {
+          fetch('/api/telemetry/logsnag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id } }),
+          }).catch(() => {})
+        }
 
         // Vincular checklist template (opcional)
         if (data?.id && selectedChecklistId) {
@@ -180,6 +194,12 @@ export function OrderDialog({
             })
             if (resp.ok) {
               toast.success('Checklist vinculado à OS')
+              // Telemetry
+              fetch('/api/telemetry/logsnag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: 'orders', event: 'Checklist Linked', icon: '🧩', tags: { os_id: data?.id, checklist_id: selectedChecklistId } }),
+              }).catch(() => {})
             } else {
               console.warn('Falha ao iniciar checklist para OS')
             }

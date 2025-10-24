@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logEvent } from '@/lib/logsnag'
 
 /**
  * API para convidar um admin Elisha
@@ -84,6 +85,16 @@ export async function POST(request: Request) {
       }
     })
 
+    // LogSnag: convite Elisha Admin
+    logEvent({
+      channel: 'invites',
+      event: 'Elisha Admin Invited',
+      icon: '🛠️',
+      description: `${email} convidado como elisha_admin`,
+      tags: { user_id: user.user.id },
+      notify: true,
+    }).catch(() => {})
+
     return NextResponse.json({
       success: true,
       message: `Convite enviado para ${email}`,
@@ -101,4 +112,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { UpdateRespostaDTO } from '@/types/checklist'
+import { logEvent } from '@/lib/logsnag'
 
 export async function PATCH(
   request: NextRequest,
@@ -91,6 +92,17 @@ export async function PATCH(
       )
     }
 
+    // LogSnag: resposta atualizada
+    logEvent({
+      channel: 'checklist',
+      event: 'Checklist Answered',
+      icon: '✅',
+      description: `Resposta ${respostaId} atualizada`,
+      tags: { resposta_id: respostaId, status: updateData.status_item || 'pendente', user_id: user.id },
+      notify: false,
+      user_id: user.id,
+    }).catch(() => {})
+
     return NextResponse.json(resposta, { status: 200 })
   } catch (error) {
     console.error('[update-resposta] Error:', error)
@@ -104,4 +116,3 @@ export async function PATCH(
     )
   }
 }
-

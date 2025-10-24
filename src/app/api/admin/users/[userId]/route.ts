@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logEvent } from '@/lib/logsnag'
 
 /**
  * API para atualizar usuário (apenas elisha_admin)
@@ -52,6 +53,14 @@ export async function PATCH(
         is_elisha_admin: body.is_elisha_admin || false
       }
     })
+
+    // Telemetry: user updated
+    logEvent({
+      channel: 'users',
+      event: 'User Updated',
+      icon: '✏️',
+      tags: { user_id: userId, role: body.role, empresa_id: body.empresa_id || 'null', is_elisha_admin: !!body.is_elisha_admin },
+    }).catch(() => {})
 
     return NextResponse.json({ success: true })
 
@@ -147,6 +156,15 @@ export async function DELETE(
     }
 
     console.log('[admin/users/delete] Usuário deletado com sucesso:', userId)
+
+    // Telemetry: user deleted
+    logEvent({
+      channel: 'users',
+      event: 'User Deleted',
+      icon: '🗑️',
+      tags: { user_id: userId, email: profile.email || '' },
+      notify: false,
+    }).catch(() => {})
     return NextResponse.json({ success: true })
 
   } catch (error) {
@@ -157,4 +175,3 @@ export async function DELETE(
     )
   }
 }
-

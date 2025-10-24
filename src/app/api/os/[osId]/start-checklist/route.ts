@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { startChecklistForOS } from '@/services/checklist/startChecklistForOS'
 import { cookies } from 'next/headers'
+import { logEvent } from '@/lib/logsnag'
 
 export async function POST(
   request: NextRequest,
@@ -63,6 +64,17 @@ export async function POST(
       supabase
     )
 
+    // LogSnag: início de checklist
+    logEvent({
+      channel: 'checklist',
+      event: 'Checklist Started',
+      icon: '📝',
+      description: `OS ${osId} iniciou checklist ${checklistId}`,
+      tags: { os_id: osId, checklist_id: checklistId, user_id: user.id },
+      notify: false,
+      user_id: user.id,
+    }).catch(() => {})
+
     return NextResponse.json(result, { status: 200 })
   } catch (error) {
     console.error('[start-checklist] Error:', error)
@@ -76,4 +88,3 @@ export async function POST(
     )
   }
 }
-

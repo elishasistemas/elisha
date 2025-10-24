@@ -197,6 +197,12 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
 
       if (error) throw error
       setClientes(prev => [data, ...prev])
+      // Telemetry: client created
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'clients', event: 'Client Created', icon: '🆕', tags: { cliente_id: data.id, empresa_id: data.empresa_id } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar cliente' }
@@ -214,6 +220,12 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
 
       if (error) throw error
       setClientes(prev => prev.map(c => c.id === id ? data : c))
+      // Telemetry: client updated
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'clients', event: 'Client Updated', icon: '✏️', tags: { cliente_id: id } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar cliente' }
@@ -229,6 +241,12 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
 
       if (error) throw error
       setClientes(prev => prev.filter(c => c.id !== id))
+      // Telemetry: client deleted
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'clients', event: 'Client Deleted', icon: '🗑️', tags: { cliente_id: id } }),
+      }).catch(() => {})
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar cliente' }
@@ -351,6 +369,12 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
       if (error) throw error
       setColaboradores(prev => [data, ...prev])
+      // Telemetry: technician created
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'technicians', event: 'Technician Created', icon: '👷', tags: { tecnico_id: data.id, empresa_id: data.empresa_id } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar colaborador' }
@@ -368,6 +392,12 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
       if (error) throw error
       setColaboradores(prev => prev.map(c => c.id === id ? data : c))
+      // Telemetry: technician updated
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'technicians', event: 'Technician Updated', icon: '✏️', tags: { tecnico_id: id } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar colaborador' }
@@ -385,6 +415,12 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
       if (error) throw error
       setColaboradores(prev => prev.map(c => c.id === id ? data : c))
+      // Telemetry: technician toggled
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'technicians', event: ativo ? 'Technician Activated' : 'Technician Deactivated', icon: ativo ? '✅' : '⛔', tags: { tecnico_id: id, ativo } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar status' }
@@ -400,6 +436,12 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
       if (error) throw error
       setColaboradores(prev => prev.filter(c => c.id !== id))
+      // Telemetry: technician deleted
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'technicians', event: 'Technician Deleted', icon: '🗑️', tags: { tecnico_id: id } }),
+      }).catch(() => {})
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar colaborador' }
@@ -501,6 +543,12 @@ export function useOrdensServico(
 
       if (error) throw error
       // Com paginação server-side, preferimos refetch externo
+      // Telemetry: order created
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id, empresa_id: data.empresa_id, tecnico_id: data.tecnico_id || 'null' } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar ordem' }
@@ -519,6 +567,12 @@ export function useOrdensServico(
       if (error) throw error
       // Opcional: atualizar página atual
       setOrdens(prev => prev.map(ordem => ordem.id === id ? data : ordem))
+      // Telemetry: order updated
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: id, status: (updates as any)?.status || 'updated' } }),
+      }).catch(() => {})
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar ordem' }
@@ -534,6 +588,12 @@ export function useOrdensServico(
 
       if (error) throw error
       // Preferir refetch após exclusão
+      // Telemetry: order deleted
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'orders', event: 'Order Deleted', icon: '🗑️', tags: { os_id: id } }),
+      }).catch(() => {})
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar ordem' }

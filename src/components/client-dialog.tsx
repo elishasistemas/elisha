@@ -166,6 +166,12 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         if (error) throw error
 
         clienteId = cliente.id
+        // Telemetry
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'clients', event: 'Client Updated', icon: '✏️', tags: { cliente_id: cliente.id } }),
+        }).catch(() => {})
       } else {
         // Criar novo cliente
         const { data: newCliente, error } = await supabase
@@ -178,6 +184,12 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         if (!newCliente) throw new Error('Erro ao criar cliente')
 
         clienteId = newCliente.id
+        // Telemetry
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'clients', event: 'Client Created', icon: '🆕', tags: { cliente_id: clienteId } }),
+        }).catch(() => {})
       }
 
       // Criar equipamentos se houver (funciona tanto para criar quanto para editar)
@@ -200,6 +212,13 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         if (eqError) {
           console.error('Erro ao criar equipamentos:', eqError)
           toast.warning(`Cliente ${mode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar alguns equipamentos`)
+        } else {
+          // Telemetry
+          fetch('/api/telemetry/logsnag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel: 'clients', event: 'Equipments Added', icon: '🧩', tags: { cliente_id: clienteId, count: equipamentos.length } }),
+          }).catch(() => {})
         }
       }
 
@@ -531,4 +550,3 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
     </Dialog>
   )
 }
-

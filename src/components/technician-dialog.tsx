@@ -93,15 +93,27 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         if (error) throw error
 
         toast.success('Técnico atualizado com sucesso!')
+        // Telemetry
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'technicians', event: 'Technician Updated', icon: '✏️', tags: { tecnico_id: colaborador.id } }),
+        }).catch(() => {})
       } else {
         // Criar novo colaborador
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('colaboradores')
           .insert([colaboradorData])
 
         if (error) throw error
 
         toast.success('Técnico criado com sucesso!')
+        // Telemetry
+        fetch('/api/telemetry/logsnag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'technicians', event: 'Technician Created', icon: '👷', tags: { empresa_id: empresaId } }),
+        }).catch(() => {})
       }
 
       setOpen(false)
@@ -218,4 +230,3 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
     </Dialog>
   )
 }
-

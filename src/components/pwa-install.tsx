@@ -48,6 +48,14 @@ export default function PWAInstall() {
       window.addEventListener("load", () => {
         navigator.serviceWorker
           .register("/sw.js")
+          .then(() => {
+            // Telemetry (não bloqueante)
+            fetch('/api/telemetry/logsnag', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ channel: 'pwa', event: 'SW Registered', icon: '⚙️' }),
+            }).catch(() => {})
+          })
           .catch(() => {
             // ignora erros de registro silenciosamente
           });
@@ -61,6 +69,11 @@ export default function PWAInstall() {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
       if (!localStorage.getItem(DISMISS_KEY)) setShowBar(true);
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'pwa', event: 'Install Prompt', icon: '📣' }),
+      }).catch(() => {})
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
 
@@ -68,6 +81,11 @@ export default function PWAInstall() {
       setDeferred(null);
       setShowBar(false);
       setOpen(false);
+      fetch('/api/telemetry/logsnag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'pwa', event: 'PWA Installed', icon: '📲' }),
+      }).catch(() => {})
     };
     window.addEventListener("appinstalled", onInstalled);
 
@@ -145,4 +163,3 @@ export default function PWAInstall() {
     </>
   );
 }
-
