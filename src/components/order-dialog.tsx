@@ -20,7 +20,8 @@ interface OrderDialogProps {
   colaboradores: Colaborador[]
   onSuccess?: () => void
   trigger?: React.ReactNode
-  mode?: 'create' | 'edit'
+  mode?: 'create' | 'edit' | 'view'
+  onRequestEdit?: () => void
 }
 
 export function OrderDialog({ 
@@ -31,10 +32,13 @@ export function OrderDialog({
   colaboradores, 
   onSuccess, 
   trigger, 
-  mode = 'create' 
+  mode = 'create',
+  onRequestEdit,
 }: OrderDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
+  const isView = localMode === 'view'
   const [allChecklists, setAllChecklists] = useState<Checklist[]>([])
   const [filteredTemplates, setFilteredTemplates] = useState<Checklist[]>([])
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null)
@@ -108,11 +112,13 @@ export function OrderDialog({
   }, [allChecklists, formData.tipo, selectedChecklistId])
 
   const handleChange = (field: string, value: string) => {
+    if (isView) return
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isView) { setOpen(false); return }
     setLoading(true)
 
     try {
@@ -253,12 +259,17 @@ export function OrderDialog({
       </DialogTrigger>
       <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'edit' 
-              ? 'Atualize as informações da ordem de serviço abaixo.' 
-              : 'Preencha os dados da nova ordem de serviço abaixo.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle>{isView ? 'Visualizar Ordem de Serviço' : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')}</DialogTitle>
+              <DialogDescription>
+                {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
+              </DialogDescription>
+            </div>
+            {isView && (
+              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -272,7 +283,7 @@ export function OrderDialog({
                   Cliente <span className="text-destructive">*</span>
                 </Label>
                 <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue placeholder="Selecione o cliente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -292,9 +303,9 @@ export function OrderDialog({
                 <Select 
                   value={formData.equipamento_id} 
                   onValueChange={(value) => handleChange('equipamento_id', value)}
-                  disabled={!formData.cliente_id}
+                  disabled={!formData.cliente_id || isView}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger disabled={!formData.cliente_id || isView}>
                     <SelectValue placeholder={formData.cliente_id ? "Selecione o equipamento" : "Selecione um cliente primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -321,7 +332,7 @@ export function OrderDialog({
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
                 <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -336,7 +347,7 @@ export function OrderDialog({
               <div className="space-y-2">
                 <Label htmlFor="prioridade">Prioridade</Label>
                 <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -350,7 +361,7 @@ export function OrderDialog({
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -372,7 +383,7 @@ export function OrderDialog({
                   value={formData.tecnico_id || '__none__'}
                   onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue placeholder="Nenhum técnico atribuído" />
                   </SelectTrigger>
                   <SelectContent>
@@ -393,6 +404,7 @@ export function OrderDialog({
                   type="date"
                   value={formData.data_programada}
                   onChange={(e) => handleChange('data_programada', e.target.value)}
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -404,12 +416,13 @@ export function OrderDialog({
                 value={formData.numero_os}
                 onChange={(e) => handleChange('numero_os', e.target.value)}
                 placeholder="Ex: OS-2024-001"
+                disabled={isView}
               />
             </div>
           </div>
 
           {/* Checklist Template (Create mode) */}
-          {mode === 'create' && (
+          {mode === 'create' && !isView && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Checklist</h3>
               <div className="space-y-2">
@@ -452,17 +465,27 @@ export function OrderDialog({
                 onChange={(e) => handleChange('observacoes', e.target.value)}
                 placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
                 rows={4}
+                disabled={isView}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
-            </Button>
+            {isView ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

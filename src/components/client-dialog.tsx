@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,12 +25,32 @@ interface ClientDialogProps {
   cliente?: Cliente | null
   onSuccess?: () => void
   trigger?: React.ReactNode
-  mode?: 'create' | 'edit'
+  mode?: 'create' | 'edit' | 'view'
+  onRequestEdit?: () => void
 }
 
-export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create' }: ClientDialogProps) {
+export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit }: ClientDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
+  const isView = localMode === 'view'
+  // Accordion state persistido
+  const [secBasic, setSecBasic] = useState(true)
+  const [secResp, setSecResp] = useState(true)
+  const [secContrato, setSecContrato] = useState(true)
+  const [secEquip, setSecEquip] = useState(true)
+  const persistKey = (s: string) => `client_dialog:${s}`
+  const loadPersist = () => {
+    try {
+      setSecBasic((localStorage.getItem(persistKey('basic')) ?? '1') === '1')
+      setSecResp((localStorage.getItem(persistKey('resp')) ?? '1') === '1')
+      setSecContrato((localStorage.getItem(persistKey('contrato')) ?? '1') === '1')
+      setSecEquip((localStorage.getItem(persistKey('equip')) ?? '1') === '1')
+    } catch {}
+  }
+  const persist = (name: string, val: boolean) => { try { localStorage.setItem(persistKey(name), val ? '1' : '0') } catch {} }
+  // carregar ao abrir
+  useEffect(() => { if (open) loadPersist() }, [open])
 
   // Form state
   const [formData, setFormData] = useState({
@@ -58,6 +78,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   })
 
   const handleChange = (field: string, value: string) => {
+    if (isView) return
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -93,6 +114,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   }
 
   const addEquipamento = () => {
+    if (isView) return
     if (!novoEquipamento.nome.trim() || !novoEquipamento.tipo.trim()) {
       toast.error('Nome e Tipo são obrigatórios para o equipamento')
       return
@@ -110,12 +132,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   }
 
   const removeEquipamento = (index: number) => {
+    if (isView) return
     setEquipamentos(equipamentos.filter((_, i) => i !== index))
     toast.success('Equipamento removido da lista')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isView) { setOpen(false); return }
     setLoading(true)
 
     try {
@@ -285,19 +309,28 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       </DialogTrigger>
       <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'edit' 
-              ? 'Atualize as informações do cliente abaixo.' 
-              : 'Preencha os dados do novo cliente abaixo.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle>{isView ? 'Visualizar Cliente' : mode === 'edit' ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
+              <DialogDescription>
+                {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações do cliente abaixo.' : 'Preencha os dados do novo cliente abaixo.')}
+              </DialogDescription>
+            </div>
+            {isView && (
+              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Dados Básicos */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Dados Básicos</h3>
-            
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Dados Básicos</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secBasic; setSecBasic(v); persist('basic', v) }}>{secBasic ? 'Recolher' : 'Expandir'}</Button>
+            </div>
+            {secBasic && (
+            <>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="nome_local">
@@ -309,6 +342,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   onChange={(e) => handleChange('nome_local', e.target.value)}
                   placeholder="Ex: Empresa ABC Ltda"
                   required
+                  disabled={isView}
                 />
               </div>
 
@@ -322,13 +356,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   onChange={(e) => handleChange('cnpj', formatCNPJ(e.target.value))}
                   placeholder="00.000.000/0000-00"
                   required
+                  disabled={isView}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status_contrato">Status do Contrato</Label>
                 <Select value={formData.status_contrato} onValueChange={(value) => handleChange('status_contrato', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={isView}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -339,7 +374,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 </Select>
               </div>
             </div>
-
+            
             <div className="space-y-2">
               <Label htmlFor="endereco_completo">Endereço Completo</Label>
               <Textarea
@@ -348,14 +383,21 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 onChange={(e) => handleChange('endereco_completo', e.target.value)}
                 placeholder="Rua, número, complemento, bairro, cidade, estado, CEP"
                 rows={2}
+                disabled={isView}
               />
             </div>
+            </>
+            )}
           </div>
 
           {/* Dados do Responsável */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Responsável</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Responsável</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secResp; setSecResp(v); persist('resp', v) }}>{secResp ? 'Recolher' : 'Expandir'}</Button>
+            </div>
             
+            {secResp && (
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="responsavel_nome">Nome do Responsável</Label>
@@ -364,6 +406,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   value={formData.responsavel_nome}
                   onChange={(e) => handleChange('responsavel_nome', e.target.value)}
                   placeholder="Ex: João Silva"
+                  disabled={isView}
                 />
               </div>
 
@@ -374,6 +417,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   value={formData.responsavel_telefone}
                   onChange={(e) => handleChange('responsavel_telefone', formatPhone(e.target.value))}
                   placeholder="(00) 00000-0000"
+                  disabled={isView}
                 />
               </div>
 
@@ -385,15 +429,21 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   value={formData.responsavel_email}
                   onChange={(e) => handleChange('responsavel_email', e.target.value)}
                   placeholder="responsavel@empresa.com"
+                  disabled={isView}
                 />
               </div>
             </div>
+            )}
           </div>
 
           {/* Dados do Contrato */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Contrato</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Contrato</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secContrato; setSecContrato(v); persist('contrato', v) }}>{secContrato ? 'Recolher' : 'Expandir'}</Button>
+            </div>
             
+            {secContrato && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="data_inicio_contrato">Data de Início</Label>
@@ -402,6 +452,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   type="date"
                   value={formData.data_inicio_contrato}
                   onChange={(e) => handleChange('data_inicio_contrato', e.target.value)}
+                  disabled={isView}
                 />
               </div>
 
@@ -412,6 +463,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   type="date"
                   value={formData.data_fim_contrato}
                   onChange={(e) => handleChange('data_fim_contrato', e.target.value)}
+                  disabled={isView}
                 />
               </div>
 
@@ -422,6 +474,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   value={formData.valor_mensal_contrato}
                   onChange={(e) => handleChange('valor_mensal_contrato', formatCurrency(e.target.value))}
                   placeholder="0,00"
+                  disabled={isView}
                 />
               </div>
 
@@ -432,9 +485,11 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   value={formData.numero_art}
                   onChange={(e) => handleChange('numero_art', e.target.value)}
                   placeholder="Ex: 123456789"
+                  disabled={isView}
                 />
               </div>
             </div>
+            )}
           </div>
 
           {/* Equipamentos */}
@@ -442,11 +497,23 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">Equipamentos</h3>
               <span className="text-xs text-muted-foreground">
-                {equipamentos.length} equipamento(s) {mode === 'edit' ? 'para adicionar' : 'adicionado(s)'}
+                {equipamentos.length} equipamento(s)
               </span>
+            </div>
+            
+            {/* Toggle seção equipamentos */}
+            <div className="flex justify-end -mt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => {
+                const el = document.getElementById('sec_equip')
+                if (!el) return
+                const hidden = el.getAttribute('data-open') !== '1'
+                el.setAttribute('data-open', hidden ? '1' : '0')
+                try { localStorage.setItem('client_dialog:equip', hidden ? '1' : '0') } catch {}
+              }}>{(typeof window !== 'undefined' && localStorage.getItem('client_dialog:equip') === '0') ? 'Expandir' : 'Recolher'}</Button>
             </div>
               
               {/* Lista de equipamentos adicionados */}
+              <div id="sec_equip" data-open="1">
               {equipamentos.length > 0 && (
                 <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2 bg-muted/20">
                   {equipamentos.map((eq, index) => (
@@ -457,6 +524,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                           {eq.tipo} • {eq.marca} • {eq.capacidade}
                         </p>
                       </div>
+                      {!isView && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -466,6 +534,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -479,6 +548,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     id="eq_nome"
                     value={novoEquipamento.nome}
                     onChange={(e) => setNovoEquipamento({ ...novoEquipamento, nome: e.target.value })}
+                    disabled={isView}
                     placeholder="Ex: Elevador Principal"
                   />
                 </div>
@@ -489,7 +559,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     value={novoEquipamento.tipo}
                     onValueChange={(value) => setNovoEquipamento({ ...novoEquipamento, tipo: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={isView}>
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -506,6 +576,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     id="eq_marca"
                     value={novoEquipamento.marca}
                     onChange={(e) => setNovoEquipamento({ ...novoEquipamento, marca: e.target.value })}
+                    disabled={isView}
                     placeholder="Ex: Otis, Schindler"
                   />
                 </div>
@@ -516,6 +587,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     id="eq_pavimentos"
                     value={novoEquipamento.pavimentos}
                     onChange={(e) => setNovoEquipamento({ ...novoEquipamento, pavimentos: e.target.value })}
+                    disabled={isView}
                     placeholder="Ex: Térreo ao 10º"
                   />
                 </div>
@@ -526,11 +598,13 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     id="eq_capacidade"
                     value={novoEquipamento.capacidade}
                     onChange={(e) => setNovoEquipamento({ ...novoEquipamento, capacidade: e.target.value })}
+                    disabled={isView}
                     placeholder="Ex: 8 pessoas, 600kg"
                   />
                 </div>
 
                 <div className="col-span-2">
+                  {!isView && (
                   <Button
                     type="button"
                     variant="outline"
@@ -540,17 +614,28 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Equipamento
                   </Button>
+                  )}
                 </div>
+              </div>
               </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Cliente'}
-            </Button>
+            {isView ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Cliente'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

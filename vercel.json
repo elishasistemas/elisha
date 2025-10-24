@@ -5,6 +5,12 @@
     "env": {
       "TURBO_FORCE": "true"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/metrics/snapshot",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
 

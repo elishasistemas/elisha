@@ -14,12 +14,15 @@ interface TechnicianDialogProps {
   colaborador?: Colaborador | null
   onSuccess?: () => void
   trigger?: React.ReactNode
-  mode?: 'create' | 'edit'
+  mode?: 'create' | 'edit' | 'view'
+  onRequestEdit?: () => void
 }
 
-export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, mode = 'create' }: TechnicianDialogProps) {
+export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, mode = 'create', onRequestEdit }: TechnicianDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
+  const isView = localMode === 'view'
 
   // Form state
   const [formData, setFormData] = useState({
@@ -30,6 +33,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
   })
 
   const handleChange = (field: string, value: string) => {
+    if (isView) return
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -54,6 +58,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isView) { setOpen(false); return }
     setLoading(true)
 
     try {
@@ -155,12 +160,17 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
       </DialogTrigger>
       <DialogContent className="w-full max-w-[80%]">
         <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? 'Editar Técnico' : 'Novo Técnico'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'edit' 
-              ? 'Atualize as informações do técnico abaixo.' 
-              : 'Preencha os dados do novo técnico/colaborador abaixo.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle>{isView ? 'Visualizar Técnico' : (mode === 'edit' ? 'Editar Técnico' : 'Novo Técnico')}</DialogTitle>
+              <DialogDescription>
+                {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações do técnico abaixo.' : 'Preencha os dados do novo técnico/colaborador abaixo.')}
+              </DialogDescription>
+            </div>
+            {isView && (
+              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -176,6 +186,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                 onChange={(e) => handleChange('nome', e.target.value)}
                 placeholder="Ex: João Silva"
                 required
+                disabled={isView}
               />
             </div>
 
@@ -186,6 +197,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                 value={formData.funcao}
                 onChange={(e) => handleChange('funcao', e.target.value)}
                 placeholder="Ex: Técnico Sênior, Engenheiro"
+                disabled={isView}
               />
             </div>
 
@@ -196,6 +208,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                 value={formData.telefone}
                 onChange={(e) => handleChange('telefone', formatPhone(e.target.value))}
                 placeholder="(00) 00000-0000"
+                disabled={isView}
               />
               <p className="text-xs text-muted-foreground">Telefone comercial ou pessoal</p>
             </div>
@@ -210,6 +223,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                 onChange={(e) => handleChange('whatsapp_numero', formatWhatsApp(e.target.value))}
                 placeholder="5581998765432"
                 required
+                disabled={isView}
               />
               <p className="text-xs text-muted-foreground">
                 Apenas números: código do país (55) + DDD + número
@@ -218,12 +232,21 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Técnico'}
-            </Button>
+            {isView ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Técnico'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
