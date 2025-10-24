@@ -516,7 +516,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                   </Button>
                 </div>
               </div>
-            </div>
           </div>
 
           <DialogFooter>
