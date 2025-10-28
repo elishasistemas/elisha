@@ -160,7 +160,7 @@ export default function OSFullScreenPage() {
           table: 'ordens_servico',
           filter: `id=eq.${osId}`
         },
-        (payload) => {
+        (payload: any) => {
           console.log('[os-full] Realtime update:', payload)
           if (payload.eventType === 'UPDATE' && payload.new) {
             setOs(prev => prev ? { ...prev, ...payload.new } : null)
@@ -176,7 +176,7 @@ export default function OSFullScreenPage() {
           table: 'os_status_history',
           filter: `os_id=eq.${osId}`
         },
-        (payload) => {
+        (payload: any) => {
           console.log('[os-full] Novo status:', payload)
           if (payload.new) {
             setStatusHistory(prev => [payload.new as StatusHistory, ...prev])
