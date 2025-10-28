@@ -76,7 +76,7 @@ export interface OrdemServico {
   empresa_id: string | null
   tipo: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado'
   prioridade: 'alta' | 'media' | 'baixa'
-  status: 'novo' | 'em_andamento' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado'
+  status: 'novo' | 'em_andamento' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado' | 'em_deslocamento' | 'checkin' | 'checkout' | 'reaberta'
   data_abertura: string
   data_inicio: string | null
   data_fim: string | null
