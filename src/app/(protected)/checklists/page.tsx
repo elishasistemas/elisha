@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ChecklistDialog } from '@/components/checklist-dialog'
+import { ChecklistViewDialog } from '@/components/checklist-view-dialog'
 import { useAuth, useEmpresas, useProfile } from '@/hooks/use-supabase'
 import { isAdmin } from '@/utils/auth'
 import { createSupabaseBrowser } from '@/lib/supabase'
@@ -76,12 +77,16 @@ export default function ChecklistsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [checklistToDelete, setChecklistToDelete] = useState<Checklist | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [viewChecklist, setViewChecklist] = useState<Checklist | null>(null)
   
-  const { empresas, loading: empresasLoading } = useEmpresas()
-  const empresaId = empresas[0]?.id
   const supabase = createSupabaseBrowser()
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  const { empresas, loading: empresasLoading } = useEmpresas()
   const canAdmin = isAdmin(session, profile)
 
   // Load checklists
@@ -294,7 +299,7 @@ export default function ChecklistsPage() {
               </TableHeader>
               <TableBody>
                 {checklists.map((checklist) => (
-                  <TableRow key={checklist.id}>
+                  <TableRow key={checklist.id} className="cursor-pointer" onClick={() => setViewChecklist(checklist)}>
                     <TableCell className="font-medium">{checklist.nome}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
@@ -320,7 +325,7 @@ export default function ChecklistsPage() {
                         {checklist.ativo ? 'Ativo' : 'Inativo'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -429,6 +434,16 @@ export default function ChecklistsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {viewChecklist && (
+        <ChecklistViewDialog
+          key={viewChecklist.id}
+          checklist={viewChecklist}
+          defaultOpen
+          hideTrigger
+          onOpenChange={(o) => { if (!o) setViewChecklist(null) }}
+        />
+      )}
     </div>
   )
 }

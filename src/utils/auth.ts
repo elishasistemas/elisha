@@ -23,15 +23,6 @@ export function getActiveRole(session?: Session | null, profile?: Profile | null
     
   const result = fromAppMeta || fromUserMeta || fromProfile || fromCookie || null
   
-  // Debug log
-  console.log('[getActiveRole] Debug:', {
-    fromAppMeta,
-    fromUserMeta,
-    fromProfile,
-    fromCookie,
-    result
-  })
-  
   return result
 }
 

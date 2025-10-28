@@ -103,7 +103,7 @@ export default function UsersPage() {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, empresa_id, role, roles, active_role, created_at, is_elisha_admin, impersonating_empresa_id")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
       if (profileError) {

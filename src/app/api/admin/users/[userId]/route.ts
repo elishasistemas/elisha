@@ -35,7 +35,7 @@ export async function PATCH(
         roles: [body.role],
         is_elisha_admin: body.is_elisha_admin || false
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
 
     if (profileError) {
       return NextResponse.json(
@@ -117,7 +117,7 @@ export async function DELETE(
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, user_id, nome, email')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (profileError) {
@@ -134,7 +134,7 @@ export async function DELETE(
     const { error: deleteProfileError } = await supabase
       .from('profiles')
       .delete()
-      .eq('id', userId)
+      .eq('user_id', userId)
 
     if (deleteProfileError) {
       console.error('[admin/users/delete] Erro ao deletar profile:', deleteProfileError)

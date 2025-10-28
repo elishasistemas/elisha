@@ -33,11 +33,14 @@ import { toast } from 'sonner'
 import type { Colaborador } from '@/lib/supabase'
 
 export default function TechniciansPage() {
-  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const empresaId = empresas[0]?.id
-  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId)
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
+  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId)
   const canAdmin = isAdmin(session, profile)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
@@ -263,12 +266,13 @@ export default function TechniciansPage() {
 
       {viewTec && empresaId && (
         <TechnicianDialog
+          key={viewTec.id}
           empresaId={empresaId}
           colaborador={viewTec}
           mode="view"
           hideTrigger
           defaultOpen
-          onRequestEdit={() => setViewTec({ ...viewTec })}
+          onOpenChange={(o) => { if (!o) setViewTec(null) }}
           onSuccess={() => { setViewTec(null); handleRefresh() }}
         />
       )}

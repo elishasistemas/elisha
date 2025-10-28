@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('empresa_id, active_role, tecnico_id, roles, is_elisha_admin, impersonating_empresa_id')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (profileError || !profile) {

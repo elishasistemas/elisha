@@ -27,16 +27,24 @@ interface ClientDialogProps {
   trigger?: React.ReactNode
   mode?: 'create' | 'edit' | 'view'
   onRequestEdit?: () => void
+  onOpenChange?: (open: boolean) => void
   defaultOpen?: boolean
   hideTrigger?: boolean
 }
 
-export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit, defaultOpen, hideTrigger }: ClientDialogProps) {
+export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit, onOpenChange, defaultOpen, hideTrigger }: ClientDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  // Abre também quando cliente mudar (para reabrir com novos cliques)
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
+  useEffect(() => {
+    if (defaultOpen && cliente) {
+      setOpen(true)
+    }
+    setLocalMode(mode)
+  }, [defaultOpen, cliente?.id, mode])
   // Accordion state persistido
   const [secBasic, setSecBasic] = useState(true)
   const [secResp, setSecResp] = useState(true)
@@ -183,7 +191,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
       let clienteId: string
 
-      if (mode === 'edit' && cliente) {
+      if (localMode === 'edit' && cliente) {
         // Atualizar cliente
         const { error } = await supabase
           .from('clientes')
@@ -250,8 +258,8 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       }
 
       // Mensagem de sucesso
-      const actionText = mode === 'edit' ? 'atualizado' : 'criado'
-      const equipMsg = equipamentos.length > 0 ? ` e ${equipamentos.length} equipamento(s) ${mode === 'edit' ? 'adicionado(s)' : 'criado(s)'}` : ''
+      const actionText = localMode === 'edit' ? 'atualizado' : 'criado'
+      const equipMsg = equipamentos.length > 0 ? ` e ${equipamentos.length} equipamento(s) ${localMode === 'edit' ? 'adicionado(s)' : 'criado(s)'}` : ''
       toast.success(`Cliente ${actionText} com sucesso${equipMsg}!`)
 
       setOpen(false)
@@ -292,7 +300,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
@@ -312,7 +320,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -321,9 +329,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações do cliente abaixo.' : 'Preencha os dados do novo cliente abaixo.')}
               </DialogDescription>
             </div>
-            {isView && (
-              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
-            )}
+            {/* Removido botão Editar do header em modo visualização */}
           </div>
         </DialogHeader>
 
@@ -628,16 +634,25 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           <DialogFooter>
             {isView ? (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
+                  }}
+                >
+                  Editar
+                </Button>
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Cliente'}
+                  {loading ? 'Salvando...' : localMode === 'edit' ? 'Atualizar' : 'Criar Cliente'}
                 </Button>
               </>
             )}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, Pencil } from 'lucide-react'
@@ -16,16 +17,24 @@ interface TechnicianDialogProps {
   trigger?: React.ReactNode
   mode?: 'create' | 'edit' | 'view'
   onRequestEdit?: () => void
+  onOpenChange?: (open: boolean) => void
   defaultOpen?: boolean
   hideTrigger?: boolean
 }
 
-export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, mode = 'create', onRequestEdit, defaultOpen, hideTrigger }: TechnicianDialogProps) {
+export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, mode = 'create', onRequestEdit, onOpenChange, defaultOpen, hideTrigger }: TechnicianDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  // Abrir também quando colaborador mudar (para garantir reabertura em novos cliques)
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
+  useEffect(() => {
+    if (defaultOpen && colaborador) {
+      setOpen(true)
+    }
+    setLocalMode(mode)
+  }, [defaultOpen, colaborador?.id, mode])
 
   // Form state
   const [formData, setFormData] = useState({
@@ -104,7 +113,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         ativo: true,
       }
 
-      if (mode === 'edit' && colaborador) {
+      if (localMode === 'edit' && colaborador) {
         // Atualizar colaborador
         const { error } = await supabase
           .from('colaboradores')
@@ -156,7 +165,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
@@ -176,7 +185,7 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="w-full max-w-[80%]">
+      <DialogContent>
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -185,102 +194,106 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                 {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações do técnico abaixo.' : 'Preencha os dados do novo técnico/colaborador abaixo.')}
               </DialogDescription>
             </div>
-            {isView && (
-              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
-            )}
+            {/* Removido botão Editar do header em modo visualização */}
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dados Pessoais */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Dados Pessoais</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secPessoais; setSecPessoais(v); persist('pessoais', v) }}>{secPessoais ? 'Recolher' : 'Expandir'}</Button>
-            </div>
-            {secPessoais && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nome">
-                    Nome Completo <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => handleChange('nome', e.target.value)}
-                    placeholder="Ex: João Silva"
-                    required
-                    disabled={isView}
-                  />
+          <Accordion type="multiple" value={[secPessoais ? 'pessoais' : '', secContato ? 'contato' : ''].filter(Boolean) as string[]} onValueChange={(v) => {
+            const set = new Set(v as string[])
+            const p = set.has('pessoais'); const c = set.has('contato')
+            setSecPessoais(p); setSecContato(c); persist('pessoais', p); persist('contato', c)
+          }} className="w-full">
+            <AccordionItem value="pessoais">
+              <AccordionTrigger>Dados Pessoais</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">
+                      Nome Completo <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="nome"
+                      value={formData.nome}
+                      onChange={(e) => handleChange('nome', e.target.value)}
+                      placeholder="Ex: João Silva"
+                      required
+                      disabled={isView}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="funcao">Função/Cargo</Label>
+                    <Input
+                      id="funcao"
+                      value={formData.funcao}
+                      onChange={(e) => handleChange('funcao', e.target.value)}
+                      placeholder="Ex: Técnico Sênior, Engenheiro"
+                      disabled={isView}
+                    />
+                  </div>
                 </div>
+              </AccordionContent>
+            </AccordionItem>
 
-                <div className="space-y-2">
-                  <Label htmlFor="funcao">Função/Cargo</Label>
-                  <Input
-                    id="funcao"
-                    value={formData.funcao}
-                    onChange={(e) => handleChange('funcao', e.target.value)}
-                    placeholder="Ex: Técnico Sênior, Engenheiro"
-                    disabled={isView}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+            <AccordionItem value="contato">
+              <AccordionTrigger>Contato</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="telefone">Telefone</Label>
+                    <Input
+                      id="telefone"
+                      value={formData.telefone}
+                      onChange={(e) => handleChange('telefone', formatPhone(e.target.value))}
+                      placeholder="(00) 00000-0000"
+                      disabled={isView}
+                    />
+                    <p className="text-xs text-muted-foreground">Telefone comercial ou pessoal</p>
+                  </div>
 
-          {/* Contato */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Contato</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secContato; setSecContato(v); persist('contato', v) }}>{secContato ? 'Recolher' : 'Expandir'}</Button>
-            </div>
-            {secContato && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone</Label>
-                  <Input
-                    id="telefone"
-                    value={formData.telefone}
-                    onChange={(e) => handleChange('telefone', formatPhone(e.target.value))}
-                    placeholder="(00) 00000-0000"
-                    disabled={isView}
-                  />
-                  <p className="text-xs text-muted-foreground">Telefone comercial ou pessoal</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp_numero">
+                      WhatsApp <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="whatsapp_numero"
+                      value={formData.whatsapp_numero}
+                      onChange={(e) => handleChange('whatsapp_numero', formatWhatsApp(e.target.value))}
+                      placeholder="5581998765432"
+                      required
+                      disabled={isView}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Apenas números: código do país (55) + DDD + número
+                    </p>
+                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp_numero">
-                    WhatsApp <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="whatsapp_numero"
-                    value={formData.whatsapp_numero}
-                    onChange={(e) => handleChange('whatsapp_numero', formatWhatsApp(e.target.value))}
-                    placeholder="5581998765432"
-                    required
-                    disabled={isView}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Apenas números: código do país (55) + DDD + número
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <DialogFooter>
             {isView ? (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
+                  }}
+                >
+                  Editar
+                </Button>
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Técnico'}
+                  {loading ? 'Salvando...' : localMode === 'edit' ? 'Atualizar' : 'Criar Técnico'}
                 </Button>
               </>
             )}

@@ -25,7 +25,7 @@ export function ImpersonationBanner() {
       const { data: profile } = await supabase
         .from('profiles')
         .select('impersonating_empresa_id')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (profile?.impersonating_empresa_id) {

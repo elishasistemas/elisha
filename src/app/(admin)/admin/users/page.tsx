@@ -86,6 +86,8 @@ export default function AdminUsersPage() {
     role: 'admin',
     empresa_id: ''
   })
+  // Visualização de usuário
+  const [viewUser, setViewUser] = useState<UserProfile | null>(null)
 
   useEffect(() => {
     loadData()
@@ -347,7 +349,7 @@ export default function AdminUsersPage() {
               </TableRow>
             ) : (
               filteredUsers.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className="cursor-pointer" onClick={() => setViewUser(user)}>
                   <TableCell className="font-medium">{user.email}</TableCell>
                   <TableCell>{user.nome || '-'}</TableCell>
                   <TableCell>{user.empresa_nome}</TableCell>
@@ -364,7 +366,7 @@ export default function AdminUsersPage() {
                   <TableCell>
                     {new Date(user.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
@@ -514,6 +516,49 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Visualizar Usuário */}
+      <Dialog open={!!viewUser} onOpenChange={(o) => { if (!o) setViewUser(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Visualizar Usuário</DialogTitle>
+            <DialogDescription>Dados básicos do usuário</DialogDescription>
+          </DialogHeader>
+          {viewUser && (
+            <div className="space-y-3 text-sm">
+              <div>
+                <Label className="text-xs text-muted-foreground">E-mail</Label>
+                <div className="font-medium">{viewUser.email}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Nome</Label>
+                <div className="font-medium">{viewUser.nome || '-'}</div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Empresa</Label>
+                <div className="font-medium">{viewUser.empresa_nome || 'Sem empresa'}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Role Ativa</Label>
+                  <div className="font-medium">{viewUser.active_role || '-'}</div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Super Admin</Label>
+                  <div className="font-medium">{viewUser.is_elisha_admin ? 'Sim' : 'Não'}</div>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Criado em</Label>
+                <div className="font-medium">{new Date(viewUser.created_at).toLocaleString('pt-BR')}</div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewUser(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog: Convidar Usuário */}
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent>
@@ -589,4 +634,3 @@ export default function AdminUsersPage() {
     </div>
   )
 }
-

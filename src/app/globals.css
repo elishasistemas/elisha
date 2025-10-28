@@ -176,3 +176,22 @@ html {
     @apply bg-background text-foreground;
   }
 }
+
+/* Tipografia mobile e quebra de linhas mais amigável */
+@layer base {
+  /* Evita zoom automático de fonte no iOS e padroniza ajuste */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  /* Melhor distribuição de quebras em títulos e textos longos */
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p, span, li, td, th, label, small, a, button { text-wrap: pretty; overflow-wrap: anywhere; }
+
+  /* Mídias responsivas por padrão */
+  img, video, canvas, svg { max-width: 100%; height: auto; }
+}
+
+/* Aumenta fontes pequenas em telas menores para melhor leitura */
+@media (max-width: 640px) {
+  .text-xs { font-size: 0.875rem; line-height: 1.25rem; }
+  .text-sm { font-size: 1rem; line-height: 1.5rem; }
+}

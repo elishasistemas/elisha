@@ -1,11 +1,16 @@
 'use client'
 
-import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos } from '@/hooks/use-supabase'
+import { useAuth, useProfile, useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos } from '@/hooks/use-supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function TestDataPage() {
+  const { user } = useAuth()
+  const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const empresaId = empresas[0]?.id
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
   const { ordens, loading: ordensLoading, error: ordensError } = useOrdensServico(empresaId)
   const { colaboradores, loading: colLoading, error: colError } = useColaboradores(empresaId)

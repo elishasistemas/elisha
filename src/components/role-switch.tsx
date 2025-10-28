@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { LayoutDashboard, Wrench } from 'lucide-react'
 import { useAuth, useProfile } from '@/hooks/use-supabase'
 import { getActiveRole, getRoles, setActiveRoleClient, type ActiveRole } from '@/utils/auth'
+import { createSupabaseBrowser } from '@/lib/supabase'
 
 export function RoleSwitch() {
   const { user } = useAuth()
@@ -40,13 +41,35 @@ export function RoleSwitch() {
     if (active === to) return
     setPending(true)
     try {
+      // 1) Atualiza active_role no JWT + cookie rápido
       await setActiveRoleClient(to)
-      setActive(to)
-      if (to === 'tecnico') {
-        toast.success('Modo Campo: suas OS do dia e checklists.')
-      } else {
-        toast.success('Modo Gestão: indicadores e controle de equipe.')
+
+      // 2) Persiste no profile para páginas que leem profile.active_role
+      const supabase = createSupabaseBrowser()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ active_role: to })
+          .eq('user_id', user.id)
+        if (updateError) throw updateError
+
+        // 3) Atualiza claims e sessão para refletir nas próximas renderizações
+        const response = await fetch('/api/auth/update-claims', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id })
+        })
+        if (!response.ok) throw new Error('Erro ao atualizar claims')
+        await supabase.auth.refreshSession()
       }
+
+      // Feedback
+      setActive(to)
+      toast.success(to === 'tecnico' ? 'Modo Campo: suas OS do dia e checklists.' : 'Modo Gestão: indicadores e controle de equipe.')
+
+      // 4) Recarrega a página para aplicar menus/consultas com RLS
+      setTimeout(() => { window.location.reload() }, 400)
     } catch (e) {
       toast.error('Não foi possível alternar o modo')
     } finally {
@@ -77,9 +100,8 @@ export function RoleSwitch() {
         disabled={!tecnicoEnabled || pending}
         title="Ctrl+T"
       >
-        <Wrench className="h-4 w-4 mr-1" /> Campo
+        <Wrench className="h-4 w-4 mr-1" /> Técnico
       </Button>
     </div>
   )
 }
-

@@ -34,11 +34,14 @@ import { toast } from 'sonner'
 import type { Cliente } from '@/lib/supabase'
 
 export default function ClientsPage() {
-  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const empresaId = empresas[0]?.id
-  const { clientes, loading, error, deleteCliente } = useClientes(empresaId)
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
+  const { clientes, loading, error, deleteCliente } = useClientes(empresaId)
   const canAdmin = isAdmin(session, profile)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [viewCliente, setViewCliente] = useState<Cliente | null>(null)
@@ -256,12 +259,13 @@ export default function ClientsPage() {
 
       {viewCliente && empresaId && (
         <ClientDialog
+          key={viewCliente.id}
           empresaId={empresaId}
           cliente={viewCliente}
           mode="view"
           hideTrigger
           defaultOpen
-          onRequestEdit={() => setViewCliente({ ...viewCliente })}
+          onOpenChange={(o) => { if (!o) setViewCliente(null) }}
           onSuccess={() => { setViewCliente(null); handleRefresh() }}
         />
       )}

@@ -8,10 +8,16 @@ import { Button } from '@/components/ui/button'
 import { useEmpresas, useClientes, useEquipamentos } from '@/hooks/use-supabase'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useAuth, useProfile } from '@/hooks/use-supabase'
 
 export default function EquipmentsPage() {
+  const { user } = useAuth()
+  const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const empresaId = empresas[0]?.id
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
   const clienteId = clientes[0]?.id
   const [search, setSearch] = useState('')

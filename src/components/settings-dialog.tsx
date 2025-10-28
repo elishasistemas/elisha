@@ -362,7 +362,7 @@ export function SettingsDialog({ open: controlledOpen, onOpenChange, trigger }: 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="w-full max-w-[80%] overflow-hidden p-0 md:max-h-[600px]">
+      <DialogContent className="overflow-hidden p-0 md:max-h-[600px]">
         <DialogTitle className="sr-only">Configurações</DialogTitle>
         <DialogDescription className="sr-only">
           Gerencie as configurações da sua empresa e perfil

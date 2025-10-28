@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         active_role: 'elisha_admin',
         empresa_id: null
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
 
     // 4. Atualizar claims
     await supabase.auth.admin.updateUserById(userId, {

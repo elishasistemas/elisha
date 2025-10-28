@@ -16,6 +16,12 @@
       "env": {
         "RESEND_API_KEY": "re_UizBAmtG_D19qoMkCUmXUtPvAnpWkjJPc"
       }
+    },
+    "mcpServers": {
+      "shadcn": {
+        "url": "https://www.shadcn.io/api/mcp"
+      }
     }
   }
+  
 }

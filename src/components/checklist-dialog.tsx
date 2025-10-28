@@ -218,7 +218,7 @@ export function ChecklistDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {mode === 'edit' ? 'Editar Checklist' : 'Novo Checklist'}

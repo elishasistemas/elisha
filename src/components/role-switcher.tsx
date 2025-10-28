@@ -32,7 +32,7 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('active_role, roles')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (profile) {
@@ -63,7 +63,7 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ active_role: newRole })
-        .eq('id', user.id)
+        .eq('user_id', user.id)
 
       if (updateError) throw updateError
 

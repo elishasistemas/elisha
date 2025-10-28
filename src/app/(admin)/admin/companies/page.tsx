@@ -114,7 +114,7 @@ export default function CompaniesPage() {
           roles: ['admin', 'tecnico'],
           active_role: 'admin'
         })
-        .eq('id', user.id)
+        .eq('user_id', user.id)
 
       if (updateError) throw updateError
 

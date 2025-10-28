@@ -101,7 +101,7 @@ export function CompanyDialog({ company, onClose }: CompanyDialogProps) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-[80%]">
+      <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
@@ -187,4 +187,3 @@ export function CompanyDialog({ company, onClose }: CompanyDialogProps) {
     </Dialog>
   )
 }
-
