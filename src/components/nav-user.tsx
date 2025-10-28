@@ -79,9 +79,9 @@ export function NavUser({ variant = "default" }: NavUserProps = {}) {
             <Avatar className="h-8 w-8 rounded-lg pl-0">
               <AvatarFallback className="rounded-lg">...</AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">Carregando...</span>
-              <span className="truncate text-xs">Aguarde</span>
+              <span className="truncate text-sm sm:text-xs">Aguarde</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -89,8 +89,9 @@ export function NavUser({ variant = "default" }: NavUserProps = {}) {
     )
   }
 
-  // Dados da empresa (primeira empresa do usuário)
-  const empresa = empresas[0]
+  // Dados da empresa: respeitar impersonation se houver
+  const effectiveEmpresaId = profile?.impersonating_empresa_id || profile?.empresa_id || empresas[0]?.id
+  const empresa = empresas.find((e: any) => e.id === effectiveEmpresaId) || empresas[0]
   const empresaName = empresa?.nome || 'Empresa'
   const empresaInitials = empresa?.nome 
     ? empresa.nome.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -122,9 +123,9 @@ export function NavUser({ variant = "default" }: NavUserProps = {}) {
                 />
                 <AvatarFallback className="rounded-lg">{empresaInitials}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{empresaName}</span>
-                <span className="truncate text-xs">{userDisplayName}</span>
+                <span className="truncate text-sm sm:text-xs">{userDisplayName}</span>
               </div>
               <ChevronsUpDown className={cn("ml-auto size-4", variant === "inline" && "text-muted-foreground") } />
             </SidebarMenuButton>

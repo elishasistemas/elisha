@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,6 +23,7 @@ interface OrderDialogProps {
   trigger?: React.ReactNode
   mode?: 'create' | 'edit' | 'view'
   onRequestEdit?: () => void
+  onOpenChange?: (open: boolean) => void
   defaultOpen?: boolean
   hideTrigger?: boolean
   defaultTipo?: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado'
@@ -37,6 +39,7 @@ export function OrderDialog({
   trigger, 
   mode = 'create',
   onRequestEdit,
+  onOpenChange,
   defaultOpen,
   hideTrigger,
   defaultTipo,
@@ -45,7 +48,15 @@ export function OrderDialog({
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  // Abre o diálogo quando defaultOpen for true e também quando a ordem mudar
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
+  useEffect(() => {
+    if (defaultOpen && ordem) {
+      setOpen(true)
+    }
+    // Garantir que o modo local reflita o prop ao abrir/alterar
+    setLocalMode(mode)
+  }, [defaultOpen, ordem?.id, mode])
   const [allChecklists, setAllChecklists] = useState<Checklist[]>([])
   const [filteredTemplates, setFilteredTemplates] = useState<Checklist[]>([])
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null)
@@ -67,22 +78,40 @@ export function OrderDialog({
 
   // Filtrar equipamentos do cliente selecionado
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([])
-  // Accordions com persistência
-  const [secCliente, setSecCliente] = useState(true)
-  const [secDetalhes, setSecDetalhes] = useState(true)
-  const [secChecklist, setSecChecklist] = useState(true)
-  const [secObs, setSecObs] = useState(true)
-  const key = (s: string) => `order_dialog:${s}`
+  
+  // Sincronizar formData quando ordem muda (importante para refletir status atualizado)
+  useEffect(() => {
+    if (ordem) {
+      setFormData({
+        cliente_id: ordem.cliente_id || '',
+        equipamento_id: ordem.equipamento_id || '',
+        tecnico_id: ordem.tecnico_id || '',
+        tipo: ordem.tipo || defaultTipo || 'preventiva',
+        prioridade: ordem.prioridade || 'media',
+        status: ordem.status || 'novo',
+        data_programada: ordem.data_programada ? ordem.data_programada.split('T')[0] : '',
+        observacoes: ordem.observacoes || '',
+        numero_os: ordem.numero_os || '',
+        data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0,16) : new Date().toISOString().slice(0,16),
+        quem_solicitou: ordem.quem_solicitou || '',
+      })
+    }
+  }, [ordem?.id, ordem?.status, ordem?.tecnico_id, defaultTipo])
+  
+  // Accordion com persistência (shadcn)
+  const accKey = (s: string) => `order_dialog:${s}`
+  const [openSections, setOpenSections] = useState<string[]>(['cliente','detalhes','observacoes'])
   useEffect(() => {
     if (!open) return
     try {
-      setSecCliente((localStorage.getItem(key('cliente')) ?? '1') === '1')
-      setSecDetalhes((localStorage.getItem(key('detalhes')) ?? '1') === '1')
-      setSecChecklist((localStorage.getItem(key('checklist')) ?? '1') === '1')
-      setSecObs((localStorage.getItem(key('obs')) ?? '1') === '1')
+      const saved = localStorage.getItem(accKey('open'))
+      if (saved) setOpenSections(JSON.parse(saved))
     } catch {}
   }, [open])
-  const persist = (name: string, val: boolean) => { try { localStorage.setItem(key(name), val ? '1' : '0') } catch {} }
+  const onAccordionChange = (v: string[]) => {
+    setOpenSections(v)
+    try { localStorage.setItem(accKey('open'), JSON.stringify(v)) } catch {}
+  }
 
   useEffect(() => {
     const loadEquip = async () => {
@@ -93,8 +122,16 @@ export function OrderDialog({
         const { data } = await supabase.from('equipamentos').select('*').eq('cliente_id', formData.cliente_id).order('created_at', { ascending: false })
         const list = (data || []) as Equipamento[]
         setEquipamentosFiltrados(list)
-        if (formData.equipamento_id && !list.some(e => e.id === formData.equipamento_id)) {
-          setFormData(prev => ({ ...prev, equipamento_id: '' }))
+        // Auto-selecionar equipamento ao escolher o cliente no fluxo de criação
+        // 1) Se havia um equipamento selecionado que não pertence ao novo cliente, troca para o primeiro disponível
+        // 2) Se nenhum equipamento estiver selecionado e houver opções, seleciona a primeira
+        if (!isView) {
+          const existsInList = formData.equipamento_id && list.some(e => e.id === formData.equipamento_id)
+          if (formData.equipamento_id && !existsInList) {
+            setFormData(prev => ({ ...prev, equipamento_id: list.length > 0 ? list[0].id : '' }))
+          } else if (!formData.equipamento_id && list.length > 0 && localMode === 'create') {
+            setFormData(prev => ({ ...prev, equipamento_id: list[0].id }))
+          }
         }
       } catch {
         setEquipamentosFiltrados([])
@@ -176,7 +213,7 @@ export function OrderDialog({
         tecnico_id: formData.tecnico_id || null,
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
-        status: formData.status as 'novo' | 'em_andamento' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado',
+        status: formData.status as 'novo' | 'em_deslocamento' | 'checkin' | 'em_andamento' | 'checkout' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado' | 'reaberta',
         data_abertura: formData.data_abertura ? new Date(formData.data_abertura).toISOString() : new Date().toISOString(),
         data_programada: formData.data_programada ? new Date(formData.data_programada).toISOString() : null,
         observacoes: formData.observacoes?.trim() || null,
@@ -185,7 +222,7 @@ export function OrderDialog({
         origem: 'painel' as const,
       }
 
-      if (mode === 'edit' && ordem) {
+      if (localMode === 'edit' && ordem) {
         // Atualizar ordem
         const { error } = await supabase
           .from('ordens_servico')
@@ -272,7 +309,7 @@ export function OrderDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
@@ -292,7 +329,7 @@ export function OrderDialog({
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="w-full max-w-[80%] max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -301,78 +338,51 @@ export function OrderDialog({
                 {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
               </DialogDescription>
             </div>
-            {isView && (
-              <Button size="sm" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
-            )}
+            {/* Botão Editar removido do topo em modo visualização */}
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Cliente e Equipamento */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Cliente e Equipamento</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secCliente; setSecCliente(v); persist('cliente', v) }}>{secCliente ? 'Recolher' : 'Expandir'}</Button>
-            </div>
-            
-            {secCliente && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cliente_id">
-                  Cliente <span className="text-destructive">*</span>
-                </Label>
-                <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue placeholder="Selecione o cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome_local}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Cliente e Equipamento (Accordion) */}
+          <Accordion type="multiple" value={openSections} onValueChange={onAccordionChange} className="w-full space-y-3">
+            <AccordionItem value="cliente">
+              <AccordionTrigger>Cliente e Equipamento</AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cliente_id">Cliente <span className="text-destructive">*</span></Label>
+                    <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
+                      <SelectTrigger disabled={isView}><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((cliente) => (
+                          <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome_local}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="equipamento_id">Equipamento <span className="text-destructive">*</span></Label>
+                    <Select value={formData.equipamento_id} onValueChange={(value) => handleChange('equipamento_id', value)} disabled={!formData.cliente_id || isView}>
+                      <SelectTrigger disabled={!formData.cliente_id || isView}><SelectValue placeholder={formData.cliente_id ? 'Selecione o equipamento' : 'Selecione um cliente primeiro'} /></SelectTrigger>
+                      <SelectContent>
+                        {equipamentosFiltrados.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
+                        ) : (
+                          equipamentosFiltrados.map((eq) => (
+                            <SelectItem key={eq.id} value={eq.id}>{eq.tipo} - {eq.fabricante} {eq.modelo}</SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-              <div className="space-y-2">
-                <Label htmlFor="equipamento_id">
-                  Equipamento <span className="text-destructive">*</span>
-                </Label>
-                <Select 
-                  value={formData.equipamento_id} 
-                  onValueChange={(value) => handleChange('equipamento_id', value)}
-                  disabled={!formData.cliente_id || isView}
-                >
-                  <SelectTrigger disabled={!formData.cliente_id || isView}>
-                    <SelectValue placeholder={formData.cliente_id ? "Selecione o equipamento" : "Selecione um cliente primeiro"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equipamentosFiltrados.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
-                    ) : (
-                      equipamentosFiltrados.map((eq) => (
-                        <SelectItem key={eq.id} value={eq.id}>
-                          {eq.tipo} - {eq.fabricante} {eq.modelo}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            )}
-          </div>
-
-          {/* Detalhes da OS */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Detalhes da Ordem</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secDetalhes; setSecDetalhes(v); persist('detalhes', v) }}>{secDetalhes ? 'Recolher' : 'Expandir'}</Button>
-            </div>
-            
-            {secDetalhes && (
-            <div className="grid grid-cols-3 gap-4">
+            <AccordionItem value="detalhes">
+              <AccordionTrigger>Detalhes da Ordem</AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
                 <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
@@ -410,19 +420,20 @@ export function OrderDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="novo">Nova</SelectItem>
+                    <SelectItem value="em_deslocamento">Em Deslocamento</SelectItem>
+                    <SelectItem value="checkin">No Local</SelectItem>
                     <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                    <SelectItem value="checkout">Finalizado</SelectItem>
                     <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                    <SelectItem value="parado">Parado</SelectItem>
                     <SelectItem value="concluido">Concluída</SelectItem>
                     <SelectItem value="cancelado">Cancelada</SelectItem>
+                    <SelectItem value="parado">Parado</SelectItem>
+                    <SelectItem value="reaberta">Reaberta</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            )}
-
-            {secDetalhes && (
-            <div className="grid grid-cols-2 gap-4">
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="tecnico_id">Técnico Responsável</Label>
                 <Select
@@ -463,11 +474,8 @@ export function OrderDialog({
                   disabled={isView}
                 />
               </div>
-            </div>
-            )}
-
-            {secDetalhes && (
-            <div className="space-y-2">
+                </div>
+                <div className="space-y-2 mt-4">
               <Label htmlFor="numero_os">Número da OS (opcional)</Label>
               <Input
                 id="numero_os"
@@ -476,10 +484,8 @@ export function OrderDialog({
                 placeholder="Ex: OS-2024-001"
                 disabled={isView}
               />
-            </div>
-            )}
-            {secDetalhes && (
-            <div className="space-y-2">
+                </div>
+                <div className="space-y-2 mt-2">
               <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
               <Input
                 id="quem_solicitou"
@@ -488,18 +494,15 @@ export function OrderDialog({
                 placeholder="Nome de quem solicitou"
                 disabled={isView}
               />
-            </div>
-            )}
-          </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
           {/* Checklist Template (Create mode) */}
           {mode === 'create' && !isView && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Checklist</h3>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secChecklist; setSecChecklist(v); persist('checklist', v) }}>{secChecklist ? 'Recolher' : 'Expandir'}</Button>
-              </div>
-              {secChecklist && (
+            <AccordionItem value="checklist">
+              <AccordionTrigger>Checklist</AccordionTrigger>
+              <AccordionContent>
               <div className="space-y-2">
                 <Label htmlFor="checklist_id">Template sugerido pelo tipo</Label>
                 <Select
@@ -525,18 +528,14 @@ export function OrderDialog({
                   Selecionamos automaticamente com base no tipo da OS. Você pode trocar se preferir.
                 </p>
                </div>
-              )}
-            </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Observações */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Observações</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={() => { const v = !secObs; setSecObs(v); persist('obs', v) }}>{secObs ? 'Recolher' : 'Expandir'}</Button>
-            </div>
-            
-            {secObs && (
+          <AccordionItem value="observacoes">
+            <AccordionTrigger>Observações</AccordionTrigger>
+            <AccordionContent>
             <div className="space-y-2">
               <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
               <Textarea
@@ -548,22 +547,32 @@ export function OrderDialog({
                 disabled={isView}
               />
             </div>
-            )}
-          </div>
+            </AccordionContent>
+          </AccordionItem>
+          </Accordion>
 
           <DialogFooter>
             {isView ? (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-                <Button type="button" onClick={() => { if (onRequestEdit) onRequestEdit(); else setLocalMode('edit') }}>Editar</Button>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
+                  }}
+                >
+                  Editar
+                </Button>
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : mode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
+                  {loading ? 'Salvando...' : localMode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
                 </Button>
               </>
             )}

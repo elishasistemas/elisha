@@ -8,11 +8,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
-import { Building2, AlertTriangle, Plus, Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PhoneIncoming, Calendar, PauseCircle } from 'lucide-react'
+import { Building2, AlertTriangle, Plus, Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PhoneIncoming, Calendar, PauseCircle, RefreshCw, Check, X } from 'lucide-react'
 import { useAuth, useProfile, useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
+import type { OrdemServico } from '@/lib/supabase'
+import { OrderDialog } from '@/components/order-dialog'
 import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { createSupabaseBrowser } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 const statusConfig = {
   parado: {
@@ -27,11 +31,29 @@ const statusConfig = {
     icon: AlertCircle,
     className: 'bg-blue-500 text-white hover:bg-blue-600'
   },
+  em_deslocamento: {
+    label: 'Em Deslocamento',
+    variant: 'secondary' as const,
+    icon: Clock,
+    className: 'bg-purple-500 text-white hover:bg-purple-600'
+  },
+  checkin: {
+    label: 'No Local',
+    variant: 'secondary' as const,
+    icon: CheckCircle,
+    className: 'bg-indigo-500 text-white hover:bg-indigo-600'
+  },
   em_andamento: { 
     label: 'Em Andamento', 
     variant: 'secondary' as const, 
     icon: Clock,
     className: 'bg-yellow-500 text-white hover:bg-yellow-600'
+  },
+  checkout: {
+    label: 'Finalizado',
+    variant: 'secondary' as const,
+    icon: CheckCircle,
+    className: 'bg-teal-500 text-white hover:bg-teal-600'
   },
   aguardando_assinatura: {
     label: 'Aguardando Assinatura',
@@ -50,6 +72,12 @@ const statusConfig = {
     variant: 'outline' as const, 
     icon: AlertCircle,
     className: 'bg-red-500 text-white hover:bg-red-600'
+  },
+  reaberta: {
+    label: 'Reaberta',
+    variant: 'secondary' as const,
+    icon: RefreshCw,
+    className: 'bg-amber-500 text-white hover:bg-amber-600'
   }
 }
 
@@ -69,6 +97,7 @@ export default function DashboardPage() {
   const [periodoDias, setPeriodoDias] = useState('7')
   const [periodosChamados, setPeriodosChamados] = useState('7')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
+  const [refreshKey, setRefreshKey] = useState(0)
   
   // Buscar perfil primeiro para determinar empresa correta
   const { profile } = useProfile(user?.id)
@@ -77,13 +106,102 @@ export default function DashboardPage() {
   const empresaAtiva = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
   const { empresas, loading: empresasLoading } = useEmpresas()
-  const { clientes, loading: clientesLoading } = useClientes(empresaAtiva)
-  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva)
-  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva)
+  const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey })
+  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey })
+  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva, { refreshKey })
+  const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+  const isAdmin = profile?.active_role === 'admin'
+  const isImpersonating = !!profile?.is_elisha_admin && !!profile?.impersonating_empresa_id
   
   // Detectar se é técnico
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
+  
+  // OS abertas para aceitar/recusar (apenas chamados)
+  const ordensAbertas = useMemo(() => {
+    const base = ordens.filter(o => 
+      o.tipo === 'chamado' && 
+      (o.status === 'novo' || o.status === 'parado')
+    )
+    
+    if (isAdmin || isImpersonating) {
+      return base.filter(o => !o.tecnico_id)
+    }
+    if (isTecnico && tecnicoId) {
+      return base.filter(o => !o.tecnico_id || o.tecnico_id === tecnicoId)
+    }
+    return []
+  }, [ordens, isAdmin, isImpersonating, isTecnico, tecnicoId])
+
+  const canAcceptOrDecline = (o: OrdemServico) => {
+    const ok = o.status === 'novo' || o.status === 'parado'
+    if (!ok) return false
+    if (isAdmin || isImpersonating) return !o.tecnico_id
+    if (isTecnico && tecnicoId) return !o.tecnico_id || o.tecnico_id === tecnicoId
+    return false
+  }
+
+  const handleAccept = async (o: OrdemServico) => {
+    setActionLoading(true)
+    const supabase = createSupabaseBrowser()
+    try {
+      const { data, error } = await supabase.rpc('os_accept', { p_os_id: o.id })
+      if (error) throw error
+      
+      const result = data as { success: boolean; error?: string; message?: string }
+      
+      if (!result.success) {
+        // Mostrar mensagem detalhada, não apenas o código do erro
+        const errorMsg = result.message || result.error || 'Erro ao aceitar OS'
+        console.error('[dashboard] os_accept failed:', result)
+        toast.error(errorMsg)
+        return
+      }
+      
+      toast.success(result.message || 'OS aceita com sucesso!')
+      
+      // Navegar para a tela full-screen da OS
+      setTimeout(() => {
+        router.push(`/os/${o.id}/full`)
+      }, 500)
+    } catch (e) {
+      console.error('[dashboard] accept error', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDecline = async (o: OrdemServico) => {
+    const reason = typeof window !== 'undefined' ? window.prompt('Motivo da recusa (opcional):', '') : ''
+    if (reason === null) return // Usuário cancelou
+    
+    setActionLoading(true)
+    const supabase = createSupabaseBrowser()
+    try {
+      const { data, error } = await supabase.rpc('os_decline', { p_os_id: o.id, p_reason: reason || null })
+      if (error) throw error
+      
+      const result = data as { success: boolean; error?: string; message?: string }
+      
+      if (!result.success) {
+        // Mostrar mensagem detalhada, não apenas o código do erro
+        const errorMsg = result.message || result.error || 'Erro ao recusar OS'
+        console.error('[dashboard] os_decline failed:', result)
+        toast.error(errorMsg)
+        return
+      }
+      
+      toast.success(result.message || 'OS recusada com sucesso')
+      setTimeout(() => setRefreshKey(prev => prev + 1), 300)
+    } catch (e) {
+      console.error('[dashboard] decline error', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao recusar OS')
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   // Calcular data inicial baseada no período selecionado
   const dataInicial = useMemo(() => {
@@ -102,10 +220,11 @@ export default function DashboardPage() {
       return dataOrdem >= dataInicial
     })
     
-    // Se for técnico, filtrar apenas suas OS
+    // Se for técnico, filtrar apenas suas OS (atribuídas a ele)
     if (isTecnico && tecnicoId) {
       filtradas = filtradas.filter(ordem => ordem.tecnico_id === tecnicoId)
     }
+    // Admin vê tudo (sem filtro adicional)
 
     // Função auxiliar para calcular peso da prioridade
     const getPrioridadePeso = (ordem: typeof ordens[0]) => {
@@ -309,6 +428,10 @@ export default function DashboardPage() {
     },
   }
 
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full py-4">
       {/* Header com Filtro Inline */}
@@ -316,10 +439,21 @@ export default function DashboardPage() {
         <div className='flex items-center gap-2'>
           <h2 className='text-2xl font-medium'>Bem vindo de volta</h2>
         </div>
-        <Button onClick={() => router.push('/orders?new=true')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Chamado
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            title="Atualizar dados"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button onClick={() => router.push('/orders?new=true')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Chamado
+          </Button>
+        </div>
       </div>
 
       {/* Cards de Indicadores */}
@@ -460,6 +594,84 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Seção de Chamados (OS Abertas) */}
+      {(isAdmin || isTecnico || isImpersonating) && (
+        <Card className="shadow-none">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Chamados</CardTitle>
+                <CardDescription>Ordens disponíveis para aceitar ou recusar</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {ordensAbertas.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Nenhum chamado disponível</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prioridade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ordensAbertas.slice(0, 10).map((o) => {
+                    const cliente = clientes.find(c => c.id === o.cliente_id)
+                    return (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-medium">{o.numero_os || o.id.slice(0,8)}</TableCell>
+                      <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                      <TableCell className="capitalize">{o.tipo}</TableCell>
+                      <TableCell>
+                        <Badge variant={o.prioridade === 'alta' ? 'destructive' : 'secondary'} className="capitalize">{o.prioridade}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={(statusConfig as any)[o.status]?.className}>
+                          {(statusConfig as any)[o.status]?.label || o.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(o.created_at)}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={(e) => { e.stopPropagation(); handleAccept(o); }} 
+                            disabled={actionLoading || !canAcceptOrDecline(o)} 
+                            variant="default"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Aceitar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={(e) => { e.stopPropagation(); handleDecline(o); }} 
+                            disabled={actionLoading || !canAcceptOrDecline(o)}
+                            className="border-red-300 text-red-600 hover:bg-red-50"
+                          >
+                            <X className="h-4 w-4 mr-1" /> Recusar
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabela de Ordens de Serviço Recentes */}
       <Card className="shadow-none">
         <CardHeader>
@@ -511,7 +723,7 @@ export default function DashboardPage() {
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   
                   return (
-                    <TableRow key={ordem.id}>
+                    <TableRow key={ordem.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">
                         {ordem.numero_os || ordem.id.slice(0, 8)}
                       </TableCell>
@@ -547,12 +759,12 @@ export default function DashboardPage() {
                         {status.label}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => setViewOrder(ordem)}>
                           Ver Detalhes
                         </Button>
                       </TableCell>
-                    </TableRow>
+                  </TableRow>
                   )
                 })}
               </TableBody>
@@ -560,6 +772,21 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {viewOrder && empresaAtiva && (
+        <OrderDialog
+          key={viewOrder.id}
+          empresaId={empresaAtiva}
+          ordem={viewOrder}
+          clientes={clientes}
+          colaboradores={colaboradores}
+          mode="view"
+          hideTrigger
+          defaultOpen
+          onOpenChange={(o) => { if (!o) setViewOrder(null) }}
+          onSuccess={() => { setViewOrder(null); handleRefresh() }}
+        />
+      )}
     </div>
   )
 }

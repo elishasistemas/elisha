@@ -51,28 +51,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const roles = getRoles(session ?? null, profile)
   const active = getActiveRole(session ?? null, profile)
 
-  // Debug: logs para entender o papel ativo
-  React.useEffect(() => {
-    console.log('[AppSidebar] Debug:', {
-      active,
-      roles,
-      profile_active_role: profile?.active_role,
-      is_elisha_admin: profile?.is_elisha_admin,
-      impersonating: profile?.impersonating_empresa_id,
-      jwt_metadata: session?.user?.app_metadata
-    })
-  }, [active, roles, profile, session])
-
   const filteredItems = ((): typeof data.navMain => {
     if (active === 'tecnico') {
-      // Técnico: Dashboard (seus dados) + Ordens de Serviço
-      console.log('[AppSidebar] Modo técnico detectado - Dashboard + OS')
+      // Técnico: Dashboard + Ordens de Serviço apenas
+      // Configurações dele estão no NavUser (menu de perfil)
       return data.navMain.filter((i) => 
         i.url === '/dashboard' || i.url === '/orders'
       )
     }
     // Admin: menu completo
-    console.log('[AppSidebar] Modo admin - mostrando menu completo')
     return data.navMain
   })()
 
@@ -113,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {profile?.is_elisha_admin && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm">
-                <Link href="/admin/companies" onClick={() => console.log('[AppSidebar] Link Super Admin clicado')}>
+                <Link href="/admin/companies">
                   <Shield className="size-4" />
                   <span>Super Admin</span>
                 </Link>
