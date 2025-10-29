@@ -9,7 +9,11 @@
     "start": "next start",
     "lint": "eslint",
     "check-env": "node scripts/check-env.js",
-    "gen:icons": "node ./scripts/generate-icons.mjs"
+    "gen:icons": "node ./scripts/generate-icons.mjs",
+    "db:branches": "supabase branches list --project-ref wkccxgeevizhxmclvsnz",
+    "db:status:dev": "supabase branches get develop --project-ref wkccxgeevizhxmclvsnz",
+    "db:status:prod": "supabase projects list",
+    "db:setup:dev": "./scripts/setup-dev-environment.sh"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
