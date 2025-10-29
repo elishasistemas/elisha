@@ -14,8 +14,8 @@ const PROD = {
 };
 
 const DEV = {
-  url: 'https://dahfsyvxvacibowwxgns.supabase.co',
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhaGZzeXZ4dmFjaWJvd3d4Z25zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTcwNzI5MiwiZXhwIjoyMDc3MjgzMjkyfQ.90q9IK2jQCx_fXyqW0DE_yC6SPk3JO02X0AzZNh29eo'
+  url: 'https://evxrdxhtzcdpvkrytbtk.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2eHJkeGh0emNkcHZrcnl0YnRrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTc0NTg0NCwiZXhwIjoyMDc3MzIxODQ0fQ.xp2AFLkqZW-SWjctq0RghlowKX-NIUIpPP3UU6chka0'
 };
 
 // Tabelas na ordem de dependência
