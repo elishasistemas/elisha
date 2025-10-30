@@ -17,8 +17,8 @@ drop policy if exists "Only admins can delete clientes" on public.clientes;
 drop policy if exists "clientes_select" on public.clientes;
 
 -- CREATE new policies with active_role
-create policy "Users can view clientes from same empresa"
-on public.clientes for select
+drop policy if exists "Users can view clientes from same empresa" on public.clientes;
+create policy "Users can view clientes from same empresa" on public.clientes for select
 to authenticated
 using (
   empresa_id in (
@@ -29,8 +29,8 @@ using (
   )
 );
 
-create policy "Admins can create clientes"
-on public.clientes for insert
+drop policy if exists "Admins can create clientes" on public.clientes;
+create policy "Admins can create clientes" on public.clientes for insert
 to authenticated
 with check (
   empresa_id in (
@@ -49,8 +49,8 @@ with check (
   )
 );
 
-create policy "Admins can update clientes"
-on public.clientes for update
+drop policy if exists "Admins can update clientes" on public.clientes;
+create policy "Admins can update clientes" on public.clientes for update
 to authenticated
 using (
   empresa_id in (
@@ -85,8 +85,8 @@ with check (
   )
 );
 
-create policy "Admins can delete clientes"
-on public.clientes for delete
+drop policy if exists "Admins can delete clientes" on public.clientes;
+create policy "Admins can delete clientes" on public.clientes for delete
 to authenticated
 using (
   empresa_id in (
@@ -115,8 +115,8 @@ drop policy if exists "Admins and gestores can update colaboradores" on public.c
 drop policy if exists "Only admins can delete colaboradores" on public.colaboradores;
 drop policy if exists "colaboradores_select" on public.colaboradores;
 
-create policy "Users can view colaboradores from same empresa"
-on public.colaboradores for select
+drop policy if exists "Users can view colaboradores from same empresa" on public.colaboradores;
+create policy "Users can view colaboradores from same empresa" on public.colaboradores for select
 to authenticated
 using (
   empresa_id in (
@@ -127,8 +127,8 @@ using (
   )
 );
 
-create policy "Admins can create colaboradores"
-on public.colaboradores for insert
+drop policy if exists "Admins can create colaboradores" on public.colaboradores;
+create policy "Admins can create colaboradores" on public.colaboradores for insert
 to authenticated
 with check (
   empresa_id in (
@@ -147,8 +147,8 @@ with check (
   )
 );
 
-create policy "Admins can update colaboradores"
-on public.colaboradores for update
+drop policy if exists "Admins can update colaboradores" on public.colaboradores;
+create policy "Admins can update colaboradores" on public.colaboradores for update
 to authenticated
 using (
   empresa_id in (
@@ -183,8 +183,8 @@ with check (
   )
 );
 
-create policy "Admins can delete colaboradores"
-on public.colaboradores for delete
+drop policy if exists "Admins can delete colaboradores" on public.colaboradores;
+create policy "Admins can delete colaboradores" on public.colaboradores for delete
 to authenticated
 using (
   empresa_id in (
@@ -213,8 +213,8 @@ drop policy if exists "Admins and gestores can update equipamentos" on public.eq
 drop policy if exists "Only admins can delete equipamentos" on public.equipamentos;
 drop policy if exists "equipamentos_select" on public.equipamentos;
 
-create policy "Users can view equipamentos from same empresa"
-on public.equipamentos for select
+drop policy if exists "Users can view equipamentos from same empresa" on public.equipamentos;
+create policy "Users can view equipamentos from same empresa" on public.equipamentos for select
 to authenticated
 using (
   cliente_id in (
@@ -228,8 +228,8 @@ using (
   )
 );
 
-create policy "Admins can create equipamentos"
-on public.equipamentos for insert
+drop policy if exists "Admins can create equipamentos" on public.equipamentos;
+create policy "Admins can create equipamentos" on public.equipamentos for insert
 to authenticated
 with check (
   cliente_id in (
@@ -250,8 +250,8 @@ with check (
   )
 );
 
-create policy "Admins can update equipamentos"
-on public.equipamentos for update
+drop policy if exists "Admins can update equipamentos" on public.equipamentos;
+create policy "Admins can update equipamentos" on public.equipamentos for update
 to authenticated
 using (
   cliente_id in (
@@ -290,8 +290,8 @@ with check (
   )
 );
 
-create policy "Admins can delete equipamentos"
-on public.equipamentos for delete
+drop policy if exists "Admins can delete equipamentos" on public.equipamentos;
+create policy "Admins can delete equipamentos" on public.equipamentos for delete
 to authenticated
 using (
   cliente_id in (
@@ -322,8 +322,8 @@ drop policy if exists "Admins and gestores can update OS" on public.ordens_servi
 drop policy if exists "Only admins can delete OS" on public.ordens_servico;
 drop policy if exists "ordens_servico_select" on public.ordens_servico;
 
-create policy "Users can view OS from same empresa"
-on public.ordens_servico for select
+drop policy if exists "Users can view OS from same empresa" on public.ordens_servico;
+create policy "Users can view OS from same empresa" on public.ordens_servico for select
 to authenticated
 using (
   empresa_id in (
@@ -334,8 +334,8 @@ using (
   )
 );
 
-create policy "Admins and tecnicos can create OS"
-on public.ordens_servico for insert
+drop policy if exists "Admins and tecnicos can create OS" on public.ordens_servico;
+create policy "Admins and tecnicos can create OS" on public.ordens_servico for insert
 to authenticated
 with check (
   empresa_id in (
@@ -354,8 +354,8 @@ with check (
   )
 );
 
-create policy "Admins and tecnicos can update OS"
-on public.ordens_servico for update
+drop policy if exists "Admins and tecnicos can update OS" on public.ordens_servico;
+create policy "Admins and tecnicos can update OS" on public.ordens_servico for update
 to authenticated
 using (
   empresa_id in (
@@ -390,8 +390,8 @@ with check (
   )
 );
 
-create policy "Admins can delete OS"
-on public.ordens_servico for delete
+drop policy if exists "Admins can delete OS" on public.ordens_servico;
+create policy "Admins can delete OS" on public.ordens_servico for delete
 to authenticated
 using (
   empresa_id in (
@@ -420,8 +420,8 @@ drop policy if exists "Admins and gestores can update checklists" on public.chec
 drop policy if exists "Only admins can delete checklists" on public.checklists;
 drop policy if exists "checklists_select" on public.checklists;
 
-create policy "Users can view checklists from same empresa"
-on public.checklists for select
+drop policy if exists "Users can view checklists from same empresa" on public.checklists;
+create policy "Users can view checklists from same empresa" on public.checklists for select
 to authenticated
 using (
   empresa_id in (
@@ -433,8 +433,8 @@ using (
   or origem = 'elisha' -- Checklists Elisha são públicos
 );
 
-create policy "Admins can create checklists"
-on public.checklists for insert
+drop policy if exists "Admins can create checklists" on public.checklists;
+create policy "Admins can create checklists" on public.checklists for insert
 to authenticated
 with check (
   empresa_id in (
@@ -453,8 +453,8 @@ with check (
   )
 );
 
-create policy "Admins can update checklists"
-on public.checklists for update
+drop policy if exists "Admins can update checklists" on public.checklists;
+create policy "Admins can update checklists" on public.checklists for update
 to authenticated
 using (
   empresa_id in (
@@ -489,8 +489,8 @@ with check (
   )
 );
 
-create policy "Admins can delete checklists"
-on public.checklists for delete
+drop policy if exists "Admins can delete checklists" on public.checklists;
+create policy "Admins can delete checklists" on public.checklists for delete
 to authenticated
 using (
   empresa_id in (
