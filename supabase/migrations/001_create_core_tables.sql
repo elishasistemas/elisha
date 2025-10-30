@@ -224,18 +224,23 @@ end;
 $$;
 
 -- Triggers para cada tabela com updated_at
+drop trigger if exists update_profiles_updated_at on public.profiles;
 create trigger update_profiles_updated_at before update on public.profiles
   for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_clientes_updated_at on public.clientes;
 create trigger update_clientes_updated_at before update on public.clientes
   for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_equipamentos_updated_at on public.equipamentos;
 create trigger update_equipamentos_updated_at before update on public.equipamentos
   for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_colaboradores_updated_at on public.colaboradores;
 create trigger update_colaboradores_updated_at before update on public.colaboradores
   for each row execute function public.update_updated_at_column();
 
+drop trigger if exists update_ordens_servico_updated_at on public.ordens_servico;
 create trigger update_ordens_servico_updated_at before update on public.ordens_servico
   for each row execute function public.update_updated_at_column();
 
@@ -270,6 +275,7 @@ end;
 $$;
 
 -- Trigger para criar profile ao criar usuário
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
