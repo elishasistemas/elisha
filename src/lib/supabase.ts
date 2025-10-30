@@ -165,6 +165,15 @@ export function createSupabaseBrowser() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  // Debug: Log environment variables being used
+  console.log('🔧 [Supabase] Initializing client:', {
+    url: url || '❌ NOT SET',
+    hasAnonKey: !!anon,
+    anonKeyPrefix: anon?.substring(0, 20) + '...' || '❌ NOT SET',
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  })
+
   if (!url || !anon) {
     // Somente log de erro quando faltar configuração
     console.error('[Supabase] Variáveis de ambiente ausentes. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY em .env.local')
@@ -172,6 +181,7 @@ export function createSupabaseBrowser() {
   }
 
   if (!browserClient) {
+    console.log('✅ [Supabase] Creating new browser client with URL:', url)
     browserClient = createBrowserClient(url, anon, {
       auth: {
         // Aumentar tempo de sessão para 7 dias (604800 segundos)

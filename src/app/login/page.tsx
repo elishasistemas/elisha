@@ -57,14 +57,32 @@ export default function LoginPage() {
     setError(null)
     setIsLoading(true)
     
+    // Debug: Log environment variables
+    console.log('🔍 [LOGIN DEBUG] Environment Check:', {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      anonKeyPrefix: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
+      nodeEnv: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    })
+    
     try {
+      console.log('🔐 [LOGIN] Attempting sign in for:', email)
+      
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (signInError) {
-        setError('Email ou senha inválidos.')
+        console.error('❌ [LOGIN ERROR] Supabase Auth Error:', {
+          message: signInError.message,
+          status: signInError.status,
+          name: signInError.name,
+          stack: signInError.stack,
+          fullError: signInError
+        })
+        setError(`Erro ao fazer login: ${signInError.message}`)
         return
       }
 
@@ -105,7 +123,28 @@ export default function LoginPage() {
         setError('Erro inesperado no login.')
       }
     } catch (err) {
-      setError('Ocorreu um erro ao entrar. Tente novamente.')
+      console.error('❌ [LOGIN] Unexpected error:', {
+        error: err,
+        type: typeof err,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        name: err instanceof Error ? err.name : undefined,
+      })
+      
+      // Mensagem de erro mais específica
+      let errorMessage = 'Ocorreu um erro ao entrar. Tente novamente.'
+      
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          errorMessage = '⚠️ Erro de conexão com o servidor. Verifique sua internet e tente novamente.'
+        } else if (err.message.includes('ERR_NAME_NOT_RESOLVED')) {
+          errorMessage = '⚠️ Não foi possível conectar ao Supabase. Verifique as variáveis de ambiente.'
+        } else {
+          errorMessage = `Erro: ${err.message}`
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
