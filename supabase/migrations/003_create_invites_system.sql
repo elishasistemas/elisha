@@ -37,7 +37,8 @@ alter table public.invites enable row level security;
 -- ============================================
 
 -- Admins da mesma empresa podem ver convites da sua empresa
-create policy if not exists invites_select_same_empresa
+drop policy if exists invites_select_same_empresa on public.invites;
+create policy invites_select_same_empresa
 on public.invites for select
 using (
   exists (
@@ -49,7 +50,8 @@ using (
 );
 
 -- Apenas admin da empresa cria convites
-create policy if not exists invites_insert_admin
+drop policy if exists invites_insert_admin on public.invites;
+create policy invites_insert_admin
 on public.invites for insert
 with check (
   exists (
@@ -62,7 +64,8 @@ with check (
 );
 
 -- Admin da empresa pode revogar/alterar convites da sua empresa
-create policy if not exists invites_update_admin
+drop policy if exists invites_update_admin on public.invites;
+create policy invites_update_admin
 on public.invites for update
 using (
   exists (
@@ -82,7 +85,8 @@ with check (
 );
 
 -- Apenas admin pode deletar
-create policy if not exists invites_delete_admin
+drop policy if exists invites_delete_admin on public.invites;
+create policy invites_delete_admin
 on public.invites for delete
 using (
   exists (
