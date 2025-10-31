@@ -20,22 +20,31 @@ language sql stable as $$
   select nullif(current_setting('request.jwt.claims', true)::jsonb->>'empresa_id','')::uuid
 $$;
 
+-- Helper para verificar se usuário é elisha_admin
+create or replace function public.is_elisha_admin() returns boolean
+language sql stable as $$
+  select coalesce(
+    (select p.is_elisha_admin 
+     from public.profiles p 
+     where p.user_id = auth.uid()),
+    false
+  )
+$$;
+
 -- RLS nas ordens de serviço (exemplo)
 alter table public.ordens_servico enable row level security;
 
-do $$
-begin
-  if not exists (select 1 from pg_policies where tablename='ordens_servico' and polname='os_select') then
-    create policy os_select on public.ordens_servico for select
-      using (
-        empresa_id = public.current_empresa_id()
-        and (
-          public.current_active_role() = 'gestor'
-          or (public.current_active_role() = 'tecnico' and tecnico_id = public.current_tecnico_id())
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS os_select ON public.ordens_servico;
+CREATE POLICY os_select
+  ON public.ordens_servico
+  FOR SELECT
+  USING (
+    empresa_id = public.current_empresa_id()
+    AND (
+      public.current_active_role() = 'gestor'
+      OR (public.current_active_role() = 'tecnico' AND tecnico_id = public.current_tecnico_id())
+    )
+  );
 
 -- Replicar o padrão de RLS conforme necessário:
 --   os_checklists, checklist_respostas, orcamentos, clientes, contratos, sites
