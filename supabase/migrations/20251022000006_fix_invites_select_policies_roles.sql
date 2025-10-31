@@ -5,6 +5,7 @@
 -- Drop existing policies
 DROP POLICY IF EXISTS invites_select_same_empresa ON public.invites;
 DROP POLICY IF EXISTS invites_select_anonymous ON public.invites;
+DROP POLICY IF EXISTS invites_select_authenticated ON public.invites;
 
 -- Policy for AUTHENTICATED users (can access profiles table)
 CREATE POLICY invites_select_authenticated
