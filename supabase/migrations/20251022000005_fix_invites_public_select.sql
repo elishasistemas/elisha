@@ -1,7 +1,8 @@
 -- Allow public (unauthenticated) users to read invites by token
 -- This is needed for the signup page where users don't have an account yet
 
--- Create policy for anonymous users to read invites
+-- Create policy for anonymous users to read invites (idempotent)
+DROP POLICY IF EXISTS invites_select_anonymous ON public.invites;
 CREATE POLICY invites_select_anonymous
 ON public.invites FOR SELECT
 TO anon
