@@ -35,7 +35,7 @@ USING (
 -- Policy for ANONYMOUS users (signup page)
 -- Simple condition, no access to profiles table needed
 
-  DROP POLICY IF EXISTS invites_select_anonymous ON public.invites;
+DROP POLICY IF EXISTS invites_select_anonymous ON public.invites;
 CREATE POLICY invites_select_anonymous
 ON public.invites FOR SELECT
 TO anon

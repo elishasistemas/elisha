@@ -14,7 +14,7 @@ END$$;
 
 -- New policy: any authenticated user from same empresa can insert history rows
 
-  DROP POLICY IF EXISTS os_status_history_insert_authenticated ON public.os_status_history;
+DROP POLICY IF EXISTS os_status_history_insert_authenticated ON public.os_status_history;
 CREATE POLICY os_status_history_insert_authenticated
   ON public.os_status_history
   FOR INSERT

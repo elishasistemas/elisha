@@ -118,8 +118,8 @@ with check (
   )
 );
 
-  DROP POLICY IF EXISTS invites_update_admin ON public.invites;
-create policy invites_update_admin
+DROP POLICY IF EXISTS invites_update_admin ON public.invites;
+CREATE POLICY invites_update_admin
 on public.invites for update
 using (
   exists (
@@ -168,7 +168,7 @@ with check (
   )
 );
 
-  DROP POLICY IF EXISTS invites_delete_admin ON public.invites;
+DROP POLICY IF EXISTS invites_delete_admin ON public.invites;
 create policy invites_delete_admin
 on public.invites for delete
 using (
