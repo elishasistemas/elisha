@@ -420,6 +420,7 @@ COMMENT ON FUNCTION os_decline(uuid, text) IS 'Permite que um técnico recuse um
 ALTER TABLE os_status_history ENABLE ROW LEVEL SECURITY;
 
 -- Policy: SELECT (authenticated users da mesma empresa)
+DROP POLICY IF EXISTS os_status_history_select_authenticated ON os_status_history;
 CREATE POLICY os_status_history_select_authenticated
   ON os_status_history
   FOR SELECT
@@ -432,6 +433,7 @@ CREATE POLICY os_status_history_select_authenticated
   );
 
 -- Policy: INSERT (apenas via funções SECURITY DEFINER ou admins)
+DROP POLICY IF EXISTS os_status_history_insert_authenticated ON os_status_history;
 CREATE POLICY os_status_history_insert_authenticated
   ON os_status_history
   FOR INSERT
@@ -447,12 +449,14 @@ CREATE POLICY os_status_history_insert_authenticated
   );
 
 -- Policy: Não permite UPDATE ou DELETE (histórico é imutável)
+DROP POLICY IF EXISTS os_status_history_no_update ON os_status_history;
 CREATE POLICY os_status_history_no_update
   ON os_status_history
   FOR UPDATE
   TO authenticated
   USING (false);
 
+DROP POLICY IF EXISTS os_status_history_no_delete ON os_status_history;
 CREATE POLICY os_status_history_no_delete
   ON os_status_history
   FOR DELETE
