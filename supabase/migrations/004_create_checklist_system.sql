@@ -198,190 +198,135 @@ create trigger update_checklist_respostas_updated_at
 -- ============================================
 
 -- Users can view checklists from their empresa
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'checklists_sel_emp' and tablename = 'checklists'
-  ) then
-    create policy checklists_sel_emp on public.checklists
-      for select using (empresa_id = current_empresa_id());
-  end if;
-end$$;
+DROP POLICY IF EXISTS checklists_sel_emp ON public.checklists;
+CREATE POLICY checklists_sel_emp
+  ON public.checklists
+  FOR SELECT
+  USING (empresa_id = current_empresa_id());
 
 -- Admins and gestores can create checklists
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'checklists_ins_emp' and tablename = 'checklists'
-  ) then
-    create policy checklists_ins_emp on public.checklists
-      for insert with check (
-        empresa_id = current_empresa_id() 
-        and exists (
-          select 1 from public.profiles 
-          where user_id = auth.uid() 
-          and role in ('admin', 'gestor')
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS checklists_ins_emp ON public.checklists;
+CREATE POLICY checklists_ins_emp
+  ON public.checklists
+  FOR INSERT
+  WITH CHECK (
+    empresa_id = current_empresa_id() 
+    AND EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('admin', 'gestor')
+    )
+  );
 
 -- Admins and gestores can update checklists
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'checklists_upd_emp' and tablename = 'checklists'
-  ) then
-    create policy checklists_upd_emp on public.checklists
-      for update using (
-        empresa_id = current_empresa_id()
-        and exists (
-          select 1 from public.profiles 
-          where user_id = auth.uid() 
-          and role in ('admin', 'gestor')
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS checklists_upd_emp ON public.checklists;
+CREATE POLICY checklists_upd_emp
+  ON public.checklists
+  FOR UPDATE
+  USING (
+    empresa_id = current_empresa_id()
+    AND EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('admin', 'gestor')
+    )
+  );
 
 -- Admins can delete checklists
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'checklists_del_emp' and tablename = 'checklists'
-  ) then
-    create policy checklists_del_emp on public.checklists
-      for delete using (
-        empresa_id = current_empresa_id()
-        and exists (
-          select 1 from public.profiles 
-          where user_id = auth.uid() 
-          and role = 'admin'
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS checklists_del_emp ON public.checklists;
+CREATE POLICY checklists_del_emp
+  ON public.checklists
+  FOR DELETE
+  USING (
+    empresa_id = current_empresa_id()
+    AND EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE user_id = auth.uid() 
+      AND role = 'admin'
+    )
+  );
 
 -- ============================================
 -- 7. RLS POLICIES FOR OS_CHECKLISTS
 -- ============================================
 
 -- Users can view snapshots from their empresa
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'osc_sel_emp' and tablename = 'os_checklists'
-  ) then
-    create policy osc_sel_emp on public.os_checklists
-      for select using (empresa_id = current_empresa_id());
-  end if;
-end$$;
+DROP POLICY IF EXISTS osc_sel_emp ON public.os_checklists;
+CREATE POLICY osc_sel_emp
+  ON public.os_checklists
+  FOR SELECT
+  USING (empresa_id = current_empresa_id());
 
 -- Users can create snapshots for OS of their empresa
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'osc_ins_emp' and tablename = 'os_checklists'
-  ) then
-    create policy osc_ins_emp on public.os_checklists
-      for insert with check (empresa_id = current_empresa_id());
-  end if;
-end$$;
+DROP POLICY IF EXISTS osc_ins_emp ON public.os_checklists;
+CREATE POLICY osc_ins_emp
+  ON public.os_checklists
+  FOR INSERT
+  WITH CHECK (empresa_id = current_empresa_id());
 
 -- Users can update snapshots from their empresa
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'osc_upd_emp' and tablename = 'os_checklists'
-  ) then
-    create policy osc_upd_emp on public.os_checklists
-      for update using (empresa_id = current_empresa_id());
-  end if;
-end$$;
+DROP POLICY IF EXISTS osc_upd_emp ON public.os_checklists;
+CREATE POLICY osc_upd_emp
+  ON public.os_checklists
+  FOR UPDATE
+  USING (empresa_id = current_empresa_id());
 
 -- ============================================
 -- 8. RLS POLICIES FOR CHECKLIST_RESPOSTAS
 -- ============================================
 
 -- Users can view responses from their empresa's OS
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'cr_sel_emp' and tablename = 'checklist_respostas'
-  ) then
-    create policy cr_sel_emp on public.checklist_respostas
-      for select using (
-        os_id in (
-          select id from public.ordens_servico 
-          where empresa_id = current_empresa_id()
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS cr_sel_emp ON public.checklist_respostas;
+CREATE POLICY cr_sel_emp
+  ON public.checklist_respostas
+  FOR SELECT
+  USING (
+    os_id IN (
+      SELECT id FROM public.ordens_servico 
+      WHERE empresa_id = current_empresa_id()
+    )
+  );
 
 -- Users can create responses for their empresa's OS
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'cr_ins_emp' and tablename = 'checklist_respostas'
-  ) then
-    create policy cr_ins_emp on public.checklist_respostas
-      for insert with check (
-        os_id in (
-          select id from public.ordens_servico 
-          where empresa_id = current_empresa_id()
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS cr_ins_emp ON public.checklist_respostas;
+CREATE POLICY cr_ins_emp
+  ON public.checklist_respostas
+  FOR INSERT
+  WITH CHECK (
+    os_id IN (
+      SELECT id FROM public.ordens_servico 
+      WHERE empresa_id = current_empresa_id()
+    )
+  );
 
 -- Users can update responses from their empresa's OS
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'cr_upd_emp' and tablename = 'checklist_respostas'
-  ) then
-    create policy cr_upd_emp on public.checklist_respostas
-      for update using (
-        os_id in (
-          select id from public.ordens_servico 
-          where empresa_id = current_empresa_id()
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS cr_upd_emp ON public.checklist_respostas;
+CREATE POLICY cr_upd_emp
+  ON public.checklist_respostas
+  FOR UPDATE
+  USING (
+    os_id IN (
+      SELECT id FROM public.ordens_servico 
+      WHERE empresa_id = current_empresa_id()
+    )
+  );
 
 -- Admins and gestores can delete responses
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where polname = 'cr_del_emp' and tablename = 'checklist_respostas'
-  ) then
-    create policy cr_del_emp on public.checklist_respostas
-      for delete using (
-        os_id in (
-          select id from public.ordens_servico 
-          where empresa_id = current_empresa_id()
-        )
-        and exists (
-          select 1 from public.profiles 
-          where user_id = auth.uid() 
-          and role in ('admin', 'gestor')
-        )
-      );
-  end if;
-end$$;
+DROP POLICY IF EXISTS cr_del_emp ON public.checklist_respostas;
+CREATE POLICY cr_del_emp
+  ON public.checklist_respostas
+  FOR DELETE
+  USING (
+    os_id IN (
+      SELECT id FROM public.ordens_servico 
+      WHERE empresa_id = current_empresa_id()
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('admin', 'gestor')
+    )
+  );
 
 -- ============================================
 -- 9. GRANT PERMISSIONS
