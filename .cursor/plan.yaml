@@ -1,0 +1,229 @@
+version: 1
+name: "Fluxo completo de OS — Elisha"
+description: >
+  Implementar o fluxo de Ordem de Serviço (OS) com consistência sobre o schema real do Supabase,
+  em etapas progressivas, com commits limpos, RLS respeitado e validação incremental.
+
+env:
+  RLS_ENFORCED: "true"
+  USE_RPC_ONLY: "true"
+
+style:
+  commit_prefix: "feat(os):"
+  docs_dir: "docs"
+  stop_after_each_step: true
+
+guards:
+  - message: "Nunca altere nomes de tabelas/colunas existentes sem mapear o schema real antes."
+  - message: "Nunca escreva SQL de mutação no frontend; use sempre RPC/Edge Functions."
+  - message: "Respeite RLS e policies do Supabase (auth.uid(), empresa/time/técnico)."
+  - message: "Armazene evidências somente no bucket autorizado e registre metadados na tabela."
+
+steps:
+  - id: "0-map-context"
+    name: "Tarefa 0 — Mapear schema Supabase e contexto do repo"
+    status: "✅ COMPLETA"
+    completed_at: "2025-10-24"
+    goal: >
+      Ler o schema real do Supabase (via MCP) e mapear as tabelas/colunas/RPCs/buckets relacionados a OS.
+      Produzir documento de referência para as próximas tarefas.
+    prompt: |
+      1) Usar MCP Supabase para listar esquemas/tabelas/colunas relacionados a OS (ordens_servico, os_status_history, os_evidencias, tecnicos, usuarios, etc.).
+      2) Listar RPCs/Edge Functions existentes e buckets de Storage (ex.: evidencias).
+      3) Explicar onde o "status atual" é persistido e onde o "histórico" é guardado.
+      4) Salvar o mapeamento em /docs/context-os.md (este será o ponto de verdade).
+      5) Não gerar código ainda; apenas documentação.
+    artifacts:
+      - path: "docs/context-os.md"
+        must_exist: true
+        status: "✅ Criado"
+    commit:
+      message: "docs: adiciona mapeamento do schema e contexto de OS (/docs/context-os.md)"
+    notes: |
+      - Documento completo com 930+ linhas
+      - Mapeamento de todas as tabelas, RPCs, e relações
+      - Referência para todas as próximas tarefas
+
+  - id: "1-aceitar-recusar"
+    name: "Tarefa 1 — Dashboard do técnico + aceitar/recusar"
+    status: "✅ COMPLETA"
+    completed_at: "2025-10-27"
+    goal: >
+      Mostrar OS ABERTAS para o técnico logado e implementar ações Aceitar/Recusar via RPC com histórico.
+    prompt: |
+      1) Basear-se em /docs/context-os.md para usar os nomes reais das tabelas/colunas.
+      2) Implementar lista "Chamados" (filtrar por técnico logado, respeitando RLS).
+      3) Criar RPCs (se não existirem) os_accept(os_id uuid) e os_decline(os_id uuid, reason text default null).
+         - Validar permissão.
+         - Atualizar status -> EM_DESLOCAMENTO (accept) e histórico.
+         - Remover do painel/registrar histórico no decline.
+      4) UI: botões Aceitar/Recusar com optimistic UI e fallback de erro.
+      5) Testes unitários mínimos (mock RPC).
+    artifacts:
+      - path: "docs/TASK_1_COMPLETED.md"
+        status: "✅ Criado"
+      - path: "supabase/migrations/2025-10-27-create-os-status-history-and-accept-decline-rpcs.sql"
+        status: "✅ Aplicado"
+      - path: "src/app/(protected)/dashboard/page.tsx"
+        status: "✅ Implementado (dashboard unificado)"
+    commit:
+      message: "feat(os): [1] aceitar/recusar OS no dashboard do técnico"
+    notes: |
+      - Tabela os_status_history criada com RLS
+      - RPCs os_accept e os_decline implementados com validações completas
+      - Dashboard unificado com permissões diferenciadas (admin/técnico)
+      - Status EM_DESLOCAMENTO implementado
+      - Bug fixes: RLS policies, type errors, hook order
+      - Documentação completa: docs/TASK_1_COMPLETED.md
+
+  - id: "2-fullscreen-cronometro"
+    name: "Tarefa 2 — Tela Full Screen + cronômetro de deslocamento"
+    status: "✅ COMPLETA"
+    completed_at: "2025-10-28"
+    goal: >
+      Ao aceitar, abrir a OS em tela cheia com cronômetro discreto desde EM_DESLOCAMENTO, com opção de minimizar.
+    prompt: |
+      1) Ao aceitar, navegar para página full-screen da OS (usar rota/padrão do projeto).
+      2) Cronômetro: basear-se no timestamp do evento EM_DESLOCAMENTO (último do histórico) para evitar drift.
+      3) Minimizar/expandir: criar dock flutuante com tempo decorrido e ação "Voltar para OS".
+      4) Botão "Check-in (Chegada)" visível.
+      5) Realtime: assinar mudanças da OS (se Realtime ativado).
+      6) Teste de interação (render, timer resume ao focar).
+    artifacts:
+      - path: "src/app/(protected)/os/[id]/full/page.tsx"
+        status: "✅ Criado"
+      - path: "src/components/os-dock.tsx"
+        status: "✅ Criado"
+      - path: "src/app/(protected)/layout.tsx"
+        status: "✅ Atualizado (dock global)"
+    commit:
+      message: "feat(os): [2] tela full-screen e cronômetro de deslocamento"
+    notes: |
+      - Página full-screen criada (/os/[id]/full)
+      - Cronômetro baseado em timestamp de EM_DESLOCAMENTO do histórico
+      - Dock flutuante minimalista (estilo pill, fundo preto)
+      - LocalStorage para persistência do estado minimizado
+      - Realtime subscriptions para ordens_servico e os_status_history
+      - Botão Check-in visível (placeholder para Tarefa 3)
+      - RLS policies corrigidas (clientes, equipamentos, colaboradores)
+      - Bug fixes: Hook order, Temporal Dead Zone, query joins
+      - True full-screen com z-index 9999
+
+  - id: "3-checkin"
+    name: "Tarefa 3 — Transição para CHECKIN (Chegada) com timestamp"
+    status: "✅ COMPLETA"
+    completed_at: "2025-10-28"
+    goal: "Permitir que o técnico registre a chegada (CHECKIN) e persistir timestamp e histórico."
+    prompt: |
+      1) Criar RPC os_checkin(os_id uuid, location jsonb default null):
+         - Validar permissão.
+         - Atualizar status -> CHECKIN.
+         - Inserir histórico com changed_at = now() e location (se disponível).
+      2) UI: botão Check-in na tela full; após sucesso, permanecer em tela e exibir área de atendimento.
+      3) Teste unitário: RPC chamada com resultado esperado; status/histórico persistidos.
+    artifacts:
+      - path: "supabase/migrations/2025-10-28-create-os-checkin-rpc.sql"
+        status: "✅ Criado e aplicado"
+      - path: "src/app/(protected)/os/[id]/full/page.tsx"
+        status: "✅ Atualizado (handleCheckin implementado)"
+      - path: "docs/TASK_3_COMPLETED.md"
+        status: "✅ Criado"
+    commit:
+      message: "feat(os): [3] check-in com timestamp e histórico"
+    notes: |
+      - RPC os_checkin implementado com 9 validações
+      - Geolocalização HTML5 implementada (opcional)
+      - Área de Atendimento criada (aparece após check-in)
+      - Handler completo com tratamento de erros
+      - Histórico registra location no metadata
+      - Status 'checkin' já configurado no statusConfig
+      - Documentação completa: docs/TASK_3_COMPLETED.md
+
+  - id: "4-atendimento-checklist-laudo-evidencias"
+    name: "Tarefa 4 — Checklist + Laudo + Evidências (foto/vídeo/áudio/nota)"
+    goal: "Exibir checklist, laudo com autosave e upload de evidências vinculadas à OS."
+    prompt: |
+      1) Checklist: renderizar itens do template vinculado à OS (usar fonte/relacionamento real do schema).
+      2) Laudo/Observações: textarea com autosave (debounce) e reexibição ao recarregar.
+      3) Evidências:
+         - Criar utilitária uploadOsEvidence(os_id, file, kind) -> Storage (bucket oficial) e registro na tabela (os_evidencias).
+         - Suportar foto, vídeo, áudio e nota (texto).
+      4) RLS: garantir leitura/escrita apenas para envolvidos.
+      5) Testes: upload simulado e persistência do laudo/checklist.
+    commit:
+      message: "feat(os): [4] checklist, laudo e upload de evidências"
+
+  - id: "5-checkout-estado-equipamento"
+    name: "Tarefa 5 — Checkout com estado do equipamento"
+    goal: >
+      Finalizar atendimento (CHECKIN -> CHECKOUT), capturando estado do equipamento e observações finais.
+    prompt: |
+      1) Criar RPC os_checkout(os_id uuid, equipamento_estado text, observacoes text default null).
+      2) Estados válidos: FUNCIONANDO | PARADO | FUNCIONANDO_ESPERANDO_PECA.
+      3) Persistir histórico com payload (estado + observações).
+      4) UI: select/radios para estado + campo opcional de anotações.
+      5) Teste unitário: transição válida e histórico persistido.
+    commit:
+      message: "feat(os): [5] checkout e estado do equipamento"
+
+  - id: "6-timeline-relatorio"
+    name: "Tarefa 6 — Timeline/Relatório com duração entre estados"
+    goal: "Construir timeline agregando histórico + evidências + laudo, com cálculo de duração entre eventos."
+    prompt: |
+      1) Se possível, criar view ou RPC get_os_timeline(os_id uuid) unindo histórico, evidências e laudo.
+      2) Calcular duração entre eventos com lag(changed_at) no SQL.
+      3) UI: componente Timeline com badges de status, timestamps e duração entre estados; chips para estado do equipamento no checkout.
+      4) Export print-friendly (PDF depois).
+      5) Teste unitário: consulta retorna ordem e durações corretas.
+    commit:
+      message: "feat(os): [6] timeline completa com duração entre estados"
+
+  - id: "7-reabertura"
+    name: "Tarefa 7 — Reabrir OS"
+    goal: "Permitir reabrir a OS após checkout, voltando para ABERTA e registrando histórico."
+    prompt: |
+      1) Criar RPC os_reopen(os_id uuid, reason text default null) com validação (gestor/admin).
+      2) Atualizar status -> ABERTA (ou padrão equivalente do schema).
+      3) Registrar histórico REABERTA (autor + timestamp).
+      4) UI: ação disponível apenas para perfis autorizados; indicar ciclo (ex.: reaberta (n)).
+      5) Teste unitário: reabertura válida e histórico persistido.
+    commit:
+      message: "feat(os): [7] reabertura de OS com histórico e controle de ciclo"
+
+  - id: "8-validacao-final"
+    name: "Validação Final — E2E + SLA summary"
+    goal: "Validar o fluxo ponta a ponta e disponibilizar função de resumo para dashboards."
+    prompt: |
+      1) Criar teste E2E em test/os-flow-e2e.spec.ts:
+         - Cria OS fake.
+         - Fluxo: ABERTA -> EM_DESLOCAMENTO -> CHECKIN -> evidências -> CHECKOUT -> REABRIR.
+         - Verifica timestamps, estado do equipamento, evidências e timeline.
+      2) Criar função SQL ou RPC sync_os_state_summary() retornando status atual e tempos acumulados (para SLAs).
+      3) Documentar como rodar os testes e como consumir o summary em dashboards.
+      4) Atualizar /docs/context-os.md com nota de validação final e endpoints.
+    artifacts:
+      - path: "test/os-flow-e2e.spec.ts"
+        must_exist: true
+      - path: "docs/context-os.md"
+        must_exist: true
+    commit:
+      message: "test(os): e2e do fluxo completo e função de resumo de SLA"
+
+progress:
+  current_step: "4-atendimento-checklist-laudo-evidencias"
+  completed_steps: ["0-map-context", "1-aceitar-recusar", "2-fullscreen-cronometro", "3-checkin"]
+  pending_steps: ["4-atendimento-checklist-laudo-evidencias", "5-checkout-estado-equipamento", "6-timeline-relatorio", "7-reabertura", "8-validacao-final"]
+  completion_percentage: 50.0  # 4 de 8 tarefas completas
+  
+summary:
+  total_steps: 8
+  completed: 4
+  in_progress: 0
+  pending: 4
+  last_update: "2025-10-28"
+  next_action: "Tarefa 4 - Implementar Checklist + Laudo + Evidências (foto/vídeo/áudio/nota)"
+
+postflight:
+  - message: "Plan em andamento. 4/8 tarefas concluídas (50.0%)."
+  - message: "Próxima tarefa: Tarefa 4 - Checklist + Laudo + Evidências."
+  - message: "Documentação atualizada: docs/TASK_1_COMPLETED.md, docs/TASK_2_COMPLETED.md, docs/TASK_3_COMPLETED.md"

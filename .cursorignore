@@ -1,0 +1,13 @@
+# Cursor ignore file
+# Este arquivo sobrescreve o .gitignore para o Cursor
+# O .env.local ainda permanece no .gitignore (protegido do Git)
+
+# Permitir acesso ao .env.local no Cursor
+!.env.local
+
+# Continuar ignorando outros arquivos .env (exceto .env.example)
+.env
+.env.development
+.env.test
+.env.production
+

@@ -1,0 +1,17 @@
+{
+  "name": "Elisha - Administrador",
+  "short_name": "Elisha Admin",
+  "description": "Sistema inteligente de gestão para empresas de manutenção de elevadores",
+  "id": "com.elisha.admin",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/icons/icon-192.png?v=20251023", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png?v=20251023", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png?v=20251023", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

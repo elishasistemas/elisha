@@ -1,0 +1,63 @@
+name: Migrations Idempotency Check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  idempotency:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations idempotency fixer
+        run: node scripts/fix-migrations-idempotency.js
+
+      - name: Fail if fixer produced changes
+        run: |
+          git diff --name-only supabase/migrations || true
+          if ! git diff --quiet --exit-code supabase/migrations; then
+            echo "Migrations are not idempotent. Run: npm run db:fix-idempotency and commit changes." >&2
+            exit 1
+          fi
+
+  # Optional build to ensure app still builds
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+

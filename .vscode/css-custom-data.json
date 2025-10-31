@@ -1,0 +1,18 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@apply",
+      "description": "Tailwind CSS: aplica utilitários em regras CSS."
+    },
+    {
+      "name": "@theme",
+      "description": "Tailwind CSS v4: define tokens de tema inline."
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Tailwind CSS v4: cria variantes personalizadas (ex.: dark, aria, etc.)."
+    }
+  ]
+}
+

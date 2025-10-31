@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "resend": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-resend"
+      ],
+      "env": {
+        "RESEND_API_KEY": "re_UizBAmtG_D19qoMkCUmXUtPvAnpWkjJPc"
+      }
+    }
+  }
+}
