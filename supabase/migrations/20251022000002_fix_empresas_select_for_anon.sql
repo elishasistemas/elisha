@@ -2,7 +2,8 @@
 -- The existing policy calls is_elisha_admin() which tries to access profiles
 -- This fails for anonymous users
 
--- Create a simple policy for anonymous users
+-- Create a simple policy for anonymous users (idempotent)
+DROP POLICY IF EXISTS empresas_select_anon ON public.empresas;
 CREATE POLICY empresas_select_anon
 ON public.empresas FOR SELECT
 TO anon
