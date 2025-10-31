@@ -6,13 +6,15 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'os_status_history' AND polname = 'os_status_history_insert_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'os_status_history' AND policyname = 'os_status_history_insert_authenticated'
   ) THEN
     EXECUTE 'DROP POLICY os_status_history_insert_authenticated ON public.os_status_history';
   END IF;
 END$$;
 
 -- New policy: any authenticated user from same empresa can insert history rows
+
+  DROP POLICY IF EXISTS os_status_history_insert_authenticated ON public.os_status_history;
 CREATE POLICY os_status_history_insert_authenticated
   ON public.os_status_history
   FOR INSERT

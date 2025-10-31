@@ -68,7 +68,7 @@ WHERE id = 'uuid-do-usuario';
 SELECT 
   p.id,
   p.nome,
-  p.email,
+  u.email,
   e.nome as empresa,
   p.role as old_role,
   p.roles as new_roles,
@@ -78,6 +78,7 @@ SELECT
     ELSE NULL
   END as tecnico_nome
 FROM public.profiles p
+LEFT JOIN auth.users u ON u.id = p.user_id
 LEFT JOIN public.empresas e ON e.id = p.empresa_id
 LEFT JOIN public.colaboradores c ON c.id = p.tecnico_id
 ORDER BY e.nome, p.nome;
@@ -95,12 +96,13 @@ ORDER BY active_role;
 
 -- Ver profiles sem roles configurados (requerem atenção)
 SELECT 
-  id,
-  nome,
-  email,
-  role as old_role,
-  roles as new_roles
-FROM public.profiles
-WHERE roles = '{}'
-ORDER BY nome;
+  p.id,
+  p.nome,
+  u.email,
+  p.role as old_role,
+  p.roles as new_roles
+FROM public.profiles p
+LEFT JOIN auth.users u ON u.id = p.user_id
+WHERE p.roles = '{}'
+ORDER BY p.nome;
 

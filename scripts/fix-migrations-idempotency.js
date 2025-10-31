@@ -76,50 +76,64 @@ function processFile(filePath) {
     return newPolicy;
   });
   
-  // Pattern 2: CREATE POLICY sem DROP antes (mais simples)
-  // Procura CREATE POLICY que não tem DROP POLICY IF EXISTS antes na mesma seção
-  const lines = content.split('\n');
-  const newLines = [];
-  let lastPolicyMatch = null;
+  // Pattern 2: CREATE POLICY sem DROP antes (suporta multilinha)
+  // Procura CREATE POLICY que pode estar em múltiplas linhas: CREATE POLICY ... ON ... FOR ...
+  const createPolicyPattern = /CREATE\s+POLICY\s+(\w+)\s+ON\s+([^\s]+)\s+(?:FOR\s+\w+)?/gims;
+  const policyMatches = [...content.matchAll(createPolicyPattern)];
   
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const policyMatch = line.match(/^\s*CREATE\s+POLICY\s+(\w+)\s+ON\s+([^\s]+)/i);
+  // Processar do final para o início para não afetar índices
+  policyMatches.reverse().forEach(match => {
+    const policyName = match[1];
+    const tableName = match[2];
+    const matchIndex = match.index;
     
-    if (policyMatch) {
-      // Verificar se tem DROP antes nas últimas 10 linhas
-      const context = lines.slice(Math.max(0, i - 10), i).join('\n');
-      const hasDrop = context.match(new RegExp(`DROP\\s+POLICY\\s+IF\\s+EXISTS\\s+${policyMatch[1]}\\s+ON\\s+${policyMatch[2]}`, 'i'));
+    // Verificar se tem DROP antes nas últimas 20 linhas (para capturar comentários e linhas vazias)
+    const contextStart = Math.max(0, matchIndex - 500);
+    const context = content.substring(contextStart, matchIndex);
+    const hasDrop = context.match(new RegExp(`DROP\\s+POLICY\\s+IF\\s+EXISTS\\s+${policyName}\\s+ON\\s+${tableName}`, 'i'));
+    
+    if (!hasDrop) {
+      // Encontrar início da linha e comentários anteriores
+      const beforeMatch = content.substring(0, matchIndex);
+      const linesBefore = beforeMatch.split('\n');
+      const lastNonEmptyLine = linesBefore.slice().reverse().find(l => l.trim() !== '' && !l.trim().startsWith('--'));
+      const indent = lastNonEmptyLine?.match(/^(\s*)/)?.[1] || '  ';
       
-      if (!hasDrop) {
-        // Adicionar DROP POLICY IF EXISTS antes
-        const indent = line.match(/^(\s*)/)?.[1] || '';
-        const commentLines = [];
-        
-        // Capturar comentários anteriores
-        for (let j = i - 1; j >= 0; j--) {
-          if (lines[j].trim().startsWith('--')) {
-            commentLines.unshift(lines[j]);
-          } else if (lines[j].trim() === '') {
-            continue;
-          } else {
-            break;
-          }
+      // Encontrar último comentário antes do CREATE POLICY
+      const commentLines = [];
+      for (let i = linesBefore.length - 1; i >= 0; i--) {
+        if (linesBefore[i].trim().startsWith('--')) {
+          commentLines.unshift(linesBefore[i]);
+        } else if (linesBefore[i].trim() === '') {
+          continue;
+        } else {
+          break;
         }
-        
-        // Inserir DROP POLICY IF EXISTS
-        commentLines.forEach(cl => newLines.push(cl));
-        newLines.push(`${indent}DROP POLICY IF EXISTS ${policyMatch[1]} ON ${policyMatch[2]};`);
-        changed = true;
-        changes.push(`Added DROP POLICY IF EXISTS for ${policyMatch[1]} on ${policyMatch[2]}`);
       }
+      
+      // Inserir DROP POLICY IF EXISTS
+      const insertPoint = matchIndex;
+      const dropLine = `${indent}DROP POLICY IF EXISTS ${policyName} ON ${tableName};`;
+      
+      // Inserir após o último comentário ou antes do CREATE
+      const insertAfterComment = commentLines.length > 0 
+        ? beforeMatch.lastIndexOf(commentLines[commentLines.length - 1]) + commentLines[commentLines.length - 1].length
+        : insertPoint;
+      
+      const insertIndex = insertAfterComment + (commentLines.length > 0 ? '\n'.length : 0);
+      
+      content = content.substring(0, insertIndex) + 
+                (commentLines.length > 0 ? '\n' : '') + 
+                dropLine + '\n' + 
+                content.substring(insertIndex);
+      
+      changed = true;
+      changes.push(`Added DROP POLICY IF EXISTS for ${policyName} on ${tableName}`);
     }
-    
-    newLines.push(line);
-  }
+  });
   
   return {
-    content: changed ? newLines.join('\n') : content,
+    content: changed ? content : content,
     changed,
     changes
   };
