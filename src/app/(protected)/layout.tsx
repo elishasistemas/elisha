@@ -91,7 +91,7 @@ export default function ProtectedLayout({
     <>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="overflow-hidden">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b border-muted">
             <div className="flex items-center gap-2 px-4 w-full justify-between">
               <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export default function ProtectedLayout({
               </div>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-y-auto">
             {children}
           </div>
         </SidebarInset>

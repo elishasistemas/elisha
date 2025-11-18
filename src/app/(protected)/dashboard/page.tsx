@@ -110,6 +110,7 @@ export default function DashboardPage() {
   const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey })
   const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva, { refreshKey })
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
+  const [openCreateDialog, setOpenCreateDialog] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const isAdmin = profile?.active_role === 'admin'
   const isImpersonating = !!profile?.is_elisha_admin && !!profile?.impersonating_empresa_id
@@ -146,6 +147,38 @@ export default function DashboardPage() {
     setActionLoading(true)
     const supabase = createSupabaseBrowser()
     try {
+      // Garantir que exista um colaborador vinculado ao usuário atual com whatsapp_numero não nulo
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData?.user
+      if (user && empresaAtiva) {
+        // Tenta localizar colaborador existente por user_id
+        const { data: colExists } = await supabase
+          .from('colaboradores')
+          .select('id, whatsapp_numero')
+          .eq('empresa_id', empresaAtiva)
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle()
+
+        if (!colExists || !colExists.whatsapp_numero) {
+          const nome = (user.user_metadata?.name as string) || (user.user_metadata?.full_name as string) || (user.email?.split('@')[0] ?? 'Técnico')
+          const whatsappPlaceholder = user.email ?? '00000000000'
+          // upsert pelo par (empresa_id, user_id)
+          const { error: upsertError } = await supabase
+            .from('colaboradores')
+            .upsert({
+              empresa_id: empresaAtiva,
+              user_id: user.id,
+              nome,
+              whatsapp_numero: whatsappPlaceholder,
+              ativo: true,
+            }, { onConflict: 'empresa_id,user_id' })
+          if (upsertError) {
+            console.warn('[dashboard] upsert colaborador falhou (segue para os_accept):', upsertError)
+          }
+        }
+      }
+
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: o.id })
       if (error) throw error
       
@@ -449,7 +482,7 @@ export default function DashboardPage() {
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button onClick={() => router.push('/orders?new=true')}>
+          <Button onClick={() => setOpenCreateDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Chamado
           </Button>
@@ -723,7 +756,19 @@ export default function DashboardPage() {
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   
                   return (
-                    <TableRow key={ordem.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setViewOrder(ordem)}>
+                    <TableRow 
+                      key={ordem.id} 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors" 
+                      onClick={() => {
+                        // Se a OS está em status de atendimento, ir para página full-screen
+                        const statusesComComponente = ['checkin', 'checkout', 'em_andamento', 'aguardando_assinatura']
+                        if (statusesComComponente.includes(ordem.status)) {
+                          router.push(`/os/${ordem.id}/full`)
+                        } else {
+                          setViewOrder(ordem)
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium">
                         {ordem.numero_os || ordem.id.slice(0, 8)}
                       </TableCell>
@@ -773,6 +818,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog para visualizar OS */}
       {viewOrder && empresaAtiva && (
         <OrderDialog
           key={viewOrder.id}
@@ -785,6 +831,24 @@ export default function DashboardPage() {
           defaultOpen
           onOpenChange={(o) => { if (!o) setViewOrder(null) }}
           onSuccess={() => { setViewOrder(null); handleRefresh() }}
+        />
+      )}
+
+      {/* Dialog para criar novo chamado */}
+      {openCreateDialog && empresaAtiva && clientes.length > 0 && isAdmin && (
+        <OrderDialog
+          empresaId={empresaAtiva}
+          clientes={clientes}
+          colaboradores={colaboradores}
+          mode="create"
+          hideTrigger
+          defaultOpen
+          defaultTipo="chamado"
+          onOpenChange={(o) => { if (!o) setOpenCreateDialog(false) }}
+          onSuccess={() => { 
+            setOpenCreateDialog(false)
+            handleRefresh()
+          }}
         />
       )}
     </div>

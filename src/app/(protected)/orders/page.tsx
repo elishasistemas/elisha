@@ -29,11 +29,12 @@ import {
 import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
 import { createSupabaseBrowser } from '@/lib/supabase'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
 import { OrderDialog } from '@/components/order-dialog'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const statusConfig = {
   parado: {
@@ -109,6 +110,7 @@ function formatDate(dateString: string) {
 }
 
 export default function OrdersPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const newParam = searchParams?.get('new')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
@@ -121,6 +123,7 @@ export default function OrdersPage() {
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
   const [ordemToDecline, setOrdemToDecline] = useState<OrdemServico | null>(null)
   const [declineReason, setDeclineReason] = useState('')
+  const [tipoFiltro, setTipoFiltro] = useState<string>('todas')
   
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -137,9 +140,10 @@ export default function OrdersPage() {
   const clienteId = clientes[0]?.id
   const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
   const orderBy = ordenacao === 'data' ? 'created_at' : (ordenacao === 'status' ? 'status' : 'prioridade')
-  const { ordens, loading, error, deleteOrdem, count } = useOrdensServico(empresaId, {
-    page,
-    pageSize,
+  // Carregar todas as ordens (sem paginação no hook) para permitir filtro por tipo no frontend
+  const { ordens: todasOrdens, loading, error, deleteOrdem, count: totalCount } = useOrdensServico(empresaId, {
+    page: 1,
+    pageSize: 1000, // Carregar todas para filtrar no frontend
     search,
     orderBy: orderBy as any,
     tecnicoId: canTecnico ? (profile?.tecnico_id ?? undefined) : undefined,
@@ -177,6 +181,33 @@ export default function OrdersPage() {
 
   const handleAccept = async (ordem: OrdemServico) => {
     try {
+      // Garantir colaborador do usuário com whatsapp_numero não nulo antes do os_accept
+      const { data: userData } = await supabase.auth.getUser()
+      const user = userData?.user
+      if (user && empresaId) {
+        const { data: colExists } = await supabase
+          .from('colaboradores')
+          .select('id, whatsapp_numero')
+          .eq('empresa_id', empresaId)
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle()
+
+        if (!colExists || !colExists.whatsapp_numero) {
+          const nome = (user.user_metadata?.name as string) || (user.user_metadata?.full_name as string) || (user.email?.split('@')[0] ?? 'Técnico')
+          const whatsappPlaceholder = user.email ?? '00000000000'
+          await supabase
+            .from('colaboradores')
+            .upsert({
+              empresa_id: empresaId,
+              user_id: user.id,
+              nome,
+              whatsapp_numero: whatsappPlaceholder,
+              ativo: true,
+            }, { onConflict: 'empresa_id,user_id' })
+        }
+      }
+
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: ordem.id })
       if (error) throw error
       const result = data as { success: boolean; error?: string; message?: string }
@@ -236,10 +267,30 @@ export default function OrdersPage() {
     }
   }
 
-  const total = count || 0
+  // Filtrar ordens por tipo
+  const ordensFiltradas = tipoFiltro === 'todas' 
+    ? todasOrdens 
+    : todasOrdens.filter(o => o.tipo === tipoFiltro)
+  
+  // Contadores por tipo (baseado em todas as ordens carregadas)
+  const contadores = {
+    todas: todasOrdens.length,
+    chamado: todasOrdens.filter(o => o.tipo === 'chamado').length,
+    preventiva: todasOrdens.filter(o => o.tipo === 'preventiva').length,
+    corretiva: todasOrdens.filter(o => o.tipo === 'corretiva').length,
+  }
+  
+  // Paginação no frontend após filtro
+  const total = ordensFiltradas.length
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const startIdx = total > 0 ? (page - 1) * pageSize + 1 : 0
   const endIdx = Math.min(page * pageSize, total)
+  const ordensPaginadas = ordensFiltradas.slice(startIdx - 1, endIdx)
+  
+  // Resetar página quando mudar filtro ou busca
+  useEffect(() => {
+    setPage(1)
+  }, [tipoFiltro, search])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full py-4 ">
@@ -262,38 +313,58 @@ export default function OrdersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>Lista de Ordens</CardTitle>
-              <CardDescription>{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Lista de Ordens</CardTitle>
+                <CardDescription>{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Ordenar por:</span>
+                <Select value={ordenacao} onValueChange={setOrdenacao}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prioridade">Prioridade</SelectItem>
+                    <SelectItem value="data">Data (Recente)</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Buscar número, tipo, status"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                  className="w-[280px]"
+                />
+                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                  <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 / página</SelectItem>
+                    <SelectItem value="20">20 / página</SelectItem>
+                    <SelectItem value="50">50 / página</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Ordenar por:</span>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="prioridade">Prioridade</SelectItem>
-                  <SelectItem value="data">Data (Recente)</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                placeholder="Buscar número, tipo, status"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="w-[280px]"
-              />
-              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 / página</SelectItem>
-                  <SelectItem value="20">20 / página</SelectItem>
-                  <SelectItem value="50">50 / página</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            
+            {/* Tabs para filtrar por tipo */}
+            <Tabs value={tipoFiltro} onValueChange={setTipoFiltro} className="w-full">
+              <TabsList>
+                <TabsTrigger value="todas">
+                  Todas ({contadores.todas})
+                </TabsTrigger>
+                <TabsTrigger value="chamado">
+                  Chamados ({contadores.chamado})
+                </TabsTrigger>
+                <TabsTrigger value="preventiva">
+                  Preventivas ({contadores.preventiva})
+                </TabsTrigger>
+                <TabsTrigger value="corretiva">
+                  Corretivas ({contadores.corretiva})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </CardHeader>
         <CardContent>
@@ -303,8 +374,12 @@ export default function OrdersPage() {
             </div>
           ) : hasError ? (
             <div className="text-destructive">{hasError}</div>
-          ) : ordens.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">Nenhuma ordem encontrada</div>
+          ) : ordensFiltradas.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              {tipoFiltro === 'todas' 
+                ? 'Nenhuma ordem encontrada' 
+                : `Nenhuma OS do tipo "${tipoFiltro === 'chamado' ? 'Chamado' : tipoFiltro === 'preventiva' ? 'Preventiva' : 'Corretiva'}" encontrada`}
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -320,12 +395,24 @@ export default function OrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ordens.map((ordem) => {
+                {ordensPaginadas.map((ordem) => {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   return (
-                    <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
+                    <TableRow 
+                      key={ordem.id} 
+                      className="cursor-pointer" 
+                      onClick={() => {
+                        // Se a OS está em status de atendimento, ir para página full-screen
+                        const statusesComComponente = ['checkin', 'checkout', 'em_andamento', 'aguardando_assinatura']
+                        if (statusesComComponente.includes(ordem.status)) {
+                          router.push(`/os/${ordem.id}/full`)
+                        } else {
+                          setViewOrder(ordem)
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium">{ordem.numero_os || ordem.id.slice(0, 8)}</TableCell>
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
@@ -419,7 +506,7 @@ export default function OrdersPage() {
           {total > 0 && (
             <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
               <div>
-                Mostrando {startIdx}-{endIdx} de {total}
+                Mostrando {startIdx}-{endIdx} de {total} {tipoFiltro !== 'todas' && `(${tipoFiltro === 'chamado' ? 'Chamados' : tipoFiltro === 'preventiva' ? 'Preventivas' : 'Corretivas'})`}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>

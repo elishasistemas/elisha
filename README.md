@@ -6,12 +6,26 @@ Sistema de gestão completo para empresas brasileiras, desenvolvido com Next.js,
 
 - **Gestão de Clientes**: Cadastro e controle de clientes e contratos
 - **Equipamentos**: Controle de inventário e histórico de manutenção
-- **Ordens de Serviço**: Criação e acompanhamento de serviços técnicos
-- **Checklists Inteligentes**: Sistema completo de checklists com snapshot imutável e compliance score
+- **Ordens de Serviço**: 
+  - Criação e acompanhamento de serviços técnicos
+  - OS Preventivas com geração automática por tipo de equipamento
+  - OS Corretivas e Chamados
+  - Dashboard técnico com aceitar/recusar OS
+  - Fluxo completo sem cronômetro (apenas timestamps)
+- **Checklists Inteligentes**: 
+  - Sistema completo de checklists com snapshot imutável
+  - Templates por tipo de equipamento (Elétrico, Hidráulico, Plataforma)
+  - Compliance score automático
+  - Integração com laudo técnico e evidências
+- **Planos Preventivos**: 
+  - Configuração de frequências por tipo de equipamento
+  - Geração automática de OS preventivas no cadastro
+  - Job recorrente para manutenção contínua
 - **Colaboradores**: Gestão de equipe técnica
 - **Relatórios**: Geração de relatórios PDF e análises
 - **Feedbacks**: Coleta de avaliações dos clientes
 - **Autenticação**: Login seguro com email/senha e magic link
+- **Super Admin**: Sistema de administração multi-empresa com impersonation
 
 ## 🛠️ Tecnologias
 
@@ -113,6 +127,15 @@ O projeto é compatível com qualquer plataforma que suporte Next.js:
   - [Guia Rápido](./CHECKLIST_QUICKSTART.md) - Setup em 5 minutos
   - [Documentação Completa](./CHECKLIST_SYSTEM.md) - Referência técnica
   - [Integração PDF](./CHECKLIST_RELATORIO_INTEGRATION.md) - Relatórios com checklist
+- [Plan de Implementação](./.cursor/plan.yaml) - Roadmap completo do sistema de OS
+- [Contexto de OS](./docs/context-os.md) - Schema e estrutura de dados
+
+### Funcionalidades Recentes
+- ✅ **Templates de Checklist por Tipo**: Templates específicos para cada tipo de equipamento
+- ✅ **Planos Preventivos**: Sistema de agendamento automático de manutenções
+- ✅ **Geração Automática de OS**: OS preventivas criadas automaticamente ao cadastrar equipamentos
+- ✅ **Dashboard Técnico**: Interface para técnicos aceitarem/recusarem OS
+- ✅ **Sistema de Evidências**: Upload de fotos, vídeos e áudios vinculados à OS
 
 ### Tecnologias
 - [Supabase Docs](https://supabase.com/docs) - Documentação do Supabase
@@ -126,6 +149,23 @@ O projeto é compatível com qualquer plataforma que suporte Next.js:
 3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
 4. Push para a branch (`git push origin feature/nova-funcionalidade`)
 5. Abra um Pull Request
+
+## 🔄 Changelog Recente
+
+### Novembro 2025
+- ✅ Sistema de OS Preventivas com geração automática
+- ✅ Templates de checklist por tipo de equipamento
+- ✅ Planos preventivos configuráveis
+- ✅ Correções de UI e UX
+- ✅ Desativação temporária do Resend (convite por link)
+- ✅ Scripts de seed para templates e planos
+
+### Outubro 2025
+- ✅ Sistema completo de checklist com snapshot imutável
+- ✅ Dashboard técnico com aceitar/recusar OS
+- ✅ Sistema de evidências (fotos, vídeos, áudios)
+- ✅ Laudo técnico com autosave
+- ✅ Histórico de mudanças de status
 
 ## 📄 Licença
 

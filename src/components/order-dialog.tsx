@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -44,10 +45,29 @@ export function OrderDialog({
   hideTrigger,
   defaultTipo,
 }: OrderDialogProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  
+  // Redirecionar para full-screen se a OS deve usar componentes do Figma Make
+  useEffect(() => {
+    if (!open || !isView || !ordem || !ordem.id) return
+    
+    const tiposComComponente = ['preventiva', 'chamado', 'corretiva']
+    
+    // Se a OS é de um tipo que tem componente do Figma Make, sempre navegar para full-screen
+    // A página full-screen decidirá se renderiza os componentes ou não baseado no status
+    if (tiposComComponente.includes(ordem.tipo)) {
+      // Fechar o dialog e navegar para full-screen
+      onOpenChange?.(false)
+      setTimeout(() => {
+        router.push(`/os/${ordem.id}/full`)
+      }, 100)
+    }
+  }, [open, isView, ordem?.id, ordem?.tipo, router, onOpenChange])
+  
   // Abre o diálogo quando defaultOpen for true e também quando a ordem mudar
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
   useEffect(() => {
@@ -351,29 +371,33 @@ export function OrderDialog({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cliente_id">Cliente <span className="text-destructive">*</span></Label>
-                    <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
-                      <SelectTrigger disabled={isView}><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
-                      <SelectContent>
-                        {clientes.map((cliente) => (
-                          <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome_local}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="px-0.5">
+                      <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
+                        <SelectTrigger disabled={isView}><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                        <SelectContent>
+                          {clientes.map((cliente) => (
+                            <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome_local}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="equipamento_id">Equipamento <span className="text-destructive">*</span></Label>
-                    <Select value={formData.equipamento_id} onValueChange={(value) => handleChange('equipamento_id', value)} disabled={!formData.cliente_id || isView}>
-                      <SelectTrigger disabled={!formData.cliente_id || isView}><SelectValue placeholder={formData.cliente_id ? 'Selecione o equipamento' : 'Selecione um cliente primeiro'} /></SelectTrigger>
-                      <SelectContent>
-                        {equipamentosFiltrados.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
-                        ) : (
-                          equipamentosFiltrados.map((eq) => (
-                            <SelectItem key={eq.id} value={eq.id}>{eq.tipo} - {eq.fabricante} {eq.modelo}</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <div className="px-0.5">
+                      <Select value={formData.equipamento_id} onValueChange={(value) => handleChange('equipamento_id', value)} disabled={!formData.cliente_id || isView}>
+                        <SelectTrigger disabled={!formData.cliente_id || isView}><SelectValue placeholder={formData.cliente_id ? 'Selecione o equipamento' : 'Selecione um cliente primeiro'} /></SelectTrigger>
+                        <SelectContent>
+                          {equipamentosFiltrados.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
+                          ) : (
+                            equipamentosFiltrados.map((eq) => (
+                              <SelectItem key={eq.id} value={eq.id}>{eq.tipo} - {eq.fabricante} {eq.modelo}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
@@ -385,22 +409,25 @@ export function OrderDialog({
                 <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
-                <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="preventiva">Preventiva</SelectItem>
-                    <SelectItem value="corretiva">Corretiva</SelectItem>
-                    <SelectItem value="emergencial">Emergencial</SelectItem>
-                    <SelectItem value="chamado">Chamado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="px-0.5">
+                  <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
+                    <SelectTrigger disabled={isView}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="preventiva">Preventiva</SelectItem>
+                      <SelectItem value="corretiva">Corretiva</SelectItem>
+                      <SelectItem value="emergencial">Emergencial</SelectItem>
+                      <SelectItem value="chamado">Chamado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="prioridade">Prioridade</Label>
-                <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
+                <div className="px-0.5">
+                  <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
                   <SelectTrigger disabled={isView}>
                     <SelectValue />
                   </SelectTrigger>
@@ -409,28 +436,31 @@ export function OrderDialog({
                     <SelectItem value="media">Média</SelectItem>
                     <SelectItem value="baixa">Baixa</SelectItem>
                   </SelectContent>
-                </Select>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="novo">Nova</SelectItem>
-                    <SelectItem value="em_deslocamento">Em Deslocamento</SelectItem>
-                    <SelectItem value="checkin">No Local</SelectItem>
-                    <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                    <SelectItem value="checkout">Finalizado</SelectItem>
-                    <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                    <SelectItem value="concluido">Concluída</SelectItem>
-                    <SelectItem value="cancelado">Cancelada</SelectItem>
-                    <SelectItem value="parado">Parado</SelectItem>
-                    <SelectItem value="reaberta">Reaberta</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="px-0.5">
+                  <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
+                    <SelectTrigger disabled={isView}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="novo">Nova</SelectItem>
+                      <SelectItem value="em_deslocamento">Em Deslocamento</SelectItem>
+                      <SelectItem value="checkin">No Local</SelectItem>
+                      <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                      <SelectItem value="checkout">Finalizado</SelectItem>
+                      <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                      <SelectItem value="concluido">Concluída</SelectItem>
+                      <SelectItem value="cancelado">Cancelada</SelectItem>
+                      <SelectItem value="parado">Parado</SelectItem>
+                      <SelectItem value="reaberta">Reaberta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">

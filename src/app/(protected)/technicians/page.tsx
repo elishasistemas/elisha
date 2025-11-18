@@ -196,9 +196,9 @@ export default function TechniciansPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {canAdmin && (
+                          {empresaId && canAdmin && (
                             <TechnicianDialog
-                            empresaId={empresaId!}
+                            empresaId={empresaId}
                             colaborador={t}
                             mode="edit"
                             onSuccess={handleRefresh}

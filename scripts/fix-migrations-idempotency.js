@@ -111,21 +111,32 @@ function processFile(filePath) {
         }
       }
       
-      // Inserir DROP POLICY IF EXISTS
-      const insertPoint = matchIndex;
-      const dropLine = `${indent}DROP POLICY IF EXISTS ${policyName} ON ${tableName};`;
+      // Encontrar início da linha do CREATE POLICY para pegar indentação correta
+      const createPolicyLineStart = beforeMatch.lastIndexOf('\n') + 1;
+      const createPolicyLine = content.substring(createPolicyLineStart, matchIndex + match[0].indexOf('ON'));
+      const correctIndent = createPolicyLine.match(/^(\s*)/)?.[1] || '  ';
       
-      // Inserir após o último comentário ou antes do CREATE
-      const insertAfterComment = commentLines.length > 0 
-        ? beforeMatch.lastIndexOf(commentLines[commentLines.length - 1]) + commentLines[commentLines.length - 1].length
-        : insertPoint;
+      // Inserir DROP POLICY IF EXISTS antes do CREATE, mantendo comentários
+      const dropLine = `${correctIndent}DROP POLICY IF EXISTS ${policyName} ON ${tableName};`;
       
-      const insertIndex = insertAfterComment + (commentLines.length > 0 ? '\n'.length : 0);
+      // Inserir antes do CREATE POLICY, depois de comentários se houver
+      let insertIndex = matchIndex;
+      if (commentLines.length > 0) {
+        // Inserir após o último comentário
+        const lastCommentIndex = beforeMatch.lastIndexOf(commentLines[commentLines.length - 1]);
+        insertIndex = lastCommentIndex + commentLines[commentLines.length - 1].length;
+        // Verificar se há quebra de linha após o comentário
+        if (content.substring(insertIndex, matchIndex).trim() !== '') {
+          insertIndex = matchIndex; // Sem quebra de linha, inserir antes do CREATE
+        } else {
+          insertIndex += '\n'.length;
+        }
+      }
       
       content = content.substring(0, insertIndex) + 
-                (commentLines.length > 0 ? '\n' : '') + 
+                (insertIndex < matchIndex ? '' : '\n') + 
                 dropLine + '\n' + 
-                content.substring(insertIndex);
+                content.substring(matchIndex);
       
       changed = true;
       changes.push(`Added DROP POLICY IF EXISTS for ${policyName} on ${tableName}`);

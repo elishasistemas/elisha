@@ -81,6 +81,13 @@ export function RoleSwitch() {
 
   const adminEnabled = roles.includes('admin')
   const tecnicoEnabled = roles.includes('tecnico')
+  const isElishaAdmin = profile?.is_elisha_admin
+
+  // Técnicos puros (sem admin) não veem o switcher
+  // Apenas super admin e admin (com ou sem técnico) podem trocar de perfil
+  if (!adminEnabled && !isElishaAdmin) {
+    return null
+  }
 
   return (
     <div className="flex items-center gap-2">
@@ -90,6 +97,7 @@ export function RoleSwitch() {
         onClick={() => toggle('admin')}
         disabled={!adminEnabled || pending}
         title="Ctrl+A"
+        className={active === 'admin' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
       >
         <LayoutDashboard className="h-4 w-4 mr-1" /> Admin
       </Button>

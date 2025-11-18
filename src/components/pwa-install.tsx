@@ -40,16 +40,27 @@ export default function PWAInstall() {
   const [showBar, setShowBar] = React.useState(false);
   const standalone = useIsStandalone();
 
-  // Registra o Service Worker
+  // Registra o Service Worker somente em produção e HTTPS.
+  // Em desenvolvimento, remove qualquer SW existente para evitar cache de chunks e 404.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if ("serviceWorker" in navigator) {
-      // registra quando a página carrega para priorizar o primeiro paint
-      window.addEventListener("load", () => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const isDev = process.env.NODE_ENV !== 'production' || window.location.hostname === 'localhost';
+
+    if (isDev) {
+      // Unregister SWs em dev para evitar servir assets antigos com MIME incorreto
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => r.unregister());
+      }).catch(() => {});
+      return;
+    }
+
+    // Produção: registra quando a página carrega
+    const onLoad = () => {
         navigator.serviceWorker
           .register("/sw.js")
           .then(() => {
-            // Telemetry (não bloqueante)
             fetch('/api/telemetry/logsnag', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -59,8 +70,10 @@ export default function PWAInstall() {
           .catch(() => {
             // ignora erros de registro silenciosamente
           });
-      });
-    }
+    };
+
+    window.addEventListener("load", onLoad);
+    return () => window.removeEventListener("load", onLoad);
   }, []);
 
   // Captura beforeinstallprompt (Android/Chrome)

@@ -154,6 +154,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
     const fetchClientes = async () => {
       try {
         setLoading(true)
+        console.log('[useClientes] Buscando clientes para empresa:', empresaId)
         const page = opts?.page ?? 1
         const pageSize = opts?.pageSize ?? 1000
         const start = (page - 1) * pageSize
@@ -172,8 +173,18 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
           )
         }
 
+        console.log('[useClientes] Executando query para empresa:', empresaId)
+        console.log('[useClientes] Supabase URL:', supabase.supabaseUrl)
+        const sessionResult = await supabase.auth.getSession()
+        const sessionInfo = { userId: sessionResult.data.session?.user.id, email: sessionResult.data.session?.user.email }
+        console.log('[useClientes] User session:', sessionInfo)
         const { data, error, count } = await query.range(start, end)
-        if (error) throw error
+        if (error) {
+          console.error('[useClientes] Erro na query:', error)
+          console.error('[useClientes] Erro detalhado:', JSON.stringify(error, null, 2))
+          throw error
+        }
+        console.log('[useClientes] Resultado:', { dataCount: data?.length || 0, count, data: data?.slice(0, 2), error })
         setClientes(data || [])
         setCount(count || 0)
       } catch (err) {

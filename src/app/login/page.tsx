@@ -57,31 +57,14 @@ export default function LoginPage() {
     setError(null)
     setIsLoading(true)
     
-    // Debug: Log environment variables
-    console.log('🔍 [LOGIN DEBUG] Environment Check:', {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      anonKeyPrefix: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
-      nodeEnv: process.env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    })
-    
     try {
-      console.log('🔐 [LOGIN] Attempting sign in for:', email)
-      
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (signInError) {
-        console.error('❌ [LOGIN ERROR] Supabase Auth Error:', {
-          message: signInError.message,
-          status: signInError.status,
-          name: signInError.name,
-          stack: signInError.stack,
-          fullError: signInError
-        })
+        console.error('[LOGIN] Auth error:', signInError.message)
         setError(`Erro ao fazer login: ${signInError.message}`)
         return
       }
@@ -123,27 +106,18 @@ export default function LoginPage() {
         setError('Erro inesperado no login.')
       }
     } catch (err) {
-      console.error('❌ [LOGIN] Unexpected error:', {
-        error: err,
-        type: typeof err,
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        name: err instanceof Error ? err.name : undefined,
-      })
+      console.error('[LOGIN] Unexpected error:', err instanceof Error ? err.message : err)
       
-      // Mensagem de erro mais específica
       let errorMessage = 'Ocorreu um erro ao entrar. Tente novamente.'
-      
       if (err instanceof Error) {
         if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-          errorMessage = '⚠️ Erro de conexão com o servidor. Verifique sua internet e tente novamente.'
+          errorMessage = 'Erro de conexão. Verifique sua internet.'
         } else if (err.message.includes('ERR_NAME_NOT_RESOLVED')) {
-          errorMessage = '⚠️ Não foi possível conectar ao Supabase. Verifique as variáveis de ambiente.'
+          errorMessage = 'Erro de conexão com Supabase.'
         } else {
           errorMessage = `Erro: ${err.message}`
         }
       }
-      
       setError(errorMessage)
     } finally {
       setIsLoading(false)
@@ -259,8 +233,11 @@ export default function LoginPage() {
       <div className="bg-muted relative hidden lg:block">
         <img
           src="/bg.svg"
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          alt="Background"
+          className="absolute inset-0 h-full w-full object-cover object-center 
+                     dark:brightness-[0.2] dark:grayscale
+                     lg:object-left xl:object-center 2xl:object-center
+                     transition-all duration-300"
         />
       </div>
     </div>

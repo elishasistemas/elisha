@@ -24,6 +24,8 @@ import {
   FileSignature
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { createSupabaseBrowser } from '@/lib/supabase'
+import { computeComplianceScore, validateChecklistCompletion } from '@/utils/checklist/computeComplianceScore'
 import type { 
   OSChecklist, 
   ChecklistResposta, 
@@ -52,23 +54,63 @@ export function ChecklistRunner({ osId, onComplete }: ChecklistRunnerProps) {
   const [data, setData] = useState<ChecklistData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<Set<string>>(new Set())
+  const supabase = createSupabaseBrowser()
 
   // Load checklist data
   useEffect(() => {
     loadChecklistData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [osId])
 
   const loadChecklistData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/os/${osId}/checklist`)
       
-      if (!response.ok) {
-        throw new Error('Falha ao carregar checklist')
+      // Get checklist snapshot
+      const { data: osChecklist, error: checklistError } = await supabase
+        .from('os_checklists')
+        .select('*')
+        .eq('os_id', osId)
+        .maybeSingle()
+
+      if (checklistError) {
+        throw checklistError
       }
 
-      const data = await response.json()
-      setData(data)
+      if (!osChecklist) {
+        // Checklist não encontrado - não é erro, apenas não foi iniciado ainda
+        setData(null)
+        return
+      }
+
+      // Get responses
+      const { data: respostas, error: respostasError } = await supabase
+        .from('checklist_respostas')
+        .select('*')
+        .eq('os_checklist_id', osChecklist.id)
+        .order('item_ordem', { ascending: true })
+
+      if (respostasError) {
+        throw respostasError
+      }
+
+      // Compute score and validation
+      const score = computeComplianceScore(
+        osChecklist.template_snapshot,
+        respostas || []
+      )
+
+      const validation = validateChecklistCompletion(
+        osChecklist.template_snapshot,
+        respostas || []
+      )
+
+      setData({
+        osChecklist,
+        respostas: respostas || [],
+        score,
+        validation
+      })
     } catch (error) {
       console.error('Error loading checklist:', error)
       toast.error('Erro ao carregar checklist')

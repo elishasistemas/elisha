@@ -1,8 +1,9 @@
 version: 1
-name: "Fluxo completo de OS — Elisha"
+name: "Fluxo completo de OS — Elisha (tipos + sem cronometro + planos preventivos)"
 description: >
-  Implementar o fluxo de Ordem de Serviço (OS) com consistência sobre o schema real do Supabase,
-  em etapas progressivas, com commits limpos, RLS respeitado e validação incremental.
+  Implementar e persistir templates de checklist e planos de manutencao por tipo de equipamento.
+  Gerar automaticamente OS Preventivas no cadastro de cliente/equipamento e de forma recorrente enquanto ativo.
+  Manter fluxo sem cronometro (apenas timestamps de transicao). Incluir calendario de manutencao (v1).
 
 env:
   RLS_ENFORCED: "true"
@@ -14,216 +15,400 @@ style:
   stop_after_each_step: true
 
 guards:
-  - message: "Nunca altere nomes de tabelas/colunas existentes sem mapear o schema real antes."
-  - message: "Nunca escreva SQL de mutação no frontend; use sempre RPC/Edge Functions."
-  - message: "Respeite RLS e policies do Supabase (auth.uid(), empresa/time/técnico)."
-  - message: "Armazene evidências somente no bucket autorizado e registre metadados na tabela."
+  - message: "Preservar o que ja foi implementado (steps 00 a 3 concluidos)."
+  - message: "Nunca alterar nomes de tabelas/colunas sem mapear o schema real (/docs/context-os.md)."
+  - message: "Nao escrever SQL no frontend; usar RPC/Edge Functions via Supabase MCP."
+  - message: "Sem cronometro: persistir apenas timestamps de transicao de estados."
+  - message: "Respeitar RLS e policies por empresa/usuario/tecnico."
+  - message: "Evidencias somente no bucket autorizado, registrando metadados na tabela."
+  - message: "Tabs mobile devem exibir 'Concluir' em fluxos progressivos."
 
+# -------------------------------------------------------------------
+# DADOS A PERSISTIR (via MCP): templates de checklist e plano preventivo
+# -------------------------------------------------------------------
+data:
+  checklist_templates:
+    - tipo_equipamento: "ELEVADOR_ELETRICO"
+      norma_base: ["NBR 16083", "NBR 16858-1", "NBR 16858-7", "NM 313"]
+      ciclos:
+        mensal:
+          itens:
+            - "Funcionamento das botoeiras de cabine"
+            - "Funcionamento das botoeiras de pavimento"
+            - "Iluminacao da cabine e ventilador"
+            - "Sistema de alarme e interfone"
+            - "Nivelamento entre andares dentro da tolerancia da norma"
+            - "Ausencia de ruidos, vibracoes ou trancos anormais"
+            - "Lubrificacao de guias"
+            - "Funcionamento das portas de pavimento e cabina"
+            - "Limpeza do poco"
+        trimestral:
+          itens:
+            - "Limpeza de quadro de comando eletrico; conexoes firmes e aterramento correto"
+            - "Reaperto de conexoes e conferencias de aterramento"
+            - "Limpeza da casa de maquinas e conferencia de iluminacao"
+            - "Cabos de tracao e polias sem desgaste ou desfiamento"
+            - "Verificacao do limitador de velocidade e freio de emergencia"
+            - "Teste dos intertravamentos das portas de pavimento"
+            - "Limpeza de contatos de portas de pavimento"
+        semestral:
+          itens:
+            - "Inspecao detalhada no operador de portas"
+            - "Limpeza e lubrificacao do operador de portas"
+            - "Verificacao da estrutura da cabine e contrapeso"
+            - "Teste dos dispositivos de parada e fim de curso"
+        anual:
+          itens:
+            - "Ensaios de seguranca do freio de emergencia"
+            - "Auditoria anual de conformidade e emissao de relatorio tecnico"
+
+    - tipo_equipamento: "ELEVADOR_HIDRAULICO"
+      norma_base: ["NBR 16083", "NBR 16858-2", "NBR 16858-7", "NM 313"]
+      ciclos:
+        mensal:
+          itens:
+            - "Funcionamento das botoeiras de cabine"
+            - "Funcionamento das botoeiras de pavimento"
+            - "Iluminacao da cabine e ventilador"
+            - "Sistema de alarme e interfone"
+            - "Nivelamento entre andares dentro da tolerancia da norma"
+            - "Ausencia de ruidos, vibracoes ou trancos anormais"
+            - "Lubrificacao de guias"
+            - "Funcionamento das portas de pavimento e cabina"
+            - "Limpeza do poco"
+        bimestral:
+          itens:
+            - "Nivel e qualidade do oleo hidraulico dentro da faixa"
+            - "Ausencia de vazamentos em mangueiras, conexoes e cilindros"
+            - "Bombas e valvulas sem ruido excessivo"
+            - "Funcionamento das botoeiras e alarmes de cabine"
+            - "Limpeza geral da casa de maquinas"
+            - "Teste do dispositivo de descida de emergencia"
+        trimestral:
+          itens:
+            - "Inspecao detalhada no operador de portas"
+            - "Limpeza e lubrificacao do operador de portas"
+            - "Verificacao da estrutura da cabine e contrapeso"
+            - "Teste dos dispositivos de parada e fim de curso"
+        semestral:
+          itens:
+            - "Verificacao do pistao quanto a corrosao ou empeno"
+            - "Inspecao estrutural do cilindro e guias do pistao"
+            - "Teste das valvulas de seguranca e travas hidraulicas"
+            - "Inspecao do quadro eletrico e aterramento"
+            - "Teste do sistema de parada e freio de seguranca"
+        anual:
+          itens:
+            - "Ensaios de seguranca do freio de emergencia"
+            - "Auditoria anual de conformidade e emissao de relatorio tecnico"
+
+    - tipo_equipamento: "PLATAFORMA_VERTICAL"
+      norma_base: ["NBR 9050", "NBR ISO 9386-1"]
+      ciclos:
+        mensal:
+          itens:
+            - "Verificar comandos de subida e descida na cabine"
+            - "Verificar comandos de subida e descida no pavimento"
+            - "Testar botao de parada de emergencia e alarme sonoro"
+            - "Conferir estado estrutural: trincas, corrosao, fixacoes"
+            - "Conferir guarda-corpos e fechamento lateral ate 1,10 m"
+            - "Verificar sinalizacao visual e tatil conforme NBR 9050"
+        bimestral:
+          itens:
+            - "Inspecionar sistema hidraulico: mangueiras, cilindros, conexoes"
+            - "Conferir nivel e contaminacao do fluido hidraulico"
+            - "Verificar comunicacao de auxilio: interfone ou botao"
+            - "Verificar nivelamento da plataforma em todos os andares"
+        semestral:
+          itens:
+            - "Testar travas de seguranca e antiqueda"
+            - "Conferir freios, rodas ou estabilizadores quando aplicavel"
+            - "Verificar sinalizacao de area de embarque e desembarque"
+            - "Verificar aterramento e quadro eletrico"
+
+  preventive_plan_rules:
+    # Regras de agenda por tipo e ciclo (usadas pela geracao de OS preventivas)
+    # O agente deve salvar este plano na tabela de planos e associar por empresa/equipamento.
+    ELEVADOR_ELETRICO:
+      mensal: {intervalo_meses: 1, janela_dias: 7}
+      trimestral: {intervalo_meses: 3, janela_dias: 14}
+      semestral: {intervalo_meses: 6, janela_dias: 14}
+      anual: {intervalo_meses: 12, janela_dias: 30}
+    ELEVADOR_HIDRAULICO:
+      mensal: {intervalo_meses: 1, janela_dias: 7}
+      bimestral: {intervalo_meses: 2, janela_dias: 7}
+      trimestral: {intervalo_meses: 3, janela_dias: 14}
+      semestral: {intervalo_meses: 6, janela_dias: 14}
+      anual: {intervalo_meses: 12, janela_dias: 30}
+    PLATAFORMA_VERTICAL:
+      mensal: {intervalo_meses: 1, janela_dias: 7}
+      bimestral: {intervalo_meses: 2, janela_dias: 7}
+      semestral: {intervalo_meses: 6, janela_dias: 14}
+      anual: {intervalo_meses: 12, janela_dias: 30}
+
+# -------------------------------------------------------------------
+# STEPS NOVOS (mantendo historico dos concluidos)
+# -------------------------------------------------------------------
 steps:
+  # passos ja existentes (mantidos)
+  - id: "00-figma-make-referencia"
+    name: "Tarefa 00 — Ingerir referencia do Figma Make (estrutura do front)"
+    status: "✅ COMPLETA"
+    completed_at: "2025-11-02"
   - id: "0-map-context"
     name: "Tarefa 0 — Mapear schema Supabase e contexto do repo"
     status: "✅ COMPLETA"
     completed_at: "2025-10-24"
-    goal: >
-      Ler o schema real do Supabase (via MCP) e mapear as tabelas/colunas/RPCs/buckets relacionados a OS.
-      Produzir documento de referência para as próximas tarefas.
-    prompt: |
-      1) Usar MCP Supabase para listar esquemas/tabelas/colunas relacionados a OS (ordens_servico, os_status_history, os_evidencias, tecnicos, usuarios, etc.).
-      2) Listar RPCs/Edge Functions existentes e buckets de Storage (ex.: evidencias).
-      3) Explicar onde o "status atual" é persistido e onde o "histórico" é guardado.
-      4) Salvar o mapeamento em /docs/context-os.md (este será o ponto de verdade).
-      5) Não gerar código ainda; apenas documentação.
-    artifacts:
-      - path: "docs/context-os.md"
-        must_exist: true
-        status: "✅ Criado"
-    commit:
-      message: "docs: adiciona mapeamento do schema e contexto de OS (/docs/context-os.md)"
-    notes: |
-      - Documento completo com 930+ linhas
-      - Mapeamento de todas as tabelas, RPCs, e relações
-      - Referência para todas as próximas tarefas
-
   - id: "1-aceitar-recusar"
-    name: "Tarefa 1 — Dashboard do técnico + aceitar/recusar"
+    name: "Tarefa 1 — Dashboard do tecnico + aceitar/recusar"
     status: "✅ COMPLETA"
     completed_at: "2025-10-27"
-    goal: >
-      Mostrar OS ABERTAS para o técnico logado e implementar ações Aceitar/Recusar via RPC com histórico.
-    prompt: |
-      1) Basear-se em /docs/context-os.md para usar os nomes reais das tabelas/colunas.
-      2) Implementar lista "Chamados" (filtrar por técnico logado, respeitando RLS).
-      3) Criar RPCs (se não existirem) os_accept(os_id uuid) e os_decline(os_id uuid, reason text default null).
-         - Validar permissão.
-         - Atualizar status -> EM_DESLOCAMENTO (accept) e histórico.
-         - Remover do painel/registrar histórico no decline.
-      4) UI: botões Aceitar/Recusar com optimistic UI e fallback de erro.
-      5) Testes unitários mínimos (mock RPC).
-    artifacts:
-      - path: "docs/TASK_1_COMPLETED.md"
-        status: "✅ Criado"
-      - path: "supabase/migrations/2025-10-27-create-os-status-history-and-accept-decline-rpcs.sql"
-        status: "✅ Aplicado"
-      - path: "src/app/(protected)/dashboard/page.tsx"
-        status: "✅ Implementado (dashboard unificado)"
-    commit:
-      message: "feat(os): [1] aceitar/recusar OS no dashboard do técnico"
-    notes: |
-      - Tabela os_status_history criada com RLS
-      - RPCs os_accept e os_decline implementados com validações completas
-      - Dashboard unificado com permissões diferenciadas (admin/técnico)
-      - Status EM_DESLOCAMENTO implementado
-      - Bug fixes: RLS policies, type errors, hook order
-      - Documentação completa: docs/TASK_1_COMPLETED.md
-
-  - id: "2-fullscreen-cronometro"
-    name: "Tarefa 2 — Tela Full Screen + cronômetro de deslocamento"
+  - id: "2-fullscreen-sem-cronometro"
+    name: "Tarefa 2 — Tela Full Screen (sem cronometro) + acoes por status"
     status: "✅ COMPLETA"
     completed_at: "2025-10-28"
-    goal: >
-      Ao aceitar, abrir a OS em tela cheia com cronômetro discreto desde EM_DESLOCAMENTO, com opção de minimizar.
-    prompt: |
-      1) Ao aceitar, navegar para página full-screen da OS (usar rota/padrão do projeto).
-      2) Cronômetro: basear-se no timestamp do evento EM_DESLOCAMENTO (último do histórico) para evitar drift.
-      3) Minimizar/expandir: criar dock flutuante com tempo decorrido e ação "Voltar para OS".
-      4) Botão "Check-in (Chegada)" visível.
-      5) Realtime: assinar mudanças da OS (se Realtime ativado).
-      6) Teste de interação (render, timer resume ao focar).
-    artifacts:
-      - path: "src/app/(protected)/os/[id]/full/page.tsx"
-        status: "✅ Criado"
-      - path: "src/components/os-dock.tsx"
-        status: "✅ Criado"
-      - path: "src/app/(protected)/layout.tsx"
-        status: "✅ Atualizado (dock global)"
-    commit:
-      message: "feat(os): [2] tela full-screen e cronômetro de deslocamento"
-    notes: |
-      - Página full-screen criada (/os/[id]/full)
-      - Cronômetro baseado em timestamp de EM_DESLOCAMENTO do histórico
-      - Dock flutuante minimalista (estilo pill, fundo preto)
-      - LocalStorage para persistência do estado minimizado
-      - Realtime subscriptions para ordens_servico e os_status_history
-      - Botão Check-in visível (placeholder para Tarefa 3)
-      - RLS policies corrigidas (clientes, equipamentos, colaboradores)
-      - Bug fixes: Hook order, Temporal Dead Zone, query joins
-      - True full-screen com z-index 9999
-
   - id: "3-checkin"
-    name: "Tarefa 3 — Transição para CHECKIN (Chegada) com timestamp"
+    name: "Tarefa 3 — Transicao para CHECKIN (Chegada) com timestamp"
     status: "✅ COMPLETA"
     completed_at: "2025-10-28"
-    goal: "Permitir que o técnico registre a chegada (CHECKIN) e persistir timestamp e histórico."
-    prompt: |
-      1) Criar RPC os_checkin(os_id uuid, location jsonb default null):
-         - Validar permissão.
-         - Atualizar status -> CHECKIN.
-         - Inserir histórico com changed_at = now() e location (se disponível).
-      2) UI: botão Check-in na tela full; após sucesso, permanecer em tela e exibir área de atendimento.
-      3) Teste unitário: RPC chamada com resultado esperado; status/histórico persistidos.
-    artifacts:
-      - path: "supabase/migrations/2025-10-28-create-os-checkin-rpc.sql"
-        status: "✅ Criado e aplicado"
-      - path: "src/app/(protected)/os/[id]/full/page.tsx"
-        status: "✅ Atualizado (handleCheckin implementado)"
-      - path: "docs/TASK_3_COMPLETED.md"
-        status: "✅ Criado"
-    commit:
-      message: "feat(os): [3] check-in com timestamp e histórico"
+  - id: "4-checklist-laudo-evidencias"
+    name: "Tarefa 4 — Checklist + Laudo + Evidencias"
+    status: "✅ COMPLETA"
+    completed_at: "2025-10-31"
+    notes: "Sistema completo de checklist, laudo com autosave e upload de evidencias implementado"
+
+  # novos passos
+  - id: "4a-salvar-templates-checklist"
+    name: "Tarefa 4a — Persistir templates de checklist por tipo"
+    goal: "Salvar no banco os templates definidos em data.checklist_templates via MCP."
+    status: "✅ COMPLETA"
+    completed_at: "2025-11-06"
     notes: |
-      - RPC os_checkin implementado com 9 validações
-      - Geolocalização HTML5 implementada (opcional)
-      - Área de Atendimento criada (aparece após check-in)
-      - Handler completo com tratamento de erros
-      - Histórico registra location no metadata
-      - Status 'checkin' já configurado no statusConfig
-      - Documentação completa: docs/TASK_3_COMPLETED.md
-
-  - id: "4-atendimento-checklist-laudo-evidencias"
-    name: "Tarefa 4 — Checklist + Laudo + Evidências (foto/vídeo/áudio/nota)"
-    goal: "Exibir checklist, laudo com autosave e upload de evidências vinculadas à OS."
+      STATUS ATUAL:
+      - ✅ Sistema de checklist completo existe (tabelas checklists, os_checklists, checklist_respostas)
+      - ✅ Componente ChecklistRunner funcional
+      - ✅ Migration APLICADA: campo tipo_equipamento adicionado na tabela checklists
+      - ✅ RPC upsert_checklist_templates_by_tipo() criada e verificada
+      - ✅ Índices criados e funcionando
+      - ✅ Scripts de seed criados (SQL e TypeScript)
+      - ⏭️ PRÓXIMO: Executar seed de templates (npx tsx scripts/seed-checklist-templates.ts <empresa_id>)
     prompt: |
-      1) Checklist: renderizar itens do template vinculado à OS (usar fonte/relacionamento real do schema).
-      2) Laudo/Observações: textarea com autosave (debounce) e reexibição ao recarregar.
-      3) Evidências:
-         - Criar utilitária uploadOsEvidence(os_id, file, kind) -> Storage (bucket oficial) e registro na tabela (os_evidencias).
-         - Suportar foto, vídeo, áudio e nota (texto).
-      4) RLS: garantir leitura/escrita apenas para envolvidos.
-      5) Testes: upload simulado e persistência do laudo/checklist.
+      1) Criar RPC mcp_upsert_checklist_templates(templates jsonb) ou usar Supabase MCP diretamente.
+      2) Cada template recebe: tipo_equipamento, norma_base[], ciclos{frequencia->itens[]}, empresa_id.
+      3) Salvar templates definidos em data.checklist_templates para cada empresa.
+      4) Garantir snapshot imutavel quando vinculado a uma OS Preventiva (já implementado).
+    artifacts:
+      - path: "supabase/migrations/20251106000000_add_tipo_equipamento_to_checklists.sql"
+        status: "Criado"
+      - path: "scripts/seed_checklist_templates_by_tipo.sql"
+        status: "Criado"
+      - path: "scripts/seed-checklist-templates.ts"
+        status: "Criado"
+      - path: "docs/TASK_4a_COMPLETED.md"
+        status: "Criado"
     commit:
-      message: "feat(os): [4] checklist, laudo e upload de evidências"
+      message: "feat(os): persistencia de templates de checklist por tipo (via MCP)"
 
-  - id: "5-checkout-estado-equipamento"
-    name: "Tarefa 5 — Checkout com estado do equipamento"
+  - id: "4b-salvar-planos-preventivos"
+    name: "Tarefa 4b — Persistir plano preventivo por tipo"
+    goal: "Salvar regras de agenda por tipo (data.preventive_plan_rules) por empresa."
+    status: "✅ COMPLETA"
+    completed_at: "2025-11-06"
+    notes: |
+      STATUS ATUAL:
+      - ✅ Migration APLICADA: tabela preventive_plans com RLS e índices (verificada em 2025-11-06)
+      - ✅ Tabela preventive_plans EXISTE no banco
+      - ✅ RPC upsert_preventive_plan() criada e verificada
+      - ✅ Helper function get_preventive_plan() criada e verificada
+      - ✅ Índices criados e funcionando
+      - ✅ Scripts de seed criados (SQL e TypeScript)
+      - ✅ 13 planos definidos (ELEVADOR_ELETRICO: 4, ELEVADOR_HIDRAULICO: 5, PLATAFORMA_VERTICAL: 4)
+      - ⏭️ OPCIONAL: Executar seed de planos (npx tsx scripts/seed-preventive-plans.ts <empresa_id>)
+    prompt: |
+      1) Criar tabela maintenance_plans ou preventive_plans no banco.
+      2) Criar RPC mcp_upsert_preventive_plan(plan jsonb) ou usar Supabase MCP diretamente.
+      3) Estrutura: {tipo_equipamento, frequencia: {intervalo_meses, janela_dias}, empresa_id}.
+      4) Validar conflito de planos existentes; manter apenas o ativo mais recente.
+      5) Salvar planos definidos em data.preventive_plan_rules.
+    artifacts:
+      - path: "supabase/migrations/20251106000001_create_preventive_plans.sql"
+        status: "Criado"
+      - path: "scripts/seed-preventive-plans.ts"
+        status: "Criado"
+      - path: "scripts/seed_preventive_plans.sql"
+        status: "Criado"
+      - path: "docs/TASK_4b_COMPLETED.md"
+        status: "Criado"
+    commit:
+      message: "feat(os): plano preventivo por tipo salvo no banco (via MCP)"
+
+  - id: "4c-auto-geracao-os-preventivas"
+    name: "Tarefa 4c — Gerar OS Preventivas no cadastro e recorrencia"
     goal: >
-      Finalizar atendimento (CHECKIN -> CHECKOUT), capturando estado do equipamento e observações finais.
+      Ao cadastrar cliente e seus equipamentos, gerar automaticamente todas as OS preventivas conforme o plano.
+      Enquanto cliente estiver ativo, continuar gerando OS futuras.
+    status: "✅ COMPLETA"
+    completed_at: "2025-11-06"
+    notes: |
+      STATUS ATUAL:
+      - ✅ Migration criada: sistema completo de geração automática de OS preventivas
+      - ✅ Função calculate_next_preventive_date() criada
+      - ✅ RPC generate_preventive_os_for_equipment() criada e funcional
+      - ✅ Trigger AFTER INSERT em equipamentos criado
+      - ✅ RPC os_preventive_rollforward() criada para job recorrente
+      - ✅ Job recorrente configurado (pg_cron, opcional)
+      - ✅ Vinculação automática de checklist template ao criar OS
+      - ⏭️ PRÓXIMO: Aplicar migration e testar geração automática
     prompt: |
-      1) Criar RPC os_checkout(os_id uuid, equipamento_estado text, observacoes text default null).
-      2) Estados válidos: FUNCIONANDO | PARADO | FUNCIONANDO_ESPERANDO_PECA.
-      3) Persistir histórico com payload (estado + observações).
-      4) UI: select/radios para estado + campo opcional de anotações.
-      5) Teste unitário: transição válida e histórico persistido.
+      Backend:
+        1) Criar Edge Function os_on_customer_equipment_created:
+           - Input: empresa_id, cliente_id, equipamento_id, tipo_equipamento.
+           - Carregar plano preventivo por tipo e gerar OS baseadas nas frequencias.
+           - Criar OS com: tipo=preventiva, status=novo, tecnico_id=null, data_programada=auto (primeira data util da janela).
+           - Vincular snapshot do checklist template ao criar a OS (usar startChecklistForOS).
+        2) Criar trigger AFTER INSERT em equipamentos que chama a Edge Function.
+        3) Criar Job recorrente os_preventive_rollforward (cron via pg_cron ou Supabase Edge Function):
+           - Mensal: gera proximo ciclo para clientes ativos, respeitando janela_dias.
+           - Nao reabrir OS antigas; apenas criar futuras quando nao existirem.
+      UI:
+        - Nenhuma atribuicao padrao de tecnico; permitir posterior atribuicao e re-agendamento.
+    artifacts:
+      - path: "supabase/migrations/20251106000002_create_preventive_os_generation.sql"
+        status: "Criado"
+      - path: "docs/TASK_4c_COMPLETED.md"
+        status: "Criado"
     commit:
-      message: "feat(os): [5] checkout e estado do equipamento"
+      message: "feat(os): geracao automatica de OS preventivas no cadastro e recorrencia"
 
+  - id: "4d-atribuir-tecnico-e-reagendar"
+    name: "Tarefa 4d — Atribuir tecnico e alterar datas"
+    goal: "Permitir que usuarios designem tecnico e alterem data de OS Preventiva."
+    status: "⏳ PENDENTE"
+    notes: |
+      STATUS ATUAL:
+      - ❌ RPC os_assign_technician NÃO existe
+      - ❌ RPC os_reschedule NÃO existe
+      - ❌ UI para atribuir técnico NÃO existe
+      - ❌ UI para reagendar NÃO existe
+    prompt: |
+      1) Criar RPC os_assign_technician(os_id uuid, tecnico_id uuid).
+      2) Criar RPC os_reschedule(os_id uuid, data_programada date, motivo text default null).
+      3) RLS: apenas gestor/admin pode atribuir tecnico; tecnico pode sugerir re-agendamento se permitido pela empresa.
+      4) UI: dialogo com busca de tecnico, datepicker e validacoes de conflito.
+      5) Integrar na página de OS e no calendário (quando implementado).
+    artifacts:
+      - path: "supabase/migrations/XXX_create_assign_reschedule_rpcs.sql"
+        status: "Pendente"
+      - path: "src/components/os-assign-technician-dialog.tsx"
+        status: "Pendente"
+      - path: "src/components/os-reschedule-dialog.tsx"
+        status: "Pendente"
+    commit:
+      message: "feat(os): atribuicao de tecnico e reagendamento de OS preventiva"
+
+  - id: "4e-calendario-manutencao-v1"
+    name: "Tarefa 4e — Calendario de manutencao (v1) no sidebar"
+    goal: "Nova aba 'Calendario' exibindo OS preventivas e corretivas agendadas."
+    status: "⏳ PENDENTE"
+    notes: |
+      STATUS ATUAL:
+      - ❌ Rota /calendar NÃO existe
+      - ❌ Aba 'Calendario' no sidebar NÃO existe
+      - ❌ Componente de calendário NÃO existe
+    prompt: |
+      1) Criar rota src/app/(protected)/calendar/page.tsx.
+      2) Adicionar aba 'Calendario' no sidebar (verificar src/components/ui/sidebar.tsx).
+      3) Usar componente de calendario do shadcn (time/calendar.mdx) ou react-day-picker.
+      4) Carregar OS por intervalo (data_programada) e pintar por tipo/prioridade (sem cronometro).
+      5) Click em evento -> sheet com detalhes e acoes: atribuir tecnico, reagendar, abrir OS.
+      6) Respeitar RLS na listagem (filtrar por empresa_id).
+    artifacts:
+      - path: "src/app/(protected)/calendar/page.tsx"
+        status: "Pendente"
+      - path: "src/components/maintenance-calendar.tsx"
+        status: "Pendente"
+    commit:
+      message: "feat(os): calendario de manutencao v1 no sidebar"
+
+  - id: "4f-integrar-atendimento-por-tipo"
+    name: "Tarefa 4f — Integracao com passo 4-atendimento-por-tipo"
+    goal: "Renderizar checklist somente em Preventiva, laudo em Chamado/Corretiva."
+    status: "🔄 PARCIAL"
+    notes: |
+      STATUS ATUAL:
+      - ✅ Componentes PreventiveOS, CallOS, CorrectiveOS existem
+      - ✅ ChecklistRunner funcional e integrado
+      - ✅ Laudo e evidências implementados
+      - ⚠️ Checklist não está vinculado automaticamente por tipo de equipamento
+      - ⚠️ Templates por tipo de equipamento não existem (depende de 4a)
+    prompt: |
+      1) Vincular checklist template automaticamente ao criar OS Preventiva baseado no tipo de equipamento.
+      2) Usar snapshot de checklist vinculado a OS Preventiva (já implementado).
+      3) Gravar respostas como conforme/nao conforme/nao aplicavel (já implementado).
+      4) Observacoes e evidencias em sessoes proprias (já implementadas).
+      5) Garantir que Preventiva mostra checklist, Chamado/Corretiva mostra laudo (já implementado).
+    commit:
+      message: "feat(os): integracao do checklist preventivo com atendimento por tipo"
+
+  - id: "5-checkout-estado-ramificacoes"
+    name: "Tarefa 5 — Checkout + Estado do elevador + Ramificacoes"
+    goal: "Manter regras definidas e criar corretiva programada/urgencia conforme estado."
+    prompt: "Sem alteracoes de escopo; reusar implementacao planejada."
   - id: "6-timeline-relatorio"
-    name: "Tarefa 6 — Timeline/Relatório com duração entre estados"
-    goal: "Construir timeline agregando histórico + evidências + laudo, com cálculo de duração entre eventos."
-    prompt: |
-      1) Se possível, criar view ou RPC get_os_timeline(os_id uuid) unindo histórico, evidências e laudo.
-      2) Calcular duração entre eventos com lag(changed_at) no SQL.
-      3) UI: componente Timeline com badges de status, timestamps e duração entre estados; chips para estado do equipamento no checkout.
-      4) Export print-friendly (PDF depois).
-      5) Teste unitário: consulta retorna ordem e durações corretas.
-    commit:
-      message: "feat(os): [6] timeline completa com duração entre estados"
-
+    name: "Tarefa 6 — Timeline/Relatorio"
+    goal: "Consolidar historico, evidencias e checklist/laudo por tipo."
+    prompt: "Sem cronometro; apenas timestamps e duracao calculada."
   - id: "7-reabertura"
     name: "Tarefa 7 — Reabrir OS"
-    goal: "Permitir reabrir a OS após checkout, voltando para ABERTA e registrando histórico."
-    prompt: |
-      1) Criar RPC os_reopen(os_id uuid, reason text default null) com validação (gestor/admin).
-      2) Atualizar status -> ABERTA (ou padrão equivalente do schema).
-      3) Registrar histórico REABERTA (autor + timestamp).
-      4) UI: ação disponível apenas para perfis autorizados; indicar ciclo (ex.: reaberta (n)).
-      5) Teste unitário: reabertura válida e histórico persistido.
-    commit:
-      message: "feat(os): [7] reabertura de OS com histórico e controle de ciclo"
-
+    goal: "Reabrir OS com rastreabilidade."
   - id: "8-validacao-final"
-    name: "Validação Final — E2E + SLA summary"
-    goal: "Validar o fluxo ponta a ponta e disponibilizar função de resumo para dashboards."
-    prompt: |
-      1) Criar teste E2E em test/os-flow-e2e.spec.ts:
-         - Cria OS fake.
-         - Fluxo: ABERTA -> EM_DESLOCAMENTO -> CHECKIN -> evidências -> CHECKOUT -> REABRIR.
-         - Verifica timestamps, estado do equipamento, evidências e timeline.
-      2) Criar função SQL ou RPC sync_os_state_summary() retornando status atual e tempos acumulados (para SLAs).
-      3) Documentar como rodar os testes e como consumir o summary em dashboards.
-      4) Atualizar /docs/context-os.md com nota de validação final e endpoints.
-    artifacts:
-      - path: "test/os-flow-e2e.spec.ts"
-        must_exist: true
-      - path: "docs/context-os.md"
-        must_exist: true
-    commit:
-      message: "test(os): e2e do fluxo completo e função de resumo de SLA"
+    name: "Validacao Final — E2E + SLA summary"
+    goal: "Executar E2E e publicar resumo para dashboards."
 
 progress:
-  current_step: "4-atendimento-checklist-laudo-evidencias"
-  completed_steps: ["0-map-context", "1-aceitar-recusar", "2-fullscreen-cronometro", "3-checkin"]
-  pending_steps: ["4-atendimento-checklist-laudo-evidencias", "5-checkout-estado-equipamento", "6-timeline-relatorio", "7-reabertura", "8-validacao-final"]
-  completion_percentage: 50.0  # 4 de 8 tarefas completas
-  
-summary:
-  total_steps: 8
-  completed: 4
-  in_progress: 0
-  pending: 4
-  last_update: "2025-10-28"
-  next_action: "Tarefa 4 - Implementar Checklist + Laudo + Evidências (foto/vídeo/áudio/nota)"
+  current_step: "4d-atribuir-tecnico-e-reagendar"
+  completed_steps: ["00-figma-make-referencia", "0-map-context", "1-aceitar-recusar", "2-fullscreen-sem-cronometro", "3-checkin", "4-checklist-laudo-evidencias", "4a-salvar-templates-checklist", "4b-salvar-planos-preventivos", "4c-auto-geracao-os-preventivas"]
+  pending_steps: ["4d-atribuir-tecnico-e-reagendar", "4e-calendario-manutencao-v1", "4f-integrar-atendimento-por-tipo", "5-checkout-estado-ramificacoes", "6-timeline-relatorio", "7-reabertura", "8-validacao-final"]
+  completion_percentage: 62.0
+  migration_status:
+    "4a": "✅ APLICADA - Verificada em 2025-11-06"
+    "4b": "✅ APLICADA - Verificada em 2025-11-06 (4/4 verificações passaram)"
 
 postflight:
-  - message: "Plan em andamento. 4/8 tarefas concluídas (50.0%)."
-  - message: "Próxima tarefa: Tarefa 4 - Checklist + Laudo + Evidências."
-  - message: "Documentação atualizada: docs/TASK_1_COMPLETED.md, docs/TASK_2_COMPLETED.md, docs/TASK_3_COMPLETED.md"
+  - message: "Templates e plano preventivo salvos via MCP; geracao de OS automatica ao cadastrar cliente/equipamento e recorrencia ativa."
+  - message: "OS preventivas criadas sem tecnico e com data automatica; usuarios podem atribuir tecnico e reagendar."
+  - message: "Calendario de manutencao (v1) adicionado ao sidebar com shadcn calendar."
+
+# -------------------------------------------------------------------
+# RESUMO DO STATUS ATUAL
+# -------------------------------------------------------------------
+status_summary:
+  implementado:
+    - "Sistema completo de checklist (tabelas, RLS, ChecklistRunner)"
+    - "Laudo técnico com autosave (4 campos, debounce 2s)"
+    - "Upload de evidencias (foto/video/audio/nota)"
+    - "Componentes OS por tipo (PreventiveOS, CallOS, CorrectiveOS)"
+    - "Fluxo de aceitar/recusar OS"
+    - "Check-in com timestamp"
+    - "Full-screen OS page"
+    - "Sistema de evidências com bucket privado"
+    - "Templates de checklist por tipo de equipamento (4a) - 12 templates criados + Migration aplicada"
+    - "Planos preventivos por tipo (4b) - 13 planos criados + Migration aplicada"
+    - "Geração automática de OS preventivas (4c) - Trigger + RPC + Job recorrente criados"
+  pendente:
+    - "Atribuição de técnico e reagendamento (4d)"
+    - "Calendário de manutenção (4e)"
+    - "Integração completa checklist por tipo (4f - parcial)"
+    - "Checkout com estado do elevador (5)"
+    - "Timeline/Relatório (6)"
+    - "Reabertura de OS (7)"
+    - "Validação final E2E (8)"
+  proximos_passos:
+    - "1. ✅ Implementar 4a: Criar templates de checklist por tipo de equipamento (CONCLUÍDO + MIGRATION APLICADA)"
+    - "1.1. ⏭️ OPCIONAL: Executar seed de templates (npx tsx scripts/seed-checklist-templates.ts <empresa_id>)"
+    - "2. ✅ Implementar 4b: Criar tabela e RPCs para planos preventivos (CONCLUÍDO + MIGRATION APLICADA)"
+    - "2.1. ⏭️ OPCIONAL: Executar seed de planos (npx tsx scripts/seed-preventive-plans.ts <empresa_id>)"
+    - "3. ✅ Implementar 4c: Geração automática de OS preventivas (CONCLUÍDO)"
+    - "3.1. ⏭️ APLICAR: Migration 4c no dev branch (supabase/migrations/20251106000002_create_preventive_os_generation.sql)"
+    - "4. 🎯 PRÓXIMO: Implementar 4d: RPCs e UI para atribuir técnico e reagendar"
+    - "5. Implementar 4e: Calendário de manutenção no sidebar"

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -32,19 +33,22 @@ interface ClientDialogProps {
   hideTrigger?: boolean
 }
 
+const STORAGE_KEY = 'client_dialog_form_data'
+
 export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'create', onRequestEdit, onOpenChange, defaultOpen, hideTrigger }: ClientDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
-  // Abre também quando cliente mudar (para reabrir com novos cliques)
-  useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
+  
+  // Controla abertura do dialog (sem causar re-renders desnecessários)
   useEffect(() => {
-    if (defaultOpen && cliente) {
+    if (defaultOpen) {
       setOpen(true)
+      setLocalMode(mode)
     }
-    setLocalMode(mode)
-  }, [defaultOpen, cliente?.id, mode])
+  }, [defaultOpen, mode])
   // Accordion state persistido
   const [secBasic, setSecBasic] = useState(true)
   const [secResp, setSecResp] = useState(true)
@@ -63,46 +67,211 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   // carregar ao abrir
   useEffect(() => { if (open) loadPersist() }, [open])
 
-  // Form state
-  const [formData, setFormData] = useState({
-    nome_local: cliente?.nome_local || '',
-    cnpj: cliente?.cnpj || '',
-    endereco_completo: cliente?.endereco_completo || '',
-    responsavel_nome: cliente?.responsavel_nome || '',
-    responsavel_telefone: cliente?.responsavel_telefone || '',
-    responsavel_email: cliente?.responsavel_email || '',
-    data_inicio_contrato: cliente?.data_inicio_contrato || '',
-    data_fim_contrato: cliente?.data_fim_contrato || '',
-    status_contrato: cliente?.status_contrato || 'ativo',
+  // Form state - carrega do localStorage (create) ou do cliente (edit/view)
+  const getInitialFormData = () => {
+    // Se houver cliente (edit/view), usar dados do cliente
+    if (cliente && (mode === 'edit' || mode === 'view')) {
+      const valorMensalStr = typeof (cliente as any).valor_mensal_contrato === 'number'
+        ? (Number((cliente as any).valor_mensal_contrato) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : ''
+      return {
+        nome_local: cliente.nome_local || '',
+        cnpj: cliente.cnpj || '',
+        endereco_completo: cliente.endereco_completo || '',
+        responsavel_nome: cliente.responsavel_nome || '',
+        responsavel_telefone: cliente.responsavel_telefone || '',
+        responsavel_email: cliente.responsavel_email || '',
+        data_inicio_contrato: cliente.data_inicio_contrato || '',
+        data_fim_contrato: cliente.data_fim_contrato || '',
+        status_contrato: cliente.status_contrato || 'ativo',
+        valor_mensal_contrato: valorMensalStr,
+        numero_art: (cliente as any).numero_art || '',
+      }
+    }
+    
+    // Se estiver criando, tentar carregar do localStorage
+    if (mode === 'create') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) {
+          return JSON.parse(saved)
+        }
+      } catch (e) {
+        console.error('Erro ao carregar dados do localStorage:', e)
+      }
+    }
+    
+    // Dados vazios por padrão
+    return {
+      nome_local: '',
+      cnpj: '',
+      endereco_completo: '',
+      responsavel_nome: '',
+      responsavel_telefone: '',
+      responsavel_email: '',
+      data_inicio_contrato: '',
+      data_fim_contrato: '',
+      status_contrato: 'ativo',
     valor_mensal_contrato: '',
     numero_art: '',
+    }
+  }
+
+  const [formData, setFormData] = useState(getInitialFormData())
+  const [cnpjError, setCnpjError] = useState<string | null>(null)
+
+  // Carregar dados do cliente APENAS quando abrir o dialog pela primeira vez
+  useEffect(() => {
+    if (open && !initialLoadDone) {
+      if (cliente && (mode === 'edit' || mode === 'view')) {
+        // Carregar dados do cliente ao abrir em modo edição/visualização
+        const valorMensalStr = typeof (cliente as any).valor_mensal_contrato === 'number'
+          ? (Number((cliente as any).valor_mensal_contrato) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : ''
+        setFormData({
+          nome_local: cliente.nome_local || '',
+          cnpj: cliente.cnpj || '',
+          endereco_completo: cliente.endereco_completo || '',
+          responsavel_nome: cliente.responsavel_nome || '',
+          responsavel_telefone: cliente.responsavel_telefone || '',
+          responsavel_email: cliente.responsavel_email || '',
+          data_inicio_contrato: cliente.data_inicio_contrato || '',
+          data_fim_contrato: cliente.data_fim_contrato || '',
+          status_contrato: cliente.status_contrato || 'ativo',
+          valor_mensal_contrato: valorMensalStr,
+          numero_art: (cliente as any).numero_art || '',
   })
+      }
+      setInitialLoadDone(true)
+    }
+  }, [open, initialLoadDone, mode, cliente])
+
+  // Carregar equipamentos do cliente ao abrir em modo edição/visualização
+  useEffect(() => {
+    const fetchEquipamentos = async () => {
+      if (!open || !cliente?.id) return
+      try {
+        const { createSupabaseBrowser } = await import('@/lib/supabase')
+        const supabase = createSupabaseBrowser()
+        let query = supabase
+          .from('equipamentos')
+          .select('id, nome, tipo, pavimentos, fabricante, capacidade')
+          .eq('cliente_id', cliente.id)
+          .order('created_at', { ascending: false })
+
+        // Restringe por empresa se disponível (ajuda com RLS)
+        if (empresaId) {
+          query = query.eq('empresa_id', empresaId)
+        }
+
+        const { data, error } = await query
+
+        if (error) return
+        const list = (data || []).map((e: any) => ({
+          id: e.id,
+          nome: e.nome || '',
+          tipo: e.tipo || '',
+          pavimentos: e.pavimentos || '',
+          marca: e.fabricante || '',
+          capacidade: e.capacidade || '',
+        }))
+        setEquipamentos(list)
+      } catch {}
+      finally {
+        setEquipamentosLoaded(true)
+      }
+    }
+    fetchEquipamentos()
+  }, [open, cliente?.id])
+  
+  // Reset flag quando fechar (separado para não causar loops)
+  useEffect(() => {
+    if (!open) {
+      setInitialLoadDone(false)
+    }
+  }, [open])
 
   // Equipamentos state
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
-  const [novoEquipamento, setNovoEquipamento] = useState<Equipamento>({
-    nome: '',
-    tipo: '',
-    pavimentos: '',
-    marca: '',
-    capacidade: '',
-  })
+  const [equipamentosLoaded, setEquipamentosLoaded] = useState(false)
+
+  // Quando não houver equipamentos no modo create/edit, abrir com um formulário em branco
+  // - Create: sempre abre vazio
+  // - Edit: abre somente após confirmar (fetch) que não existem equipamentos salvos
+  useEffect(() => {
+    if (!open || isView) return
+    if (localMode === 'create') {
+      if (equipamentos.length === 0) {
+        setEquipamentos([{ nome: '', tipo: '', pavimentos: '', marca: '', capacidade: '' }])
+      }
+      return
+    }
+    if (localMode === 'edit' && equipamentosLoaded && equipamentos.length === 0) {
+      setEquipamentos([{ nome: '', tipo: '', pavimentos: '', marca: '', capacidade: '' }])
+    }
+  }, [open, isView, equipamentos.length, localMode, equipamentosLoaded])
+
+  // Persistir formData no localStorage sempre que mudar (apenas em modo create)
+  useEffect(() => {
+    if (mode === 'create' && !isView && open) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
+      } catch (e) {
+        console.error('Erro ao salvar no localStorage:', e)
+      }
+    }
+  }, [formData, mode, isView, open])
 
   const handleChange = (field: string, value: string) => {
     if (isView) return
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    // Usar callback para garantir que sempre temos o estado mais recente
+    setFormData((prev: typeof formData) => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Função para limpar dados salvos
+  const clearSavedData = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch (e) {
+      console.error('Erro ao limpar localStorage:', e)
+    }
   }
 
   const formatCNPJ = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 14) {
-      return numbers
-        .replace(/^(\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-        .replace(/\.(\d{3})(\d)/, '.$1/$2')
-        .replace(/(\d{4})(\d)/, '$1-$2')
+    const numbers = value.replace(/\D/g, '').slice(0, 14) // Limita a 14 dígitos
+    
+    let formatted = numbers
+    if (numbers.length >= 2) {
+      formatted = numbers.replace(/^(\d{2})(\d{0,3})/, '$1.$2')
     }
-    return value
+    if (numbers.length >= 5) {
+      formatted = numbers.replace(/^(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3')
+    }
+    if (numbers.length >= 8) {
+      formatted = numbers.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4')
+    }
+    if (numbers.length >= 12) {
+      formatted = numbers.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5')
+    }
+    
+    return formatted
+  }
+  
+  const validateCNPJ = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    if (numbers.length === 0) {
+      setCnpjError(null)
+      return true
+    }
+    if (numbers.length < 14) {
+      setCnpjError('CNPJ incompleto. Digite 14 dígitos.')
+      return false
+    }
+    setCnpjError(null)
+    return true
   }
 
   const formatPhone = (value: string) => {
@@ -126,20 +295,10 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
   const addEquipamento = () => {
     if (isView) return
-    if (!novoEquipamento.nome.trim() || !novoEquipamento.tipo.trim()) {
-      toast.error('Nome e Tipo são obrigatórios para o equipamento')
-      return
-    }
-
-    setEquipamentos([...equipamentos, novoEquipamento])
-    setNovoEquipamento({
-      nome: '',
-      tipo: '',
-      pavimentos: '',
-      marca: '',
-      capacidade: '',
-    })
-    toast.success('Equipamento adicionado à lista')
+    setEquipamentos((prev) => ([
+      ...prev,
+      { nome: '', tipo: '', pavimentos: '', marca: '', capacidade: '' }
+    ]))
   }
 
   const removeEquipamento = (index: number) => {
@@ -170,6 +329,25 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         return
       }
 
+      // Validar formato do CNPJ
+      const cnpjNumeros = formData.cnpj.replace(/\D/g, '')
+      if (cnpjNumeros.length !== 14) {
+        setCnpjError('CNPJ deve ter 14 dígitos')
+        toast.error('CNPJ deve ter 14 dígitos (99.999.999/9999-99)')
+        setLoading(false)
+        return
+      }
+      
+      // Limpar erro se estava setado
+      setCnpjError(null)
+
+      // Garantir que CNPJ está formatado corretamente
+      const cnpjFormatado = cnpjNumeros
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1/$2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+
       // Preparar dados do cliente
       const valorMensal = formData.valor_mensal_contrato.replace(/\D/g, '')
       const valorMensalNumerico = valorMensal ? Number(valorMensal) / 100 : null
@@ -177,7 +355,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       const clienteData = {
         empresa_id: empresaId,
         nome_local: formData.nome_local.trim(),
-        cnpj: formData.cnpj.trim(),
+        cnpj: cnpjFormatado,
         endereco_completo: formData.endereco_completo.trim() || null,
         responsavel_nome: formData.responsavel_nome.trim() || null,
         responsavel_telefone: formData.responsavel_telefone.trim() || null,
@@ -227,16 +405,41 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         }).catch(() => {})
       }
 
-      // Criar equipamentos se houver (funciona tanto para criar quanto para editar)
+      // Validar e criar equipamentos se houver (funciona tanto para criar quanto para editar)
       if (equipamentos.length > 0) {
+        // Validar que todos os equipamentos têm campos obrigatórios preenchidos
+        const equipamentosInvalidos = equipamentos.filter(
+          eq => !eq.nome?.trim() || !eq.tipo?.trim()
+        )
+
+        if (equipamentosInvalidos.length > 0) {
+          toast.error('Por favor, preencha o Nome e Tipo de todos os equipamentos antes de salvar')
+          setLoading(false)
+          return
+        }
+
+        // Mapear tipos do formulário para os valores do banco
+        const mapearTipo = (tipo: string): string => {
+          const mapeamento: Record<string, string> = {
+            'Elétrico': 'ELEVADOR_ELETRICO',
+            'Hidráulico': 'ELEVADOR_HIDRAULICO',
+            'Plataforma': 'PLATAFORMA_VERTICAL',
+            // Aceitar também valores já no formato correto
+            'ELEVADOR_ELETRICO': 'ELEVADOR_ELETRICO',
+            'ELEVADOR_HIDRAULICO': 'ELEVADOR_HIDRAULICO',
+            'PLATAFORMA_VERTICAL': 'PLATAFORMA_VERTICAL',
+          }
+          return mapeamento[tipo] || tipo
+        }
+
         const equipamentosData = equipamentos.map(eq => ({
           cliente_id: clienteId,
           empresa_id: empresaId,
-          nome: eq.nome,
-          tipo: eq.tipo,
-          pavimentos: eq.pavimentos || null,
-          fabricante: eq.marca || null,
-          capacidade: eq.capacidade || null,
+          nome: eq.nome.trim(),
+          tipo: mapearTipo(eq.tipo.trim()),
+          pavimentos: eq.pavimentos?.trim() || null,
+          fabricante: eq.marca?.trim() || null,
+          capacidade: eq.capacidade?.trim() || null,
           ativo: true,
         }))
 
@@ -246,13 +449,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
         if (eqError) {
           console.error('Erro ao criar equipamentos:', eqError)
-          toast.warning(`Cliente ${mode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar alguns equipamentos`)
+          toast.error(`Erro ao criar equipamentos: ${eqError.message}`)
+          setLoading(false)
+          return
         } else {
-          // Telemetry
           fetch('/api/telemetry/logsnag', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel: 'clients', event: 'Equipments Added', icon: '🧩', tags: { cliente_id: clienteId, count: equipamentos.length } }),
+            body: JSON.stringify({ channel: 'clients', event: 'Equipments Added', icon: '🧩', tags: { cliente_id: clienteId, count: equipamentosData.length } }),
           }).catch(() => {})
         }
       }
@@ -261,6 +465,9 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       const actionText = localMode === 'edit' ? 'atualizado' : 'criado'
       const equipMsg = equipamentos.length > 0 ? ` e ${equipamentos.length} equipamento(s) ${localMode === 'edit' ? 'adicionado(s)' : 'criado(s)'}` : ''
       toast.success(`Cliente ${actionText} com sucesso${equipMsg}!`)
+
+      // Limpar dados salvos do localStorage
+      clearSavedData()
 
       setOpen(false)
       
@@ -279,28 +486,53 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         numero_art: '',
       })
       setEquipamentos([])
-      setNovoEquipamento({
-        nome: '',
-        tipo: '',
-        pavimentos: '',
-        marca: '',
-        capacidade: '',
-      })
 
       // Chamar onSuccess APÓS fechar o diálogo para atualizar a lista
       if (onSuccess) {
         setTimeout(() => onSuccess(), 100)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar cliente:', error)
-      toast.error(error instanceof Error ? error.message : 'Erro ao salvar cliente')
+      
+      // Mensagens de erro amigáveis
+      let errorMessage = 'Erro ao salvar cliente'
+      
+      if (error?.code === '23514') {
+        if (error.message?.includes('clientes_cnpj_format')) {
+          errorMessage = 'CNPJ inválido. Use o formato: 99.999.999/9999-99'
+        } else if (error.message?.includes('status_contrato')) {
+          errorMessage = 'Status do contrato inválido'
+        } else {
+          errorMessage = 'Dados inválidos. Verifique os campos preenchidos.'
+        }
+      } else if (error?.code === '23505') {
+        errorMessage = 'CNPJ já cadastrado para esta empresa'
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
   }
 
+  // Handler para fechar o dialog
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    onOpenChange?.(isOpen)
+    
+    // Se estiver fechando (cancelando), limpar dados salvos
+    if (!isOpen && mode === 'create') {
+      clearSavedData()
+    }
+    if (!isOpen) {
+      setEquipamentosLoaded(false)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           {trigger || (
@@ -364,17 +596,32 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 <Input
                   id="cnpj"
                   value={formData.cnpj}
-                  onChange={(e) => handleChange('cnpj', formatCNPJ(e.target.value))}
+                  onChange={(e) => {
+                    const formatted = formatCNPJ(e.target.value)
+                    handleChange('cnpj', formatted)
+                    // Limpa erro ao digitar
+                    if (cnpjError) setCnpjError(null)
+                  }}
+                  onBlur={(e) => validateCNPJ(e.target.value)}
                   placeholder="00.000.000/0000-00"
+                  maxLength={18}
                   required
                   disabled={isView}
+                  className={cnpjError ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {cnpjError && (
+                  <p className="text-xs text-destructive">{cnpjError}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status_contrato">Status do Contrato</Label>
-                <Select value={formData.status_contrato} onValueChange={(value) => handleChange('status_contrato', value)}>
-                  <SelectTrigger disabled={isView}>
+                <Select 
+                  value={formData.status_contrato} 
+                  onValueChange={(value) => handleChange('status_contrato', value)}
+                  disabled={isView}
+                >
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -508,7 +755,12 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">Equipamentos</h3>
               <span className="text-xs text-muted-foreground">
-                {equipamentos.length} equipamento(s)
+                {(() => {
+                  const count = isView
+                    ? equipamentos.filter(e => (e.nome || e.tipo || e.marca || e.pavimentos || e.capacidade)).length
+                    : equipamentos.filter(e => (e.nome?.trim() && e.tipo?.trim())).length
+                  return `${count} equipamento(s)`
+                })()}
               </span>
             </div>
             
@@ -525,14 +777,23 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
               
               {/* Lista de equipamentos adicionados */}
               <div id="sec_equip" data-open="1">
-              {equipamentos.length > 0 && (
-                <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2 bg-muted/20">
-                  {equipamentos.map((eq, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm p-2 border rounded bg-background">
-                      <div className="flex-1">
-                        <p className="font-medium">{eq.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {eq.tipo} • {eq.marca} • {eq.capacidade}
+              {isView && equipamentos.filter(e => (e.nome || e.tipo || e.marca || e.pavimentos || e.capacidade)).length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                  <Accordion type="multiple" className="w-full">
+                    {equipamentos
+                      .filter(e => (e.nome || e.tipo || e.marca || e.pavimentos || e.capacidade))
+                      .map((eq, index, arr) => (
+                      <AccordionItem
+                        key={index}
+                        value={`eq-${index}`}
+                        className={(arr.length === 1 || index === arr.length - 1) ? 'border-b-0' : ''}
+                      >
+                        <AccordionTrigger className="px-2">
+                          <div className="flex items-center justify-between w-full text-left">
+                            <div className="flex-1 pr-2">
+                              <p className="font-medium text-sm">{eq.nome || 'Sem nome'}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {(eq.tipo || '-')} • {(eq.marca || '-')} • {(eq.capacidade || '-')}
                         </p>
                       </div>
                       {!isView && (
@@ -540,37 +801,73 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeEquipamento(index)}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeEquipamento(index) }}
                         className="h-8 w-8 p-0"
+                                aria-label="Remover equipamento"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                       )}
                     </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-2 pb-3">
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <div className="text-muted-foreground">Tipo</div>
+                              <div className="font-medium text-foreground">{eq.tipo || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Marca</div>
+                              <div className="font-medium text-foreground">{eq.marca || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Pavimentos</div>
+                              <div className="font-medium text-foreground">{eq.pavimentos || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Capacidade</div>
+                              <div className="font-medium text-foreground">{eq.capacidade || '-'}</div>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
                   ))}
+                  </Accordion>
                 </div>
               )}
 
-              {/* Formulário para adicionar novo equipamento */}
-              <div className="grid grid-cols-2 gap-3 p-3 border rounded-md bg-muted/10">
+              {/* Formulários de equipamentos (edit/create) */}
+              {!isView && (
+                <div className="space-y-3 p-3 border rounded-md bg-muted/10">
+                  {equipamentos.length === 0 && (
+                    <div className="text-xs text-muted-foreground">Nenhum equipamento adicionado ainda.</div>
+                  )}
+                  {equipamentos.map((eq, index) => (
+                    <div key={index} className="grid grid-cols-2 gap-3 p-3 border rounded-md bg-background">
                 <div className="col-span-2 space-y-2">
-                  <Label htmlFor="eq_nome">Nome do Equipamento</Label>
+                        <Label htmlFor={`eq_nome_${index}`}>
+                          Nome do Equipamento <span className="text-destructive">*</span>
+                        </Label>
                   <Input
-                    id="eq_nome"
-                    value={novoEquipamento.nome}
-                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, nome: e.target.value })}
-                    disabled={isView}
+                          id={`eq_nome_${index}`}
+                          value={eq.nome}
+                          onChange={(e) => setEquipamentos(prev => prev.map((it, i) => i === index ? { ...it, nome: e.target.value } : it))}
                     placeholder="Ex: Elevador Principal"
+                    required
+                    className={!eq.nome?.trim() ? 'border-destructive' : ''}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="eq_tipo">Tipo</Label>
+                        <Label htmlFor={`eq_tipo_${index}`}>
+                          Tipo <span className="text-destructive">*</span>
+                        </Label>
                   <Select
-                    value={novoEquipamento.tipo}
-                    onValueChange={(value) => setNovoEquipamento({ ...novoEquipamento, tipo: value })}
+                          value={eq.tipo}
+                          onValueChange={(value) => setEquipamentos(prev => prev.map((it, i) => i === index ? { ...it, tipo: value } : it))}
+                          required
                   >
-                    <SelectTrigger disabled={isView}>
+                          <SelectTrigger className={!eq.tipo?.trim() ? 'border-destructive' : ''}>
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -582,59 +879,62 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="eq_marca">Marca</Label>
+                        <Label htmlFor={`eq_marca_${index}`}>Marca</Label>
                   <Input
-                    id="eq_marca"
-                    value={novoEquipamento.marca}
-                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, marca: e.target.value })}
-                    disabled={isView}
+                          id={`eq_marca_${index}`}
+                          value={eq.marca}
+                          onChange={(e) => setEquipamentos(prev => prev.map((it, i) => i === index ? { ...it, marca: e.target.value } : it))}
                     placeholder="Ex: Otis, Schindler"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="eq_pavimentos">Pavimentos</Label>
+                        <Label htmlFor={`eq_pav_${index}`}>Pavimentos</Label>
                   <Input
-                    id="eq_pavimentos"
-                    value={novoEquipamento.pavimentos}
-                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, pavimentos: e.target.value })}
-                    disabled={isView}
+                          id={`eq_pav_${index}`}
+                          value={eq.pavimentos}
+                          onChange={(e) => setEquipamentos(prev => prev.map((it, i) => i === index ? { ...it, pavimentos: e.target.value } : it))}
                     placeholder="Ex: Térreo ao 10º"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="eq_capacidade">Capacidade</Label>
+                        <Label htmlFor={`eq_cap_${index}`}>Capacidade</Label>
                   <Input
-                    id="eq_capacidade"
-                    value={novoEquipamento.capacidade}
-                    onChange={(e) => setNovoEquipamento({ ...novoEquipamento, capacidade: e.target.value })}
-                    disabled={isView}
+                          id={`eq_cap_${index}`}
+                          value={eq.capacidade}
+                          onChange={(e) => setEquipamentos(prev => prev.map((it, i) => i === index ? { ...it, capacidade: e.target.value } : it))}
                     placeholder="Ex: 8 pessoas, 600kg"
                   />
                 </div>
 
-                <div className="col-span-2">
-                  {!isView && (
+                      <div className="col-span-2 flex justify-end">
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={addEquipamento}
-                    className="w-full"
-                  >
+                          variant="ghost"
+                          onClick={() => removeEquipamento(index)}
+                          className="h-8"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                          Remover
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button type="button" variant="outline" onClick={addEquipamento} className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Equipamento
                   </Button>
-                  )}
                 </div>
-              </div>
+              )}
               </div>
           </div>
 
           <DialogFooter>
             {isView ? (
               <>
-                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
+                <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Fechar</Button>
                 <Button
                   type="button"
                   onClick={(e) => {
@@ -648,7 +948,16 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    clearSavedData()
+                    setEquipamentos([])
+                    handleOpenChange(false)
+                  }} 
+                  disabled={loading}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>

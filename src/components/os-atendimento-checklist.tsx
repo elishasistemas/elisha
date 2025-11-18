@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useDebounce } from '@/hooks/use-debounce'
+import { ChecklistRunner } from '@/components/checklist-runner'
+import { uploadOsEvidence, removeOsEvidence, getSignedEvidenciaUrl } from '@/lib/storage'
 
 interface OSAtendimentoChecklistProps {
   osId: string
@@ -168,27 +170,26 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
     setUploading(true)
 
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${osId}/${tipo}/${Date.now()}.${fileExt}`
+      // Usar utilitária uploadOsEvidence
+      const uploadResult = await uploadOsEvidence(file, osId, tipo)
 
-      // Upload para storage
-      const { error: uploadError } = await supabase.storage
-        .from('evidencias')
-        .upload(fileName, file)
-
-      if (uploadError) throw uploadError
+      if (!uploadResult.success || !uploadResult.storage_path) {
+        throw new Error(uploadResult.error || 'Erro no upload')
+      }
 
       // Registrar evidência no banco
+      const { data: userData } = await supabase.auth.getUser()
       const { data, error: dbError } = await supabase
         .from('os_evidencias')
         .insert({
           os_id: osId,
           empresa_id: empresaId,
           tipo,
-          storage_path: fileName,
+          storage_path: uploadResult.storage_path,
           mime_type: file.type,
           tamanho_bytes: file.size,
-          titulo: file.name
+          titulo: file.name,
+          created_by: userData.user?.id
         })
         .select()
         .single()
@@ -199,7 +200,7 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
       toast.success(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} enviada com sucesso!`)
     } catch (error) {
       console.error('[checklist] Erro ao fazer upload:', error)
-      toast.error('Erro ao enviar arquivo')
+      toast.error(error instanceof Error ? error.message : 'Erro ao enviar arquivo')
     } finally {
       setUploading(false)
     }
@@ -244,9 +245,10 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
     try {
       // Deletar arquivo do storage (se existir)
       if (evidencia.storage_path) {
-        await supabase.storage
-          .from('evidencias')
-          .remove([evidencia.storage_path])
+        const removed = await removeOsEvidence(evidencia.storage_path)
+        if (!removed) {
+          console.warn('[checklist] Arquivo não encontrado no storage, continuando com remoção do registro')
+        }
       }
 
       // Deletar registro do banco
@@ -266,17 +268,37 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
   }
 
   // =====================================================
-  // Obter URL pública da evidência
+  // Obter URL assinada da evidência (bucket é privado)
   // =====================================================
-  const getEvidenciaUrl = (evidencia: Evidencia): string | null => {
+  const getEvidenciaUrl = async (evidencia: Evidencia): Promise<string | null> => {
     if (!evidencia.storage_path) return null
 
-    const { data } = supabase.storage
-      .from('evidencias')
-      .getPublicUrl(evidencia.storage_path)
-
-    return data.publicUrl
+    // Usar signed URL pois o bucket é privado
+    return await getSignedEvidenciaUrl(evidencia.storage_path, 3600)
   }
+
+  // Estado para armazenar URLs assinadas
+  const [evidenciaUrls, setEvidenciaUrls] = useState<Record<string, string>>({})
+
+  // Carregar URLs assinadas quando evidencias mudarem
+  useEffect(() => {
+    const loadUrls = async () => {
+      const urls: Record<string, string> = {}
+      for (const evidencia of evidencias) {
+        if (evidencia.storage_path) {
+          const url = await getEvidenciaUrl(evidencia)
+          if (url) {
+            urls[evidencia.id] = url
+          }
+        }
+      }
+      setEvidenciaUrls(urls)
+    }
+
+    if (evidencias.length > 0) {
+      loadUrls()
+    }
+  }, [evidencias]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -288,6 +310,21 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
 
   return (
     <div className="space-y-6">
+      {/* =====================================================
+          CHECKLIST
+      ===================================================== */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Checklist de Serviço</CardTitle>
+          <CardDescription>
+            Preencha os itens do checklist vinculado a esta OS
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChecklistRunner osId={osId} />
+        </CardContent>
+      </Card>
+
       {/* =====================================================
           LAUDO TÉCNICO
       ===================================================== */}
@@ -481,9 +518,9 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {evidencia.storage_path && (
+                      {evidencia.storage_path && evidenciaUrls[evidencia.id] && (
                         <a
-                          href={getEvidenciaUrl(evidencia) || '#'}
+                          href={evidenciaUrls[evidencia.id]}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useEmpresas, useClientes, useAuth, useProfile } from '@/hooks/use-supabase'
+import { createSupabaseBrowser } from '@/lib/supabase'
 import { isAdmin } from '@/utils/auth'
 import { ClientDialog } from '@/components/client-dialog'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
@@ -40,13 +41,60 @@ export default function ClientsPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
+  // Atualizar claims se necessário (para RLS funcionar corretamente)
+  useEffect(() => {
+    if (user?.id && profile?.is_elisha_admin && profile?.impersonating_empresa_id) {
+      // Se é elisha_admin impersonando, atualizar claims para incluir impersonating_empresa_id no JWT
+      fetch('/api/auth/update-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+        .then(res => res.json())
+        .then(() => {
+          // Refresh session para carregar novos claims no JWT
+          const supabase = createSupabaseBrowser()
+          supabase.auth.refreshSession().catch((err: unknown) => {
+            console.error('[ClientsPage] Erro ao atualizar sessão:', err)
+          })
+        })
+        .catch(err => {
+          console.error('[ClientsPage] Erro ao atualizar claims:', err)
+        })
+    }
+  }, [user?.id, profile?.is_elisha_admin, profile?.impersonating_empresa_id])
+  
+  // Debug: Log informações para diagnóstico
+  useEffect(() => {
+    console.log('[ClientsPage] Debug:', {
+      userId: user?.id,
+      profile,
+      empresaId,
+      hasProfile: !!profile,
+      hasEmpresaId: !!empresaId
+    })
+  }, [user?.id, profile, empresaId])
+  
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const { clientes, loading, error, deleteCliente } = useClientes(empresaId)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { clientes, loading, error, deleteCliente } = useClientes(empresaId, { refreshKey })
   const canAdmin = isAdmin(session, profile)
+  
+  // Debug: Log clientes para diagnóstico
+  useEffect(() => {
+    console.log('[ClientsPage] Clientes:', {
+      empresaId,
+      clientesCount: clientes?.length || 0,
+      clientes,
+      loading,
+      error,
+      profileEmpresaId: profile?.empresa_id,
+      impersonatingEmpresaId: profile?.impersonating_empresa_id
+    })
+  }, [empresaId, clientes, loading, error, profile])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [viewCliente, setViewCliente] = useState<Cliente | null>(null)
   const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -184,9 +232,9 @@ export default function ClientsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {canAdmin && (
+                          {empresaId && canAdmin && (
                             <ClientDialog
-                            empresaId={empresaId!}
+                            empresaId={empresaId}
                             cliente={c}
                             mode="edit"
                             onSuccess={handleRefresh}

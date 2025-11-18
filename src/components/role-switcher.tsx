@@ -104,6 +104,32 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
     return labels[role] || role
   }
 
+  // Verificar se é super admin ou admin
+  const [isElishaAdmin, setIsElishaAdmin] = useState(false)
+  
+  useEffect(() => {
+    async function checkAdminStatus() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_elisha_admin')
+        .eq('user_id', user.id)
+        .single()
+
+      setIsElishaAdmin(profile?.is_elisha_admin || false)
+    }
+    checkAdminStatus()
+  }, [supabase])
+
+  // Técnicos puros (sem admin) não veem o switcher
+  // Apenas super admin e admin (com ou sem técnico) podem trocar de perfil
+  const hasAdminRole = availableRoles.includes('admin')
+  if (!hasAdminRole && !isElishaAdmin) {
+    return null
+  }
+
   // Só mostra se houver múltiplos roles
   if (availableRoles.length <= 1) {
     return null

@@ -224,11 +224,16 @@ BEGIN
   END IF;
 
   -- 10. Atualizar OS
+  -- Garantir que data_inicio seja >= data_abertura para satisfazer a constraint
   UPDATE ordens_servico
   SET 
     tecnico_id = v_tecnico_id,
-    status = 'em_andamento',
-    data_inicio = COALESCE(data_inicio, now()),
+    status = 'em_deslocamento',
+    data_inicio = CASE 
+      WHEN data_inicio IS NULL THEN now()
+      WHEN data_inicio < data_abertura THEN data_abertura
+      ELSE data_inicio
+    END,
     updated_at = now()
   WHERE id = p_os_id;
 
@@ -245,7 +250,7 @@ BEGIN
   ) VALUES (
     p_os_id,
     v_os.status::text,
-    'em_andamento',
+    'em_deslocamento',
     auth.uid(),
     now(),
     'accept',
@@ -253,17 +258,21 @@ BEGIN
     jsonb_build_object(
       'tecnico_id', v_tecnico_id,
       'previous_tecnico_id', v_os.tecnico_id,
-      'data_inicio', COALESCE(v_os.data_inicio, now())
+      'data_inicio', CASE 
+        WHEN v_os.data_inicio IS NULL THEN now()
+        WHEN v_os.data_inicio < v_os.data_abertura THEN v_os.data_abertura
+        ELSE v_os.data_inicio
+      END
     )
   );
 
   -- 12. Retornar sucesso
   RETURN jsonb_build_object(
     'success', true,
-    'message', 'OS aceita com sucesso! Você pode começar o atendimento.',
+    'message', 'OS aceita com sucesso! Você pode começar o deslocamento.',
     'data', jsonb_build_object(
       'os_id', p_os_id,
-      'status', 'em_andamento',
+      'status', 'em_deslocamento',
       'tecnico_id', v_tecnico_id
     )
   );

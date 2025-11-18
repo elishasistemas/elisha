@@ -104,6 +104,134 @@ export async function uploadCompanyLogo(
 }
 
 /**
+ * Upload de evidência para OS (foto/vídeo/áudio)
+ * 
+ * @param file - Arquivo a ser enviado
+ * @param osId - ID da Ordem de Serviço
+ * @param tipo - Tipo de evidência: 'foto' | 'video' | 'audio'
+ * @returns Resultado do upload com storage_path
+ */
+export async function uploadOsEvidence(
+  file: File,
+  osId: string,
+  tipo: 'foto' | 'video' | 'audio'
+): Promise<{ success: boolean; storage_path?: string; error?: string }> {
+  try {
+    const supabase = createSupabaseBrowser()
+
+    // Validar tipo de arquivo baseado no tipo de evidência
+    const allowedTypes: Record<string, string[]> = {
+      foto: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+      video: ['video/mp4', 'video/webm', 'video/quicktime'],
+      audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm']
+    }
+
+    if (!allowedTypes[tipo]?.includes(file.type)) {
+      return {
+        success: false,
+        error: `Tipo de arquivo não suportado para ${tipo}. Tipos permitidos: ${allowedTypes[tipo]?.join(', ')}`
+      }
+    }
+
+    // Validar tamanho (máximo 50MB)
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (file.size > maxSize) {
+      return {
+        success: false,
+        error: 'Arquivo muito grande. Tamanho máximo: 50MB'
+      }
+    }
+
+    // Gerar nome único para o arquivo
+    const fileExt = file.name.split('.').pop() || 'bin'
+    const fileName = `${Date.now()}.${fileExt}`
+    const storagePath = `${osId}/${tipo}/${fileName}`
+
+    // Upload para Supabase Storage
+    const { error } = await supabase.storage
+      .from('evidencias')
+      .upload(storagePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (error) {
+      return {
+        success: false,
+        error: `Erro no upload: ${error.message}`
+      }
+    }
+
+    return {
+      success: true,
+      storage_path: storagePath
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido no upload'
+    }
+  }
+}
+
+/**
+ * Remove evidência do storage
+ * 
+ * @param storagePath - Caminho da evidência no storage
+ * @returns true se removido com sucesso
+ */
+export async function removeOsEvidence(storagePath: string): Promise<boolean> {
+  try {
+    const supabase = createSupabaseBrowser()
+
+    const { error } = await supabase.storage
+      .from('evidencias')
+      .remove([storagePath])
+
+    if (error) {
+      console.error('[storage] Erro ao remover evidência:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('[storage] Erro ao remover evidência:', error)
+    return false
+  }
+}
+
+/**
+ * Obtém URL assinada (signed URL) de uma evidência
+ * Útil para arquivos privados no bucket evidencias
+ * 
+ * @param storagePath - Caminho da evidência no storage
+ * @param expiresIn - Tempo de expiração em segundos (padrão: 1 hora)
+ * @returns URL assinada ou null se erro
+ */
+export async function getSignedEvidenciaUrl(
+  storagePath: string,
+  expiresIn: number = 3600
+): Promise<string | null> {
+  try {
+    const supabase = createSupabaseBrowser()
+
+    const { data, error } = await supabase.storage
+      .from('evidencias')
+      .createSignedUrl(storagePath, expiresIn)
+
+    if (error) {
+      console.error('[storage] Erro ao gerar URL assinada:', error)
+      return null
+    }
+
+    return data.signedUrl
+  } catch (error) {
+    console.error('[storage] Erro ao gerar URL assinada:', error)
+    return null
+  }
+}
+
+/**
  * Remove logo antigo da empresa
  */
 export async function removeCompanyLogo(logoUrl: string): Promise<boolean> {
