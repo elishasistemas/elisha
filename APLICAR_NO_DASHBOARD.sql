@@ -1253,7 +1253,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'checklists_sel_emp' and tablename = 'checklists'
+    where policyname = 'checklists_sel_emp' and tablename = 'checklists'
   ) then
     create policy checklists_sel_emp on public.checklists
       for select using (empresa_id = current_empresa_id());
@@ -1265,7 +1265,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'checklists_ins_emp' and tablename = 'checklists'
+    where policyname = 'checklists_ins_emp' and tablename = 'checklists'
   ) then
     create policy checklists_ins_emp on public.checklists
       for insert with check (
@@ -1284,7 +1284,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'checklists_upd_emp' and tablename = 'checklists'
+    where policyname = 'checklists_upd_emp' and tablename = 'checklists'
   ) then
     create policy checklists_upd_emp on public.checklists
       for update using (
@@ -1303,7 +1303,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'checklists_del_emp' and tablename = 'checklists'
+    where policyname = 'checklists_del_emp' and tablename = 'checklists'
   ) then
     create policy checklists_del_emp on public.checklists
       for delete using (
@@ -1326,7 +1326,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'osc_sel_emp' and tablename = 'os_checklists'
+    where policyname = 'osc_sel_emp' and tablename = 'os_checklists'
   ) then
     create policy osc_sel_emp on public.os_checklists
       for select using (empresa_id = current_empresa_id());
@@ -1338,7 +1338,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'osc_ins_emp' and tablename = 'os_checklists'
+    where policyname = 'osc_ins_emp' and tablename = 'os_checklists'
   ) then
     create policy osc_ins_emp on public.os_checklists
       for insert with check (empresa_id = current_empresa_id());
@@ -1350,7 +1350,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'osc_upd_emp' and tablename = 'os_checklists'
+    where policyname = 'osc_upd_emp' and tablename = 'os_checklists'
   ) then
     create policy osc_upd_emp on public.os_checklists
       for update using (empresa_id = current_empresa_id());
@@ -1366,7 +1366,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'cr_sel_emp' and tablename = 'checklist_respostas'
+    where policyname = 'cr_sel_emp' and tablename = 'checklist_respostas'
   ) then
     create policy cr_sel_emp on public.checklist_respostas
       for select using (
@@ -1383,7 +1383,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'cr_ins_emp' and tablename = 'checklist_respostas'
+    where policyname = 'cr_ins_emp' and tablename = 'checklist_respostas'
   ) then
     create policy cr_ins_emp on public.checklist_respostas
       for insert with check (
@@ -1400,7 +1400,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'cr_upd_emp' and tablename = 'checklist_respostas'
+    where policyname = 'cr_upd_emp' and tablename = 'checklist_respostas'
   ) then
     create policy cr_upd_emp on public.checklist_respostas
       for update using (
@@ -1417,7 +1417,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where polname = 'cr_del_emp' and tablename = 'checklist_respostas'
+    where policyname = 'cr_del_emp' and tablename = 'checklist_respostas'
   ) then
     create policy cr_del_emp on public.checklist_respostas
       for delete using (
@@ -1524,7 +1524,7 @@ from public.ordens_servico os;
 alter table if exists public.os_checklists enable row level security;
 do $$
 begin
-  if not exists (select 1 from pg_policies where tablename='os_checklists' and polname='os_checklists_select') then
+  if not exists (select 1 from pg_policies where tablename='os_checklists' and policyname='os_checklists_select') then
     create policy os_checklists_select on public.os_checklists for select
       using (
         empresa_id = public.current_empresa_id()
@@ -1547,7 +1547,7 @@ end$$;
 alter table if exists public.checklist_respostas enable row level security;
 do $$
 begin
-  if not exists (select 1 from pg_policies where tablename='checklist_respostas' and polname='checklist_respostas_select') then
+  if not exists (select 1 from pg_policies where tablename='checklist_respostas' and policyname='checklist_respostas_select') then
     create policy checklist_respostas_select on public.checklist_respostas for select
       using (
         exists (
@@ -1569,7 +1569,7 @@ end$$;
 alter table if exists public.clientes enable row level security;
 do $$
 begin
-  if not exists (select 1 from pg_policies where tablename='clientes' and polname='clientes_select') then
+  if not exists (select 1 from pg_policies where tablename='clientes' and policyname='clientes_select') then
     create policy clientes_select on public.clientes for select
       using (
         empresa_id = public.current_empresa_id()
@@ -1610,7 +1610,7 @@ alter table public.ordens_servico enable row level security;
 
 do $$
 begin
-  if not exists (select 1 from pg_policies where tablename='ordens_servico' and polname='os_select') then
+  if not exists (select 1 from pg_policies where tablename='ordens_servico' and policyname='os_select') then
     create policy os_select on public.ordens_servico for select
       using (
         empresa_id = public.current_empresa_id()
@@ -3543,7 +3543,7 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'os_status_history' AND polname = 'os_status_history_insert_authenticated'
+    WHERE schemaname = 'public' AND tablename = 'os_status_history' AND policyname = 'os_status_history_insert_authenticated'
   ) THEN
     EXECUTE 'DROP POLICY os_status_history_insert_authenticated ON public.os_status_history';
   END IF;

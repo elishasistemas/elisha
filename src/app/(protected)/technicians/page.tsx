@@ -1,0 +1,300 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useEmpresas, useColaboradores, useAuth, useProfile } from '@/hooks/use-supabase'
+import { isAdmin } from '@/utils/auth'
+import { TechnicianDialog } from '@/components/technician-dialog'
+import { MoreHorizontal, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
+import { toast } from 'sonner'
+import type { Colaborador } from '@/lib/supabase'
+
+export default function TechniciansPage() {
+  const { user, session } = useAuth()
+  const { profile } = useProfile(user?.id)
+  
+  // Determinar empresa ativa (impersonation ou empresa do perfil)
+  const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
+  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId)
+  const canAdmin = isAdmin(session, profile)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  const isLoading = empresasLoading || loading
+  const hasError = empresasError || error
+  const [viewTec, setViewTec] = useState<Colaborador | null>(null)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const list = colaboradores
+    if (!q) return list
+    return list.filter((t) => {
+      return (
+        (t.nome || '').toLowerCase().includes(q) ||
+        (t.funcao || '').toLowerCase().includes(q) ||
+        (t.whatsapp_numero || '').toLowerCase().includes(q)
+      )
+    })
+  }, [colaboradores, search])
+
+  const total = useMemo(() => filtered.filter(c => c.ativo).length, [filtered])
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const start = (currentPage - 1) * pageSize
+  const end = start + pageSize
+  const pageRows = filtered.slice(start, end)
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handleToggleAtivo = async (colaborador: Colaborador) => {
+    try {
+      const result = await toggleAtivoColaborador(colaborador.id, !colaborador.ativo)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(colaborador.ativo ? 'Técnico desativado' : 'Técnico ativado')
+        handleRefresh()
+      }
+    } catch (error) {
+      toast.error('Erro ao alterar status')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!colaboradorToDelete) return
+
+    try {
+      const result = await deleteColaborador(colaboradorToDelete.id)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Técnico excluído com sucesso!')
+        handleRefresh()
+      }
+    } catch (error) {
+      toast.error('Erro ao excluir técnico')
+    } finally {
+      setDeleteDialogOpen(false)
+      setColaboradorToDelete(null)
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto w-full py-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Técnicos</h1>
+          <p className="text-muted-foreground">Gestão de equipe técnica</p>   
+        </div>
+        {empresaId && canAdmin && (
+          <TechnicianDialog empresaId={empresaId} onSuccess={handleRefresh} />
+        )}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Lista de Técnicos</CardTitle>
+              <CardDescription>{total} ativos</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Buscar por nome, função ou WhatsApp"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                className="w-[260px]"
+              />
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / página</SelectItem>
+                  <SelectItem value="20">20 / página</SelectItem>
+                  <SelectItem value="50">50 / página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10 text-muted-foreground">
+              Carregando...
+            </div>
+          ) : hasError ? (
+            <div className="text-destructive">{hasError}</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <p className="mb-4">Nenhum técnico encontrado</p>
+              {empresaId && canAdmin && (
+                <TechnicianDialog empresaId={empresaId} onSuccess={handleRefresh} />
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>WhatsApp</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[70px]">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageRows.map((t) => (
+                  <TableRow key={t.id} className="cursor-pointer" onClick={() => setViewTec(t)}>
+                    <TableCell className="font-medium">{t.nome}</TableCell>
+                    <TableCell>{t.funcao || '-'}</TableCell>
+                    <TableCell>{t.telefone || '-'}</TableCell>
+                    <TableCell>{t.whatsapp_numero}</TableCell>
+                    <TableCell>
+                      <Badge variant={t.ativo ? 'default' : 'outline'}>
+                        {t.ativo ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Abrir menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {empresaId && canAdmin && (
+                            <TechnicianDialog
+                            empresaId={empresaId}
+                            colaborador={t}
+                            mode="edit"
+                            onSuccess={handleRefresh}
+                            trigger={
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                            }
+                            />
+                          )}
+                          {canAdmin && (
+                            <DropdownMenuItem onSelect={() => handleToggleAtivo(t)}>
+                              {t.ativo ? (
+                                <>
+                                  <UserX className="mr-2 h-4 w-4" />
+                                  Desativar
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  Ativar
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                          {canAdmin && (
+                            <DropdownMenuItem
+                            className="text-destructive"
+                            onSelect={() => {
+                              setColaboradorToDelete(t)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {filtered.length > 0 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+              <div>
+                Mostrando {Math.min(end, filtered.length)} de {filtered.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  Anterior
+                </Button>
+                <span>Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {viewTec && empresaId && (
+        <TechnicianDialog
+          key={viewTec.id}
+          empresaId={empresaId}
+          colaborador={viewTec}
+          mode="view"
+          hideTrigger
+          defaultOpen
+          onOpenChange={(o) => { if (!o) setViewTec(null) }}
+          onSuccess={() => { setViewTec(null); handleRefresh() }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o técnico <strong>{colaboradorToDelete?.nome}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
