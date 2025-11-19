@@ -21,6 +21,9 @@ async function bootstrap() {
     }),
   );
 
+  // Configurar prefixo global da API
+  app.setGlobalPrefix('api/v1');
+
   // Configurar Swagger
   const config = new DocumentBuilder()
     .setTitle('Elisha API')
@@ -31,8 +34,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   // Swagger agora acessível em /api/v1/docs
   SwaggerModule.setup('api/v1/docs', app, document);
-
-  // Prefixo global removido para expor endpoints diretamente
 
   const port = process.env.PORT || 3001;
   await app.listen(port);

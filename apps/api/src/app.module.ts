@@ -5,6 +5,7 @@ import { UsersModule } from './users/users.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { HealthModule } from './health/health.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { EmpresasModule } from './empresas/empresas.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ClientesModule } from './clientes/clientes.module';
     UsersModule,
     HealthModule,
     ClientesModule,
+    EmpresasModule,
   ],
 })
 export class AppModule {}
