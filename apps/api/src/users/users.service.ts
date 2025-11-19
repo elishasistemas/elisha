@@ -3,6 +3,23 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class UsersService {
+    async getUserRoles(userId: string) {
+      try {
+        const { data, error } = await this.supabaseService.client
+          .from('profiles')
+          .select('active_role,roles')
+          .eq('user_id', userId)
+          .single();
+
+        if (error) {
+          throw new NotFoundException('Usuário não encontrado');
+        }
+
+        return data;
+      } catch (error) {
+        throw new NotFoundException('Erro ao buscar roles do usuário');
+      }
+    }
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async getCurrentUser(userId: string) {

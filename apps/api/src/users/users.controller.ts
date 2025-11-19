@@ -8,6 +8,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UsersController {
+    @Get(':id/roles')
+    @ApiOperation({ summary: 'Obter roles e active_role do usuário' })
+    async getUserRoles(@Param('id') id: string) {
+      return this.usersService.getUserRoles(id);
+    }
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')

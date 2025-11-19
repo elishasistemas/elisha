@@ -40,7 +40,8 @@ export class AuthService {
       });
 
       if (error) {
-        throw new BadRequestException(error.message);
+        // Retorna a mensagem original do Supabase para facilitar diagnóstico
+        throw new BadRequestException({ message: error.message, details: error });
       }
 
       return {
@@ -48,7 +49,9 @@ export class AuthService {
         message: 'Usuário criado com sucesso. Verifique seu email.',
       };
     } catch (error) {
-      throw new BadRequestException('Erro ao criar usuário');
+      // Se for BadRequestException, repassa o erro original
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException({ message: 'Erro ao criar usuário', details: error });
     }
   }
 
