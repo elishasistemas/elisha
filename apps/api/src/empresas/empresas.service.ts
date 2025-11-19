@@ -32,7 +32,11 @@ export class EmpresasService {
       .insert([{ ...dto }])
       .select('*')
       .single();
-    if (error) throw new NotFoundException('Erro ao criar empresa');
+    if (error) {
+      // Log detalhado do erro do Supabase
+      console.error('[EmpresasService][create] Supabase error:', error);
+      throw new NotFoundException(`Erro ao criar empresa: ${error.message || error}`);
+    }
     return data;
   }
 }

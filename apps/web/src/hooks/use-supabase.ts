@@ -154,28 +154,36 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
     const fetchClientes = async () => {
       try {
         setLoading(true)
-        const page = opts?.page ?? 1
-        const pageSize = opts?.pageSize ?? 1000
-        const start = (page - 1) * pageSize
-        const end = start + pageSize - 1
-        let query = supabase
-          .from('clientes')
-          .select('*', { count: 'exact' })
-          .eq('empresa_id', empresaId)
-          .order('created_at', { ascending: false })
+        // Pega o token JWT do Supabase
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
 
-        const q = (opts?.search || '').trim()
-        if (q) {
-          const like = `%${q}%`
-          query = query.or(
-            `nome_local.ilike.${like},cnpj.ilike.${like},responsavel_nome.ilike.${like},responsavel_telefone.ilike.${like},responsavel_email.ilike.${like}`
-          )
+        if (!token) {
+          throw new Error('Usuário não autenticado')
         }
 
-        const { data, error, count } = await query.range(start, end)
-        if (error) throw error
-        setClientes(data || [])
-        setCount(count || 0)
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const search = (opts?.search || '').trim()
+        const params = new URLSearchParams({
+          empresaId,
+          page: String(page),
+          pageSize: String(pageSize),
+          ...(search ? { search } : {})
+        })
+
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/clientes?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!res.ok) throw new Error('Erro ao buscar clientes')
+        const result = await res.json()
+        setClientes(result.data || result || [])
+        setCount(result.count || result.length || 0)
       } catch (err) {
         console.error('[useClientes] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar clientes')
