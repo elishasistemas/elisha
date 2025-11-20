@@ -527,50 +527,41 @@ export function useOrdensServico(
     const fetchOrdens = async () => {
       try {
         setLoading(true)
+        // Pega o token JWT do Supabase
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+
+        if (!token) {
+          throw new Error('Usuário não autenticado')
+        }
+
         const page = opts?.page ?? 1
-        const pageSize = opts?.pageSize ?? 1000
-        const start = (page - 1) * pageSize
-        const end = start + pageSize - 1
+        const pageSize = opts?.pageSize ?? 10
+        const search = (opts?.search || '').trim()
+        const orderBy = opts?.orderBy || 'prioridade'
+        
+        const params = new URLSearchParams({
+          empresaId,
+          page: String(page),
+          pageSize: String(pageSize),
+          ...(search ? { search } : {}),
+          ...(opts?.tecnicoId ? { tecnicoId: opts.tecnicoId } : {}),
+          ...(orderBy ? { orderBy: String(orderBy) } : {}),
+        })
 
-        const orderBy = opts?.orderBy || 'created_at'
-        const fromName = orderBy === 'status' || orderBy === 'prioridade'
-          ? 'ordens_servico_enriquecida'
-          : 'ordens_servico'
-
-        let query = supabase
-          .from(fromName)
-          .select('*', { count: 'exact' })
-          .eq('empresa_id', empresaId)
-
-        const q = (opts?.search || '').trim()
-        if (q) {
-          const like = `%${q}%`
-          query = query.or(
-            `numero_os.ilike.${like},tipo.ilike.${like},status.ilike.${like}`
-          )
-        }
-
-        if (opts?.tecnicoId) {
-          query = query.eq('tecnico_id', opts.tecnicoId)
-        }
-
-        // Ordering preset via view weights
-        if (fromName === 'ordens_servico_enriquecida') {
-          if (orderBy === 'status') {
-            query = query.order('peso_status', { ascending: true }).order('created_at', { ascending: false })
-          } else {
-            // prioridade: status weight, then prioridade weight, then created_at desc
-            query = query.order('peso_status', { ascending: true }).order('peso_prioridade', { ascending: true }).order('created_at', { ascending: false })
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
-        } else {
-          const ascending = orderBy === 'created_at' ? false : !!opts?.ascending
-          query = query.order(orderBy as string, { ascending })
-        }
-
-        const { data, error, count } = await query.range(start, end)
-        if (error) throw error
-        setOrdens(data || [])
-        setCount(count || 0)
+        })
+        
+        if (!res.ok) throw new Error('Erro ao buscar ordens de serviço')
+        const result = await res.json()
+        console.log('[useOrdensServico] Resultado do backend:', result)
+        setOrdens(result.data || result || [])
+        setCount(result.count || result.length || 0)
       } catch (err) {
         console.error('[useOrdensServico] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar ordens de serviço')
@@ -584,14 +575,20 @@ export function useOrdensServico(
 
   const createOrdem = async (ordem: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('ordens_servico')
-        .insert([ordem])
-        .select()
-        .single()
-
-      if (error) throw error
-      // Com paginação server-side, preferimos refetch externo
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Usuário não autenticado')
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ordem)
+      })
+      if (!res.ok) throw new Error('Erro ao criar ordem de serviço')
+      const data = await res.json()
       // Telemetry: order created
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
@@ -606,21 +603,26 @@ export function useOrdensServico(
 
   const updateOrdem = async (id: string, updates: Partial<OrdemServico>) => {
     try {
-      const { data, error } = await supabase
-        .from('ordens_servico')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-      // Opcional: atualizar página atual
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Usuário não autenticado')
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      })
+      if (!res.ok) throw new Error('Erro ao atualizar ordem de serviço')
+      const data = await res.json()
       setOrdens(prev => prev.map(ordem => ordem.id === id ? data : ordem))
       // Telemetry: order updated
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: id, status: (updates as any)?.status || 'updated' } }),
+        body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: id, status: updates?.status || 'updated' } }),
       }).catch(() => {})
       return { data, error: null }
     } catch (err) {
@@ -630,13 +632,18 @@ export function useOrdensServico(
 
   const deleteOrdem = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('ordens_servico')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      // Preferir refetch após exclusão
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Usuário não autenticado')
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (!res.ok) throw new Error('Erro ao deletar ordem de serviço')
       // Telemetry: order deleted
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
