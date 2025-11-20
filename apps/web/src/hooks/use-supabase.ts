@@ -332,30 +332,38 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
     const fetchColaboradores = async () => {
       try {
         setLoading(true)
-        const page = opts?.page ?? 1
-        const pageSize = opts?.pageSize ?? 1000
-        const start = (page - 1) * pageSize
-        const end = start + pageSize - 1
-        let query = supabase
-          .from('colaboradores')
-          .select('*', { count: 'exact' })
-          .eq('empresa_id', empresaId)
-          .eq('ativo', true)
-          .order('created_at', { ascending: false })
+        // Pega o token JWT do Supabase
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
 
-        const q = (opts?.search || '').trim()
-        if (q) {
-          const like = `%${q}%`
-          query = query.or(
-            `nome.ilike.${like},funcao.ilike.${like},whatsapp_numero.ilike.${like}`
-          )
+        if (!token) {
+          throw new Error('Usuário não autenticado')
         }
 
-        const { data, error, count } = await query.range(start, end)
-        if (error) throw error
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const search = (opts?.search || '').trim()
+        const params = new URLSearchParams({
+          empresaId,
+          ativo: 'true',
+          page: String(page),
+          pageSize: String(pageSize),
+          ...(search ? { search } : {})
+        })
+
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/colaboradores?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
         
-        setColaboradores(data || [])
-        setCount(count || 0)
+        if (!res.ok) throw new Error('Erro ao buscar colaboradores')
+        const result = await res.json()
+        console.log('[useColaboradores] Resultado do backend:', result)
+        setColaboradores(Array.isArray(result) ? result : [])
+        setCount(Array.isArray(result) ? result.length : 0)
       } catch (err) {
         console.error('[useColaboradores] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar colaboradores')
