@@ -280,28 +280,37 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
     const fetchEquipamentos = async () => {
       try {
         setLoading(true)
-        const page = opts?.page ?? 1
-        const pageSize = opts?.pageSize ?? 1000
-        const start = (page - 1) * pageSize
-        const end = start + pageSize - 1
-        let query = supabase
-          .from('equipamentos')
-          .select('*', { count: 'exact' })
-          .eq('cliente_id', clienteId)
-          .order('created_at', { ascending: false })
+        // Pega o token JWT do Supabase
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
 
-        const q = (opts?.search || '').trim()
-        if (q) {
-          const like = `%${q}%`
-          query = query.or(
-            `tipo.ilike.${like},fabricante.ilike.${like},modelo.ilike.${like},numero_serie.ilike.${like}`
-          )
+        if (!token) {
+          throw new Error('Usuário não autenticado')
         }
 
-        const { data, error, count } = await query.range(start, end)
-        if (error) throw error
-        setEquipamentos(data || [])
-        setCount(count || 0)
+        const page = opts?.page ?? 1
+        const pageSize = opts?.pageSize ?? 1000
+        const search = (opts?.search || '').trim()
+        const params = new URLSearchParams({
+          clienteId,
+          page: String(page),
+          pageSize: String(pageSize),
+          ...(search ? { search } : {})
+        })
+
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!res.ok) throw new Error('Erro ao buscar equipamentos')
+        const result = await res.json()
+        console.log('[useEquipamentos] Resultado do backend:', result)
+        setEquipamentos(result.data || result || [])
+        setCount(result.count || result.length || 0)
       } catch (err) {
         console.error('[useEquipamentos] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar equipamentos')
@@ -313,7 +322,31 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
     fetchEquipamentos()
   }, [clienteId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
-  return { equipamentos, loading, error, count }
+  // NOVO MÉTODO: criar equipamento via backend
+  const createEquipamento = async (equipamento: Omit<Equipamento, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Usuário não autenticado')
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(equipamento)
+      })
+      if (!res.ok) throw new Error('Erro ao criar equipamento')
+      const result = await res.json()
+      setEquipamentos(prev => [result, ...prev])
+      return { data: result, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar equipamento' }
+    }
+  }
+
+  return { equipamentos, loading, error, count, createEquipamento }
 }
 
 export function useColaboradores(empresaId?: string, opts?: { page?: number; pageSize?: number; search?: string; refreshKey?: number }) {
