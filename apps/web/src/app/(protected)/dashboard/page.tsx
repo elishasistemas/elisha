@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
 import { Building2, AlertTriangle, Plus, Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PhoneIncoming, Calendar, PauseCircle, RefreshCw, Check, X } from 'lucide-react'
-import { useAuth, useProfile, useEmpresas, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
+import { useAuth, useProfile, useClientes, useOrdensServico, useColaboradores } from '@/hooks/use-supabase'
 import type { OrdemServico } from '@/lib/supabase'
 import { OrderDialog } from '@/components/order-dialog'
 import { useMemo, useState, useEffect } from 'react'
@@ -98,6 +98,12 @@ export default function DashboardPage() {
   const [periodosChamados, setPeriodosChamados] = useState('7')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
   const [refreshKey, setRefreshKey] = useState(0)
+  const [isHydrated, setIsHydrated] = useState(false)
+  
+  // Marcar como hidratado após primeiro render
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
   
   // Buscar perfil primeiro para determinar empresa correta
   const { profile } = useProfile(user?.id)
@@ -105,14 +111,17 @@ export default function DashboardPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaAtiva = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
-  const { empresas, loading: empresasLoading } = useEmpresas()
-  const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey })
-  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey })
-  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva, { refreshKey })
+  // Otimização: Carregar apenas dados essenciais com paginação reduzida
+  const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey, pageSize: 100 })
+  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey, pageSize: 20, orderBy: 'prioridade' })
+  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva, { refreshKey, pageSize: 50 })
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const isAdmin = profile?.active_role === 'admin'
   const isImpersonating = !!profile?.is_elisha_admin && !!profile?.impersonating_empresa_id
+  
+  // Mostrar loading apenas se ainda não hidratou OU se está carregando após hidratação
+  const isLoading = !isHydrated || clientesLoading || ordensLoading || colaboradoresLoading
   
   // Detectar se é técnico
   const isTecnico = profile?.active_role === 'tecnico'
@@ -396,16 +405,6 @@ export default function DashboardPage() {
     }
   }, [chamadosFiltrados, ordens])
 
-  const isLoading = empresasLoading || ordensLoading || clientesLoading || colaboradoresLoading
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
   const chartConfig = {
     abertas: {
       label: "OS Abertas",
@@ -432,8 +431,17 @@ export default function DashboardPage() {
     setRefreshKey(prev => prev + 1)
   }
 
+  // Evitar flash no F5 - só renderizar após ter dados ou confirmar que está vazio
+  if (!isHydrated) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-pulse text-muted-foreground">Carregando...</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto w-full py-4">
+    <div className="space-y-6 max-w-7xl mx-auto w-full py-4" key={empresaAtiva || 'no-empresa'}>
       {/* Header com Filtro Inline */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className='flex items-center gap-2'>

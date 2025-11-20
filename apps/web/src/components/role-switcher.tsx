@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -12,6 +12,8 @@ import {
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { User } from 'lucide-react'
+import { useAuth } from '@/contexts/auth-context'
+import { dataCache } from '@/lib/cache'
 
 interface RoleSwitcherProps {
   className?: string
@@ -19,30 +21,11 @@ interface RoleSwitcherProps {
 
 export function RoleSwitcher({ className }: RoleSwitcherProps) {
   const [switching, setSwitching] = useState(false)
-  const [currentRole, setCurrentRole] = useState<string | null>(null)
-  const [availableRoles, setAvailableRoles] = useState<string[]>([])
+  const { user, profile } = useAuth()
   const supabase = createSupabaseBrowser()
 
-  // Buscar role atual e disponíveis
-  useEffect(() => {
-    async function loadUserRoles() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('active_role, roles')
-        .eq('user_id', user.id)
-        .single()
-
-      if (profile) {
-        setCurrentRole(profile.active_role)
-        setAvailableRoles(profile.roles || [])
-      }
-    }
-
-    loadUserRoles()
-  }, [supabase])
+  const currentRole = profile?.active_role || null
+  const availableRoles = profile?.roles || []
 
   const handleSwitch = async (newRole: string) => {
     if (newRole === currentRole) return

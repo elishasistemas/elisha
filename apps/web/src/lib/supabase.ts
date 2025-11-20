@@ -162,42 +162,35 @@ function createSupabaseStub() {
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
 
 export function createSupabaseBrowser() {
+  // Retornar instância existente se já foi criada
+  if (browserClient) {
+    return browserClient
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Debug: Log environment variables being used
-  console.log('🔧 [Supabase] Initializing client:', {
-    url: url || '❌ NOT SET',
-    hasAnonKey: !!anon,
-    anonKeyPrefix: anon?.substring(0, 20) + '...' || '❌ NOT SET',
-    nodeEnv: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
-  })
-
   if (!url || !anon) {
-    // Somente log de erro quando faltar configuração
     console.error('[Supabase] Variáveis de ambiente ausentes. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY em .env.local')
-    return createSupabaseStub()
+    // Criar stub apenas uma vez também
+    browserClient = createSupabaseStub() as any
+    return browserClient
   }
 
-  if (!browserClient) {
-    console.log('✅ [Supabase] Creating new browser client with URL:', url)
-    browserClient = createBrowserClient(url, anon, {
-      auth: {
-        // Aumentar tempo de sessão para 7 dias (604800 segundos)
-        // Padrão é 1 hora (3600 segundos)
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        storageKey: 'elisha-auth-token',
+  browserClient = createBrowserClient(url, anon, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      storageKey: 'elisha-auth-token',
+    },
+    global: {
+      headers: {
+        'x-client-info': 'elisha-web-admin',
       },
-      global: {
-        headers: {
-          'x-client-info': 'elisha-web-admin',
-        },
-      },
-    })
-  }
+    },
+  })
+  
   return browserClient
 }

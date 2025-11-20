@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import PWAInstall from "@/components/pwa-install";
+import { AuthProvider } from "@/contexts/auth-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,23 +52,25 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        {/* React Grab - Element Selection Tool (Development Only) */}
-        {process.env.NODE_ENV === "development" && (
-          <Script
-            src="//unpkg.com/react-grab/dist/index.global.js"
-            crossOrigin="anonymous"
-            strategy="beforeInteractive"
-            data-enabled="true"
-          />
-        )}
-        {children}
-        {/* Global toast notifications */}
-        <Toaster richColors position="top-right" closeButton />
-        {/* Vercel Analytics & Speed Insights */}
-        <Analytics />
-        <SpeedInsights />
-        {/* PWA: registro do SW e onboarding de instalação */}
-        <PWAInstall />
+        <AuthProvider>
+          {/* React Grab - Element Selection Tool (Development Only) */}
+          {process.env.NODE_ENV === "development" && (
+            <Script
+              src="//unpkg.com/react-grab/dist/index.global.js"
+              crossOrigin="anonymous"
+              strategy="beforeInteractive"
+              data-enabled="true"
+            />
+          )}
+          {children}
+          {/* Global toast notifications */}
+          <Toaster richColors position="top-right" closeButton />
+          {/* Vercel Analytics & Speed Insights */}
+          <Analytics />
+          <SpeedInsights />
+          {/* PWA: registro do SW e onboarding de instalação */}
+          <PWAInstall />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { useAuth } from '@/contexts/auth-context'
 
 interface UserRoleData {
   activeRole: string | null
@@ -14,83 +14,30 @@ interface UserRoleData {
 
 /**
  * Hook para acessar informações do role ativo do usuário
- * 
- * @example
- * const { activeRole, isAdmin, isTecnico } = useActiveRole()
- * 
- * if (isAdmin) {
- *   // Mostrar controles de admin
- * }
+ * Utiliza AuthContext para evitar requisições duplicadas
  */
 export function useActiveRole(): UserRoleData {
-  const [data, setData] = useState<UserRoleData>({
-    activeRole: null,
-    availableRoles: [],
-    isAdmin: false,
-    isTecnico: false,
-    tecnicoId: null,
-    loading: true
-  })
+  const { profile, loading } = useAuth()
 
-  const supabase = createSupabaseBrowser()
-
-  useEffect(() => {
-    async function loadRoleData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          setData({
-            activeRole: null,
-            availableRoles: [],
-            isAdmin: false,
-            isTecnico: false,
-            tecnicoId: null,
-            loading: false
-          })
-          return
-        }
-
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('active_role, roles, tecnico_id')
-          .eq('user_id', user.id)
-          .single()
-
-        if (error || !profile) {
-          console.error('[useActiveRole] Erro ao carregar profile:', error)
-          setData(prev => ({ ...prev, loading: false }))
-          return
-        }
-
-        setData({
-          activeRole: profile.active_role,
-          availableRoles: profile.roles || [],
-          isAdmin: profile.active_role === 'admin',
-          isTecnico: profile.active_role === 'tecnico',
-          tecnicoId: profile.tecnico_id,
-          loading: false
-        })
-
-      } catch (error) {
-        console.error('[useActiveRole] Erro:', error)
-        setData(prev => ({ ...prev, loading: false }))
-      }
+  if (loading || !profile) {
+    return {
+      activeRole: null,
+      availableRoles: [],
+      isAdmin: false,
+      isTecnico: false,
+      tecnicoId: null,
+      loading
     }
+  }
 
-    loadRoleData()
-
-    // Recarregar quando houver mudança na sessão
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      loadRoleData()
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase])
-
-  return data
+  return {
+    activeRole: profile.active_role,
+    availableRoles: profile.roles || [],
+    isAdmin: profile.active_role === 'admin',
+    isTecnico: profile.active_role === 'tecnico',
+    tecnicoId: profile.tecnico_id,
+    loading: false
+  }
 }
 
 /**

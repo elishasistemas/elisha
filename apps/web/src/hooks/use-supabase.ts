@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 import type { Profile, Empresa, Cliente, Equipamento, Colaborador, OrdemServico } from '@/lib/supabase'
+import { dataCache } from '@/lib/cache'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -48,28 +49,45 @@ export function useProfile(userId?: string) {
   useEffect(() => {
     if (!userId) {
       setLoading(false)
+      setProfile(null)
       return
     }
 
+    let mounted = true
+
     const fetchProfile = async () => {
       try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .single()
+        const cacheKey = `profile:${userId}`
+        
+        // Usar dedupe para evitar requisições duplicadas
+        const data = await dataCache.dedupe(cacheKey, async () => {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .single()
 
-        if (error) throw error
-        setProfile(data)
+          if (error) throw error
+          return data
+        })
+        
+        if (mounted) {
+          setProfile(data)
+          setLoading(false)
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar perfil')
-      } finally {
-        setLoading(false)
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Erro ao carregar perfil')
+          setLoading(false)
+        }
       }
     }
 
     fetchProfile()
+
+    return () => {
+      mounted = false
+    }
   }, [userId, supabase])
 
   return { profile, loading, error }
@@ -82,24 +100,38 @@ export function useEmpresas() {
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
+    let mounted = true
+
     const fetchEmpresas = async () => {
       try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('empresas')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setEmpresas(data || [])
+        // Usar dedupe para evitar requisições duplicadas
+        const data = await dataCache.dedupe('empresas', async () => {
+          const { data, error } = await supabase
+            .from('empresas')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (error) throw error
+          return data || []
+        })
+        
+        if (mounted) {
+          setEmpresas(data)
+          setLoading(false)
+        }
       } catch (err) {
-        console.error('[useEmpresas] Erro:', err)
-        setError(err instanceof Error ? err.message : 'Erro ao carregar empresas')
-      } finally {
-        setLoading(false)
+        if (mounted) {
+          console.error('[useEmpresas] Erro:', err)
+          setError(err instanceof Error ? err.message : 'Erro ao carregar empresas')
+          setLoading(false)
+        }
       }
     }
 
     fetchEmpresas()
+
+    return () => {
+      mounted = false
+    }
   }, [supabase])
 
   const createEmpresa = async (empresa: Omit<Empresa, 'id' | 'created_at'>) => {
@@ -112,6 +144,10 @@ export function useEmpresas() {
 
       if (error) throw error
       setEmpresas(prev => [data, ...prev])
+      
+      // Invalidar cache
+      dataCache.invalidate('empresas')
+      
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar empresa' }
@@ -129,6 +165,10 @@ export function useEmpresas() {
 
       if (error) throw error
       setEmpresas(prev => prev.map(e => e.id === id ? data : e))
+      
+      // Invalidar cache
+      dataCache.invalidate('empresas')
+      
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar empresa' }
@@ -148,6 +188,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
   useEffect(() => {
     if (!empresaId) {
       setLoading(false)
+      setClientes([])
       return
     }
 
