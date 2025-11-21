@@ -7,8 +7,12 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class ColaboradoresService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(empresaId?: string, ativo?: boolean) {
-    let query = this.supabaseService.client
+  async findAll(empresaId?: string, ativo?: boolean, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    let query = client
       .from('colaboradores')
       .select('*')
       .order('created_at', { ascending: false });
@@ -32,8 +36,12 @@ export class ColaboradoresService {
     return data;
   }
 
-  async findOne(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async findOne(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('colaboradores')
       .select('*')
       .eq('id', id)
@@ -45,8 +53,12 @@ export class ColaboradoresService {
     return data;
   }
 
-  async create(dto: CreateColaboradorDto) {
-    const { data, error } = await this.supabaseService.client
+  async create(dto: CreateColaboradorDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('colaboradores')
       .insert([{ ...dto }])
       .select('*')
@@ -59,8 +71,12 @@ export class ColaboradoresService {
     return data;
   }
 
-  async update(id: string, dto: UpdateColaboradorDto) {
-    const { data, error } = await this.supabaseService.client
+  async update(id: string, dto: UpdateColaboradorDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('colaboradores')
       .update({ ...dto, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -74,8 +90,12 @@ export class ColaboradoresService {
     return data;
   }
 
-  async remove(id: string) {
-    const { error } = await this.supabaseService.client
+  async remove(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { error } = await client
       .from('colaboradores')
       .delete()
       .eq('id', id);

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Query, UseGuards, Req } from '@nestjs/common';
 import { ColaboradoresService } from './colaboradores.service';
 import { CreateColaboradorDto } from './dto/create-colaborador.dto';
 import { UpdateColaboradorDto } from './dto/update-colaborador.dto';
@@ -19,40 +19,46 @@ export class ColaboradoresController {
   async findAll(
     @Query('empresaId') empresaId?: string,
     @Query('ativo') ativo?: string,
+    @Req() request?: any,
   ) {
     const ativoBoolean = ativo === 'true' ? true : ativo === 'false' ? false : undefined;
-    return this.colaboradoresService.findAll(empresaId, ativoBoolean);
+    const token = request?.user?.access_token
+    return this.colaboradoresService.findAll(empresaId, ativoBoolean, token);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar colaborador por ID' })
-  async findOne(@Param('id') id: string) {
-    return this.colaboradoresService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.colaboradoresService.findOne(id, token);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar novo colaborador' })
-  async create(@Body() createColaboradorDto: CreateColaboradorDto) {
-    return this.colaboradoresService.create(createColaboradorDto);
+  async create(@Body() createColaboradorDto: CreateColaboradorDto, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.colaboradoresService.create(createColaboradorDto, token);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Atualizar colaborador' })
-  async update(@Param('id') id: string, @Body() updateColaboradorDto: UpdateColaboradorDto) {
-    return this.colaboradoresService.update(id, updateColaboradorDto);
+  async update(@Param('id') id: string, @Body() updateColaboradorDto: UpdateColaboradorDto, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.colaboradoresService.update(id, updateColaboradorDto, token);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deletar colaborador' })
-  async remove(@Param('id') id: string) {
-    return this.colaboradoresService.remove(id);
+  async remove(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.colaboradoresService.remove(id, token);
   }
 }
