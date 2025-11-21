@@ -16,7 +16,6 @@ interface Profile {
   [key: string]: any
 }
 
-
 interface AuthContextData {
   user: User | null
   profile: Profile | null
