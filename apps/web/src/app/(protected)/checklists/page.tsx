@@ -1,5 +1,6 @@
 'use client'
 
+// Force rebuild - Vercel cache issue
 import React, { useState } from 'react'
 import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
