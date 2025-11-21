@@ -8,11 +8,15 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class EquipamentosService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(clienteId?: string, empresaId?: string, ativo?: boolean, page = 1, pageSize = 1000, search?: string) {
+  async findAll(clienteId?: string, empresaId?: string, ativo?: boolean, page = 1, pageSize = 1000, search?: string, accessToken?: string) {
     try {
       console.log('[EquipamentosService] Buscando equipamentos com filtros:', { clienteId, empresaId, ativo, page, pageSize, search });
       
-      let query = this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      let query = client
         .from('equipamentos')
         .select('*', { count: 'exact' });
 
@@ -62,8 +66,12 @@ export class EquipamentosService {
     }
   }
 
-  async findOne(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async findOne(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('equipamentos')
       .select('*')
       .eq('id', id)
@@ -73,8 +81,12 @@ export class EquipamentosService {
     return data;
   }
 
-  async create(createEquipamentoDto: CreateEquipamentoDto) {
-    const { data, error } = await this.supabaseService.client
+  async create(createEquipamentoDto: CreateEquipamentoDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('equipamentos')
       .insert([createEquipamentoDto])
       .select()
@@ -84,8 +96,12 @@ export class EquipamentosService {
     return data;
   }
 
-  async update(id: string, updateEquipamentoDto: UpdateEquipamentoDto) {
-    const { data, error } = await this.supabaseService.client
+  async update(id: string, updateEquipamentoDto: UpdateEquipamentoDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('equipamentos')
       .update(updateEquipamentoDto)
       .eq('id', id)
@@ -96,8 +112,12 @@ export class EquipamentosService {
     return data;
   }
 
-  async remove(id: string) {
-    const { error } = await this.supabaseService.client
+  async remove(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { error } = await client
       .from('equipamentos')
       .delete()
       .eq('id', id);

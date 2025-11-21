@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { EquipamentosService } from './equipamentos.service';
@@ -24,9 +25,10 @@ export class EquipamentosController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar novo equipamento' })
-  create(@Body() createEquipamentoDto: CreateEquipamentoDto) {
+  create(@Body() createEquipamentoDto: CreateEquipamentoDto, @Req() request: any) {
     console.log('[EquipamentosController] POST /equipamentos - Criando equipamento:', createEquipamentoDto);
-    return this.equipamentosService.create(createEquipamentoDto);
+    const token = request.user?.access_token
+    return this.equipamentosService.create(createEquipamentoDto, token);
   }
 
   @Get()
@@ -51,6 +53,7 @@ export class EquipamentosController {
     const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 1000;
     const ativoBoolean = ativo === 'true' ? true : ativo === 'false' ? false : undefined;
 
+    const token = (request as any)?.user?.access_token
     return this.equipamentosService.findAll(
       clienteId,
       empresaId,
@@ -58,6 +61,7 @@ export class EquipamentosController {
       pageNum,
       pageSizeNum,
       search,
+      token,
     );
   }
 
@@ -65,23 +69,26 @@ export class EquipamentosController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar equipamento por ID' })
-  findOne(@Param('id') id: string) {
-    return this.equipamentosService.findOne(id);
+  findOne(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.equipamentosService.findOne(id, token);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Atualizar equipamento' })
-  update(@Param('id') id: string, @Body() updateEquipamentoDto: UpdateEquipamentoDto) {
-    return this.equipamentosService.update(id, updateEquipamentoDto);
+  update(@Param('id') id: string, @Body() updateEquipamentoDto: UpdateEquipamentoDto, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.equipamentosService.update(id, updateEquipamentoDto, token);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remover equipamento' })
-  remove(@Param('id') id: string) {
-    return this.equipamentosService.remove(id);
+  remove(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.equipamentosService.remove(id, token);
   }
 }
