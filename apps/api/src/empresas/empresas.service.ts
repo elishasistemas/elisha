@@ -7,8 +7,12 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class EmpresasService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll() {
-    const { data, error } = await this.supabaseService.client
+  async findAll(accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('empresas')
       .select('*')
       .order('created_at', { ascending: false });
@@ -16,8 +20,12 @@ export class EmpresasService {
     return data;
   }
 
-  async findOne(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async findOne(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('empresas')
       .select('*')
       .eq('id', id)
@@ -26,8 +34,12 @@ export class EmpresasService {
     return data;
   }
 
-  async create(dto: CreateEmpresaDto) {
-    const { data, error } = await this.supabaseService.client
+  async create(dto: CreateEmpresaDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('empresas')
       .insert([{ ...dto }])
       .select('*')

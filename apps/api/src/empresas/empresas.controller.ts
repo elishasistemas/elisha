@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { EmpresasService } from './empresas.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -13,23 +13,26 @@ export class EmpresasController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todas as empresas' })
-  async findAll() {
-    return this.empresasService.findAll();
+  async findAll(@Req() request: any) {
+    const token = request.user?.access_token
+    return this.empresasService.findAll(token);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar empresa por ID' })
-  async findOne(@Param('id') id: string) {
-    return this.empresasService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.empresasService.findOne(id, token);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar nova empresa' })
-  async create(@Body() createEmpresaDto: CreateEmpresaDto) {
-    return this.empresasService.create(createEmpresaDto);
+  async create(@Body() createEmpresaDto: CreateEmpresaDto, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.empresasService.create(createEmpresaDto, token);
   }
 }
