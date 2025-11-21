@@ -3,9 +3,13 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class UsersService {
-    async getUserRoles(userId: string) {
+    async getUserRoles(userId: string, accessToken?: string) {
       try {
-        const { data, error } = await this.supabaseService.client
+        const client = accessToken
+          ? this.supabaseService.createUserClient(accessToken)
+          : this.supabaseService.client
+
+        const { data, error } = await client
           .from('profiles')
           .select('active_role,roles')
           .eq('user_id', userId)
@@ -22,9 +26,13 @@ export class UsersService {
     }
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async getCurrentUser(userId: string) {
+  async getCurrentUser(userId: string, accessToken?: string) {
     try {
-      const { data, error } = await this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      const { data, error } = await client
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -40,9 +48,13 @@ export class UsersService {
     }
   }
 
-  async getUser(userId: string) {
+  async getUser(userId: string, accessToken?: string) {
     try {
-      const { data, error } = await this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      const { data, error } = await client
         .from('profiles')
         .select('id, full_name, email, avatar_url, role, created_at, updated_at')
         .eq('id', userId)
@@ -58,9 +70,13 @@ export class UsersService {
     }
   }
 
-  async getAllUsers() {
+  async getAllUsers(accessToken?: string) {
     try {
-      const { data, error } = await this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      const { data, error } = await client
         .from('profiles')
         .select('id, full_name, email, avatar_url, role, created_at, updated_at')
         .order('created_at', { ascending: false });
