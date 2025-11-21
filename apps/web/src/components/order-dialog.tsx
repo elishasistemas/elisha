@@ -119,8 +119,24 @@ export function OrderDialog({
       try {
         const { createSupabaseBrowser } = await import('@/lib/supabase')
         const supabase = createSupabaseBrowser()
-        const { data } = await supabase.from('equipamentos').select('*').eq('cliente_id', formData.cliente_id).order('created_at', { ascending: false })
-        const list = (data || []) as Equipamento[]
+        
+        // Buscar equipamentos via backend
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) throw new Error('Não autenticado')
+        
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?clienteId=${formData.cliente_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!res.ok) throw new Error('Erro ao buscar equipamentos')
+        const result = await res.json()
+        const list = (result.data || result || []) as Equipamento[]
+        
         setEquipamentosFiltrados(list)
         // Auto-selecionar equipamento ao escolher o cliente no fluxo de criação
         // 1) Se havia um equipamento selecionado que não pertence ao novo cliente, troca para o primeiro disponível
@@ -133,7 +149,8 @@ export function OrderDialog({
             setFormData(prev => ({ ...prev, equipamento_id: list[0].id }))
           }
         }
-      } catch {
+      } catch (err) {
+        console.error('[OrderDialog] Erro ao carregar equipamentos:', err)
         setEquipamentosFiltrados([])
       }
     }

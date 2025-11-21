@@ -38,9 +38,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ChecklistDialog } from '@/components/checklist-dialog'
 import { ChecklistViewDialog } from '@/components/checklist-view-dialog'
-import { useAuth, useEmpresas, useProfile } from '@/hooks/use-supabase'
+import { useAuth, useEmpresas, useProfile, useChecklists } from '@/hooks/use-supabase'
 import { isAdmin } from '@/utils/auth'
-import { createSupabaseBrowser } from '@/lib/supabase'
 import { toast } from 'sonner'
 import type { Checklist } from '@/types/checklist'
 
@@ -68,65 +67,38 @@ export default function ChecklistsPage() {
   // Proteger rota: apenas admin pode acessar
   const { isTecnico } = useAdminRoute()
   
-  const [checklists, setChecklists] = useState<Checklist[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [totalCount, setTotalCount] = useState(0)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [checklistToDelete, setChecklistToDelete] = useState<Checklist | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [viewChecklist, setViewChecklist] = useState<Checklist | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   
-  const supabase = createSupabaseBrowser()
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
   
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
-  const { empresas, loading: empresasLoading } = useEmpresas()
+  const { loading: empresasLoading } = useEmpresas()
   const canAdmin = isAdmin(session, profile)
 
-  // Load checklists
-  const loadChecklists = async () => {
-    if (!empresaId) return
-    
-    try {
-      setLoading(true)
-      const start = (page - 1) * pageSize
-      const end = start + pageSize - 1
-      let query = supabase
-        .from('checklists')
-        .select('*', { count: 'exact' })
-        .eq('empresa_id', empresaId)
-        .order('created_at', { ascending: false })
+  // Usar hook useChecklists
+  const { 
+    checklists, 
+    loading, 
+    count: totalCount,
+    deleteChecklist,
+    updateChecklist,
+    createChecklist 
+  } = useChecklists(empresaId, { page, pageSize, search, refreshKey })
 
-      const q = search.trim()
-      if (q) {
-        const like = `%${q}%`
-        query = query.or(`nome.ilike.${like},tipo_servico.ilike.${like},origem.ilike.${like}`)
-      }
-
-      const { data, error, count } = await query.range(start, end)
-      if (error) throw error
-      setChecklists(data || [])
-      setTotalCount(count || 0)
-    } catch (error) {
-      console.error('Error loading checklists:', error)
-      toast.error('Erro ao carregar checklists')
-    } finally {
-      setLoading(false)
-    }
+  // Refresh helper
+  const loadChecklists = () => {
+    setRefreshKey(prev => prev + 1)
   }
-
-  // Load on mount and when empresaId changes
-  React.useEffect(() => {
-    if (empresaId) {
-      loadChecklists()
-    }
-  }, [empresaId, page, pageSize, search])
 
   // Derived: filtered + paginated
   const total = totalCount
@@ -140,12 +112,9 @@ export default function ChecklistsPage() {
     
     try {
       setDeleting(true)
-      const { error } = await supabase
-        .from('checklists')
-        .delete()
-        .eq('id', checklistToDelete.id)
+      const { error } = await deleteChecklist(checklistToDelete.id)
       
-      if (error) throw error
+      if (error) throw new Error(error)
       
       toast.success('Checklist excluído com sucesso')
       loadChecklists()
@@ -162,20 +131,18 @@ export default function ChecklistsPage() {
   // Duplicate checklist
   const handleDuplicate = async (checklist: Checklist) => {
     try {
-      const { error } = await supabase
-        .from('checklists')
-        .insert({
-          empresa_id: checklist.empresa_id,
-          nome: `${checklist.nome} (Cópia)`,
-          tipo_servico: checklist.tipo_servico,
-          itens: checklist.itens,
-          versao: 1,
-          origem: 'custom',
-          abnt_refs: checklist.abnt_refs,
-          ativo: true
-        })
+      const { error } = await createChecklist({
+        empresa_id: checklist.empresa_id,
+        nome: `${checklist.nome} (Cópia)`,
+        tipo_servico: checklist.tipo_servico,
+        itens: checklist.itens,
+        versao: 1,
+        origem: 'custom',
+        abnt_refs: checklist.abnt_refs,
+        ativo: true
+      })
       
-      if (error) throw error
+      if (error) throw new Error(error)
       
       toast.success('Checklist duplicado com sucesso')
       loadChecklists()
@@ -188,12 +155,9 @@ export default function ChecklistsPage() {
   // Toggle active status
   const handleToggleActive = async (checklist: Checklist) => {
     try {
-      const { error } = await supabase
-        .from('checklists')
-        .update({ ativo: !checklist.ativo })
-        .eq('id', checklist.id)
+      const { error } = await updateChecklist(checklist.id, { ativo: !checklist.ativo })
       
-      if (error) throw error
+      if (error) throw new Error(error)
       
       toast.success(checklist.ativo ? 'Checklist desativado' : 'Checklist ativado')
       loadChecklists()
