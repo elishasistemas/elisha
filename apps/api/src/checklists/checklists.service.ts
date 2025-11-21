@@ -12,13 +12,18 @@ export class ChecklistsService {
     offset = 0,
     limit = 10,
     order = 'created_at.desc',
+    accessToken?: string,
   ) {
     const [orderField, orderDir] = order.split('.');
     const ascending = orderDir !== 'desc';
 
-    let query = this.supabaseService.client
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    let query = client
       .from('checklists')
-      .select('*');
+      .select('*', { count: 'exact' });
 
     if (empresaId) query = query.eq('empresa_id', empresaId);
 
@@ -29,8 +34,12 @@ export class ChecklistsService {
     return { data, count };
   }
 
-  async findOne(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async findOne(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('checklists')
       .select('*')
       .eq('id', id)
@@ -39,8 +48,12 @@ export class ChecklistsService {
     return data;
   }
 
-  async create(dto: CreateChecklistDto) {
-    const { data, error } = await this.supabaseService.client
+  async create(dto: CreateChecklistDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('checklists')
       .insert([{ ...dto }])
       .select('*')
@@ -49,8 +62,12 @@ export class ChecklistsService {
     return data;
   }
 
-  async update(id: string, dto: UpdateChecklistDto) {
-    const { data, error } = await this.supabaseService.client
+  async update(id: string, dto: UpdateChecklistDto, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('checklists')
       .update({ ...dto })
       .eq('id', id)
@@ -60,8 +77,12 @@ export class ChecklistsService {
     return data;
   }
 
-  async remove(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async remove(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('checklists')
       .delete()
       .eq('id', id)

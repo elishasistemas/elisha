@@ -9,6 +9,7 @@ import { EmpresasModule } from './empresas/empresas.module';
 import { ColaboradoresModule } from './colaboradores/colaboradores.module';
 import { EquipamentosModule } from './equipamentos/equipamentos.module';
 import { OrdensServicoModule } from './ordens-servico/ordens-servico.module';
+import { ChecklistsModule } from './checklists/checklists.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { OrdensServicoModule } from './ordens-servico/ordens-servico.module';
     ColaboradoresModule,
     EquipamentosModule,
     OrdensServicoModule,
+    ChecklistsModule,
   ],
 })
 export class AppModule {}
