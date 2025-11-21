@@ -16,6 +16,7 @@ export class OrdensServicoService {
     page = 1,
     pageSize = 10,
     search?: string,
+    accessToken?: string,
   ) {
     try {
       console.log('[OrdensServicoService] Buscando OS com filtros:', {
@@ -34,7 +35,11 @@ export class OrdensServicoService {
         ? 'ordens_servico_enriquecida'
         : 'ordens_servico';
 
-      let query = this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      let query = client
         .from(fromTable)
         .select('*', { count: 'exact' });
 
@@ -103,8 +108,12 @@ export class OrdensServicoService {
     }
   }
 
-  async findOne(id: string) {
-    const { data, error } = await this.supabaseService.client
+  async findOne(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
       .from('ordens_servico')
       .select('*')
       .eq('id', id)
@@ -114,10 +123,14 @@ export class OrdensServicoService {
     return data;
   }
 
-  async create(createOrdemServicoDto: CreateOrdemServicoDto) {
+  async create(createOrdemServicoDto: CreateOrdemServicoDto, accessToken?: string) {
     try {
       console.log('[OrdensServicoService] Criando OS:', createOrdemServicoDto);
-      const { data, error } = await this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      const { data, error } = await client
         .from('ordens_servico')
         .insert([createOrdemServicoDto])
         .select()
@@ -143,10 +156,14 @@ export class OrdensServicoService {
     }
   }
 
-  async update(id: string, updateOrdemServicoDto: UpdateOrdemServicoDto) {
+  async update(id: string, updateOrdemServicoDto: UpdateOrdemServicoDto, accessToken?: string) {
     try {
       console.log('[OrdensServicoService] Atualizando OS:', id, updateOrdemServicoDto);
-      const { data, error } = await this.supabaseService.client
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client
+
+      const { data, error } = await client
         .from('ordens_servico')
         .update(updateOrdemServicoDto)
         .eq('id', id)
@@ -173,8 +190,12 @@ export class OrdensServicoService {
     }
   }
 
-  async remove(id: string) {
-    const { error } = await this.supabaseService.client
+  async remove(id: string, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { error } = await client
       .from('ordens_servico')
       .delete()
       .eq('id', id);

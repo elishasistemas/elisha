@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { OrdensServicoService } from './ordens-servico.service';
@@ -24,9 +25,10 @@ export class OrdensServicoController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar nova ordem de serviço' })
-  create(@Body() createOrdemServicoDto: CreateOrdemServicoDto) {
+  create(@Body() createOrdemServicoDto: CreateOrdemServicoDto, @Req() request: any) {
     console.log('[OrdensServicoController] POST /ordens-servico - Criando OS:', createOrdemServicoDto);
-    return this.ordensServicoService.create(createOrdemServicoDto);
+    const token = request.user?.access_token
+    return this.ordensServicoService.create(createOrdemServicoDto, token);
   }
 
   @Get()
@@ -54,6 +56,7 @@ export class OrdensServicoController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 10;
 
+    const token = request?.user?.access_token
     return this.ordensServicoService.findAll(
       empresaId,
       tecnicoId,
@@ -63,6 +66,7 @@ export class OrdensServicoController {
       pageNum,
       pageSizeNum,
       search,
+      token,
     );
   }
 
@@ -70,23 +74,26 @@ export class OrdensServicoController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar ordem de serviço por ID' })
-  findOne(@Param('id') id: string) {
-    return this.ordensServicoService.findOne(id);
+  findOne(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.findOne(id, token);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Atualizar ordem de serviço' })
-  update(@Param('id') id: string, @Body() updateOrdemServicoDto: UpdateOrdemServicoDto) {
-    return this.ordensServicoService.update(id, updateOrdemServicoDto);
+  update(@Param('id') id: string, @Body() updateOrdemServicoDto: UpdateOrdemServicoDto, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.update(id, updateOrdemServicoDto, token);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remover ordem de serviço' })
-  remove(@Param('id') id: string) {
-    return this.ordensServicoService.remove(id);
+  remove(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.remove(id, token);
   }
 }
