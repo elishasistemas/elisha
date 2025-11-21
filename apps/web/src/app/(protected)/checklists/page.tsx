@@ -267,12 +267,12 @@ export default function ChecklistsPage() {
                     <TableCell className="font-medium">{checklist.nome}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {tipoServicoLabels[checklist.tipo_servico]}
+                        {tipoServicoLabels[checklist.tipo_servico as keyof typeof tipoServicoLabels]}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={origemColors[checklist.origem]}>
-                        {origemLabels[checklist.origem]}
+                      <Badge className={origemColors[checklist.origem as keyof typeof origemColors]}>
+                        {origemLabels[checklist.origem as keyof typeof origemLabels]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
