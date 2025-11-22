@@ -23,7 +23,8 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) return callback(null, true);
       // For debugging, return detailed message for allowed failure
       const msg = `CORS for origin '${origin}' is not allowed. Allowed: ${allowedOrigins.join(', ')}`;
-      return callback(new Error(msg));
+      console.warn('[CORS] Denied origin:', origin);
+      return callback(null, false);
     },
     credentials: true,
   });
