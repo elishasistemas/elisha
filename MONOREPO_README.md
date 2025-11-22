@@ -46,7 +46,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```env
 PORT=3001
 NODE_ENV=development
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3000  # Accepts a single origin or a comma-separated list
+FRONTEND_ALLOW_ALL_ORIGINS=false  # Set to true to allow any origin (useful for debugging, DO NOT use in production)
 NEXT_PUBLIC_SUPABASE_URL=https://wkccxgeevizhxmclvsnz.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_anon_key
 SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key

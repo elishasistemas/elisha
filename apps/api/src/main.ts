@@ -7,10 +7,28 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Configurar CORS para permitir requisições do frontend
+  // Accepts a single origin or a comma-separated list in FRONTEND_URL
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const allowAll = process.env.FRONTEND_ALLOW_ALL_ORIGINS === 'true';
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowAll) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // For debugging, return detailed message for allowed failure
+      const msg = `CORS for origin '${origin}' is not allowed. Allowed: ${allowedOrigins.join(', ')}`;
+      return callback(new Error(msg));
+    },
     credentials: true,
   });
+
+  console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
   // Configurar validação global
   app.useGlobalPipes(
