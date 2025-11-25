@@ -12,7 +12,6 @@ A empresa `6a28d5c5-bce1-4729-a87e-1844ab48b727` tem **4 clientes cadastrados** 
 
 ## Branches Supabase
 
-
 - **PROD (main)**: `wkccxgeevizhxmclvsnz` → Produção (Vercel)
 - **DEV (dev)**: `ecvjgixhcfmkdfbnueqh` → Desenvolvimento (local)
 
