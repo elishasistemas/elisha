@@ -10,8 +10,14 @@ const path = require('path');
 
 async function main() {
   // Ler variáveis de ambiente
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ecvjgixhcfmkdfbnueqh.supabase.co';
-  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjdmpnaXhoY2Zta2RmYm51ZXFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTc0NzU3NCwiZXhwIjoyMDc3MzIzNTc0fQ.EfR2VUvxmbWtCfNgZkoaDTcWxpIpZrTmpy1N9JfovCI';
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    console.error('❌ Erro: Variáveis de ambiente obrigatórias não configuradas!');
+    console.error('   Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY');
+    process.exit(1);
+  }
 
   const migrationFile = process.argv[2] || 'supabase/migrations/20251106000000_add_tipo_equipamento_to_checklists.sql';
   
