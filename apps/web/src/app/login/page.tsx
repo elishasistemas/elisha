@@ -190,7 +190,7 @@ export default function LoginPage() {
             <div>
 
               <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight pb-8">
-               Bem vindo de volta</h3>
+               Bem vindo de volta - ajuste dev</h3>
               {missingEnv ? (
                 <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                   Configuração do Supabase ausente. Defina as variáveis

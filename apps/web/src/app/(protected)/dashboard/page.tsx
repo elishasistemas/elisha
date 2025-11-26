@@ -445,7 +445,7 @@ export default function DashboardPage() {
       {/* Header com Filtro Inline */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className='flex items-center gap-2'>
-          <h2 className='text-2xl font-medium'>Bem vindo de volta</h2>
+          <h2 className='text-2xl font-medium'>Bem vindo de volta - ajuste dev</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button 
