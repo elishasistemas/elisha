@@ -217,12 +217,23 @@ SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key_aqui
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-4. Execute o servidor de desenvolvimento:
+4. Execute o servidor front end de desenvolvimento:
 ```bash
+cd apps/web
 pnpm dev
 ```
-
 Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
+
+5. Execute o servidor backend de desenvolvimento (em outro terminal):
+```bash
+cd apps/api
+npm run start:dev
+```
+Elisha API estará rodando em: http://localhost:3001  
+Documentação Swagger: http://localhost:3001/api/v1/docs
+
+> **💡 Nota:** O ambiente local usa o banco de dados **DEV** do Supabase.  
+> Para configurar produção no Render, consulte [RENDER_SETUP.md](./RENDER_SETUP.md)
 
 ---
 
