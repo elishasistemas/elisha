@@ -29,7 +29,7 @@ export async function PATCH(
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        nome: body.nome,
+        name: body.nome,  // <-- FIX: usar 'name' ao invés de 'nome'
         empresa_id: body.empresa_id || null,
         active_role: body.role,
         roles: [body.role],
@@ -116,7 +116,7 @@ export async function DELETE(
     // Primeiro verificar se o usuário existe no profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, user_id, nome, email')
+      .select('id, user_id, name')  // <-- FIX: usar 'name' ao invés de 'nome' e 'email'
       .eq('user_id', userId)
       .single()
 
@@ -162,7 +162,7 @@ export async function DELETE(
       channel: 'users',
       event: 'User Deleted',
       icon: '🗑️',
-      tags: { user_id: userId, email: profile.email || '' },
+      tags: { user_id: userId, name: profile.name || '' },  // <-- FIX: usar 'name' ao invés de 'email'
       notify: false,
     }).catch(() => {})
     return NextResponse.json({ success: true })

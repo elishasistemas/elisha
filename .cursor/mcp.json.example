@@ -1,0 +1,62 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "resend": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-resend"
+      ],
+      "env": {
+        "RESEND_API_KEY": "<YOUR_RESEND_API_KEY>"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/mau/ws/Elisha-admin"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_GITHUB_TOKEN>"
+      }
+    },
+    "postgres-dev": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres.tbxumetajqwnmbcqpfmr:<YOUR_DEV_PASSWORD>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+      ]
+    },
+    "postgres-prod": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres.pfgaepysyopkbnlaiucd:<YOUR_PROD_PASSWORD>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    }
+  }
+}

@@ -50,11 +50,13 @@ begin
 
   if not v_profile_exists then
     -- Cria profile novo
-    insert into public.profiles (user_id, empresa_id, role, name, email, created_at)
-    values (v_user, v_invite.empresa_id, v_invite.role, v_user_name, v_user_email, now())
+    insert into public.profiles (user_id, empresa_id, role, active_role, roles, name, email, created_at)
+    values (v_user, v_invite.empresa_id, v_invite.role, v_invite.role, ARRAY[v_invite.role], v_user_name, v_user_email, now())
     on conflict (user_id) do update 
     set empresa_id = excluded.empresa_id, 
         role = excluded.role,
+        active_role = excluded.active_role,
+        roles = excluded.roles,
         name = excluded.name,
         email = excluded.email;
   else
@@ -62,6 +64,8 @@ begin
     update public.profiles
     set empresa_id = v_invite.empresa_id,
         role = v_invite.role,
+        active_role = v_invite.role,
+        roles = ARRAY[v_invite.role],
         name = coalesce(name, v_user_name),
         email = coalesce(email, v_user_email)
     where user_id = v_user;
