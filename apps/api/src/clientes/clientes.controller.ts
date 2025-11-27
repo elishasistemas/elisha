@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -34,5 +34,14 @@ export class ClientesController {
   async create(@Body() createClienteDto: CreateClienteDto, @Req() request: any) {
     const token = request.user?.access_token
     return this.clientesService.create(createClienteDto, token);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar cliente' })
+  async update(@Param('id') id: string, @Body() updateClienteDto: Partial<CreateClienteDto>, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.clientesService.update(id, updateClienteDto, token);
   }
 }

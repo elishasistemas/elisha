@@ -190,15 +190,31 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       }
 
       let clienteId: string
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+      // Pegar token do Supabase para autenticação no backend
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        toast.error('Sessão expirada. Faça login novamente.')
+        setLoading(false)
+        return
+      }
 
       if (localMode === 'edit' && cliente) {
-        // Atualizar cliente
-        const { error } = await supabase
-          .from('clientes')
-          .update(clienteData)
-          .eq('id', cliente.id)
+        // Atualizar cliente via API
+        const response = await fetch(`${BACKEND_URL}/api/v1/clientes/${cliente.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(clienteData)
+        })
 
-        if (error) throw error
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.message || 'Erro ao atualizar cliente')
+        }
 
         clienteId = cliente.id
         // Telemetry
@@ -208,16 +224,22 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           body: JSON.stringify({ channel: 'clients', event: 'Client Updated', icon: '✏️', tags: { cliente_id: cliente.id } }),
         }).catch(() => {})
       } else {
-        // Criar novo cliente
-        const { data: newCliente, error } = await supabase
-          .from('clientes')
-          .insert([clienteData])
-          .select('id')
-          .single()
+        // Criar novo cliente via API
+        const response = await fetch(`${BACKEND_URL}/api/v1/clientes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(clienteData)
+        })
 
-        if (error) throw error
-        if (!newCliente) throw new Error('Erro ao criar cliente')
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.message || 'Erro ao criar cliente')
+        }
 
+        const newCliente = await response.json()
         clienteId = newCliente.id
         // Telemetry
         fetch('/api/telemetry/logsnag', {

@@ -47,4 +47,19 @@ export class ClientesService {
     if (error) throw new NotFoundException('Erro ao criar cliente');
     return data;
   }
+
+  async update(id: string, dto: Partial<CreateClienteDto>, accessToken?: string) {
+    const client = accessToken
+      ? this.supabaseService.createUserClient(accessToken)
+      : this.supabaseService.client
+
+    const { data, error } = await client
+      .from('clientes')
+      .update(dto)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new NotFoundException('Erro ao atualizar cliente');
+    return data;
+  }
 }
