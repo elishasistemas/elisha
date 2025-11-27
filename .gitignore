@@ -74,6 +74,7 @@ web_modules/
 !.env.example
 !.env.development
 !.env.production
+!.env.mcp.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -168,3 +169,7 @@ next-env.d.ts
 
 # changelog
 CHANGELOG.md
+
+# MCP credentials
+.env.mcp
+.cursor/mcp.json
