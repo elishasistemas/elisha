@@ -5,6 +5,7 @@ import { createSupabaseBrowser } from '@/lib/supabase'
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 import type { Profile, Empresa, Cliente, Equipamento, Colaborador, OrdemServico } from '@/lib/supabase'
 import { dataCache } from '@/lib/cache'
+import apiClient from '@/lib/api-client'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -61,14 +62,12 @@ export function useProfile(userId?: string) {
         
         // Usar dedupe para evitar requisições duplicadas
         const data = await dataCache.dedupe(cacheKey, async () => {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', userId)
-            .single()
+          // Buscar token do usuário autenticado
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token
 
-          if (error) throw error
-          return data
+          // Chamar backend em vez de Supabase direto
+          return await apiClient.profiles.getByUserId(userId, token)
         })
         
         if (mounted) {
@@ -106,16 +105,16 @@ export function useEmpresas() {
       try {
         // Usar dedupe para evitar requisições duplicadas
         const data = await dataCache.dedupe('empresas', async () => {
-          const { data, error } = await supabase
-            .from('empresas')
-            .select('*')
-            .order('created_at', { ascending: false })
-          if (error) throw error
-          return data || []
+          // Buscar token do usuário autenticado
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token
+
+          // Chamar backend em vez de Supabase direto
+          return await apiClient.empresas.list(token)
         })
         
         if (mounted) {
-          setEmpresas(data)
+          setEmpresas(data || [])
           setLoading(false)
         }
       } catch (err) {
@@ -136,13 +135,10 @@ export function useEmpresas() {
 
   const createEmpresa = async (empresa: Omit<Empresa, 'id' | 'created_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('empresas')
-        .insert([empresa])
-        .select()
-        .single()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-      if (error) throw error
+      const data = await apiClient.empresas.create(empresa, token)
       setEmpresas(prev => [data, ...prev])
       
       // Invalidar cache
@@ -156,6 +152,10 @@ export function useEmpresas() {
 
   const updateEmpresa = async (id: string, updates: Partial<Omit<Empresa, 'id' | 'created_at'>>) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      // Nota: backend precisa de endpoint PATCH /empresas/:id
       const { data, error } = await supabase
         .from('empresas')
         .update(updates)
