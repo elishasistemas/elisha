@@ -556,7 +556,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <DialogTitle>{isView ? 'Visualizar Cliente' : mode === 'edit' ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
+              <DialogTitle>{isView ? 'Detalhe do Cliente' : mode === 'edit' ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
               <DialogDescription>
                 {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações do cliente abaixo.' : 'Preencha os dados do novo cliente abaixo.')}
               </DialogDescription>
