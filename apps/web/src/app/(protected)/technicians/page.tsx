@@ -54,6 +54,7 @@ export default function TechniciansPage() {
   const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'inativos'>('ativos')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [viewTec, setViewTec] = useState<Colaborador | null>(null)
@@ -68,7 +69,16 @@ export default function TechniciansPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const list = colaboradores
+    let list = colaboradores
+    
+    // Filtrar por status
+    if (statusFilter === 'ativos') {
+      list = list.filter(c => c.ativo)
+    } else if (statusFilter === 'inativos') {
+      list = list.filter(c => !c.ativo)
+    }
+    
+    // Filtrar por busca
     if (!q) return list
     return list.filter((t) => {
       return (
@@ -77,7 +87,7 @@ export default function TechniciansPage() {
         (t.whatsapp_numero || '').toLowerCase().includes(q)
       )
     })
-  }, [colaboradores, search])
+  }, [colaboradores, search, statusFilter])
 
   const total = useMemo(() => filtered.filter(c => c.ativo).length, [filtered])
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
@@ -92,15 +102,27 @@ export default function TechniciansPage() {
 
   const handleToggleAtivo = async (colaborador: Colaborador) => {
     try {
-      const result = await toggleAtivoColaborador(colaborador.id, !colaborador.ativo)
+      const result = await toggleAtivoColaborador(colaborador.id, !colaborador.ativo) as any
       if (result.error) {
-        toast.error(result.error)
+        if (result.hasActiveOS) {
+          // Erro mais específico para OSs em andamento
+          toast.error(result.error, {
+            duration: 8000,
+            description: 'Finalize ou reatribua as OSs pendentes antes de desativar.',
+          })
+        } else {
+          toast.error(result.error)
+        }
       } else {
-        toast.success(colaborador.ativo ? 'Técnico desativado' : 'Técnico ativado')
+        // Se desativou um técnico e o filtro está em "ativos", mudar para "todos"
+        if (colaborador.ativo && statusFilter === 'ativos') {
+          setStatusFilter('todos')
+        }
+        toast.success(colaborador.ativo ? 'Técnico desativado com sucesso' : 'Técnico ativado com sucesso')
         handleRefresh()
       }
     } catch (error) {
-      toast.error('Erro ao alterar status')
+      toast.error('Erro ao alterar status do técnico')
     }
   }
 
@@ -143,6 +165,14 @@ export default function TechniciansPage() {
               <CardDescription>{total} ativos</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1) }}>
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativos">Ativos</SelectItem>
+                  <SelectItem value="inativos">Inativos</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
               <Input
                 placeholder="Buscar por nome, função ou WhatsApp"
                 value={search}

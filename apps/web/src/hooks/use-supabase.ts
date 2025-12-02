@@ -419,7 +419,6 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         const search = (opts?.search || '').trim()
         const params = new URLSearchParams({
           empresaId,
-          ativo: 'true',
           page: String(page),
           pageSize: String(pageSize),
           ...(search ? { search } : {})
@@ -496,6 +495,28 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
   const toggleAtivoColaborador = async (id: string, ativo: boolean) => {
     try {
+      // Se estiver desativando, verificar se há OSs em andamento
+      if (!ativo) {
+        const { data: osEmAndamento, error: osError } = await supabase
+          .from('ordens_servico')
+          .select('id, numero_os, status')
+          .eq('tecnico_id', id)
+          .in('status', ['novo', 'em_andamento', 'aguardando_assinatura'])
+          .limit(5)
+
+        if (osError) {
+          console.error('Erro ao verificar OSs:', osError)
+        } else if (osEmAndamento && osEmAndamento.length > 0) {
+          const osNums = osEmAndamento.map(os => os.numero_os || os.id.slice(0, 8)).join(', ')
+          return { 
+            data: null, 
+            error: `Técnico possui ${osEmAndamento.length} OS(s) em andamento (${osNums}). Por favor, finalize ou reatribua estas OSs antes de desativar o técnico.`,
+            hasActiveOS: true,
+            activeOS: osEmAndamento
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('colaboradores')
         .update({ ativo })
@@ -504,7 +525,10 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         .single()
 
       if (error) throw error
-      setColaboradores(prev => prev.map(c => c.id === id ? data : c))
+      
+      // Atualizar o estado local imediatamente para feedback rápido
+      setColaboradores(prev => prev.map(c => c.id === id ? { ...c, ativo } : c))
+      
       // Telemetry: technician toggled
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
