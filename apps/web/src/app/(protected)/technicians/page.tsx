@@ -39,19 +39,22 @@ export default function TechniciansPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
-  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId)
-  const canAdmin = isAdmin(session, profile)
+  // Estados (declarar antes de usar)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [viewTec, setViewTec] = useState<Colaborador | null>(null)
+  
+  // Hooks que dependem dos estados
+  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
+  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId, { refreshKey })
+  const canAdmin = isAdmin(session, profile)
 
   const isLoading = empresasLoading || loading
   const hasError = empresasError || error
-  const [viewTec, setViewTec] = useState<Colaborador | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
