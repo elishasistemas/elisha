@@ -36,13 +36,71 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
     setLocalMode(mode)
   }, [defaultOpen, colaborador?.id, mode])
 
+  const handleChange = (field: string, value: string) => {
+    if (isView) return
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const formatPhone = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '')
+    
+    // Limita a 11 dígitos (DDD + 9 dígitos)
+    const limited = numbers.slice(0, 11)
+    
+    // Aplica a máscara (99)99999-9999
+    if (limited.length <= 2) {
+      return limited
+    } else if (limited.length <= 7) {
+      return `(${limited.slice(0, 2)})${limited.slice(2)}`
+    } else {
+      return `(${limited.slice(0, 2)})${limited.slice(2, 7)}-${limited.slice(7)}`
+    }
+  }
+
+  const formatWhatsApp = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '')
+    
+    // Limita a 11 dígitos (DDD + 9 dígitos)
+    const limited = numbers.slice(0, 11)
+    
+    // Aplica a máscara (99)99999-9999
+    if (limited.length <= 2) {
+      return limited
+    } else if (limited.length <= 7) {
+      return `(${limited.slice(0, 2)})${limited.slice(2)}`
+    } else {
+      return `(${limited.slice(0, 2)})${limited.slice(2, 7)}-${limited.slice(7)}`
+    }
+  }
+
   // Form state
   const [formData, setFormData] = useState({
     nome: colaborador?.nome || '',
     funcao: colaborador?.funcao || '',
-    telefone: colaborador?.telefone || '',
-    whatsapp_numero: colaborador?.whatsapp_numero || '',
+    telefone: colaborador?.telefone ? formatPhone(colaborador.telefone) : '',
+    whatsapp_numero: colaborador?.whatsapp_numero ? formatWhatsApp(colaborador.whatsapp_numero) : '',
   })
+
+  // Atualizar formData quando colaborador mudar
+  useEffect(() => {
+    if (colaborador) {
+      setFormData({
+        nome: colaborador.nome || '',
+        funcao: colaborador.funcao || '',
+        telefone: colaborador.telefone ? formatPhone(colaborador.telefone) : '',
+        whatsapp_numero: colaborador.whatsapp_numero ? formatWhatsApp(colaborador.whatsapp_numero) : '',
+      })
+    } else {
+      setFormData({
+        nome: '',
+        funcao: '',
+        telefone: '',
+        whatsapp_numero: '',
+      })
+    }
+  }, [colaborador?.id])
 
   // Accordions com persistência
   const [secPessoais, setSecPessoais] = useState(true)
@@ -56,30 +114,6 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
     } catch {}
   }, [open])
   const persist = (name: string, val: boolean) => { try { localStorage.setItem(key(name), val ? '1' : '0') } catch {} }
-
-  const handleChange = (field: string, value: string) => {
-    if (isView) return
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 11) {
-      return numbers
-        .replace(/^(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{5})(\d)/, '$1-$2')
-    }
-    return value
-  }
-
-  const formatWhatsApp = (value: string) => {
-    // WhatsApp format: 5581998765432 (country code + area code + number)
-    const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 13) {
-      return numbers
-    }
-    return value
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,8 +142,8 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         empresa_id: empresaId,
         nome: formData.nome.trim(),
         funcao: formData.funcao.trim() || null,
-        telefone: formData.telefone.trim() || null,
-        whatsapp_numero: formData.whatsapp_numero.replace(/\D/g, ''), // Apenas números
+        telefone: formData.telefone.replace(/\D/g, '') || null, // Salva apenas números
+        whatsapp_numero: formData.whatsapp_numero.replace(/\D/g, ''), // Salva apenas números
         ativo: true,
       }
 
@@ -245,10 +279,11 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                       id="telefone"
                       value={formData.telefone}
                       onChange={(e) => handleChange('telefone', formatPhone(e.target.value))}
-                      placeholder="(00) 00000-0000"
+                      placeholder="(99)99999-9999"
+                      maxLength={14}
                       disabled={isView}
                     />
-                    <p className="text-xs text-muted-foreground">Telefone comercial ou pessoal</p>
+                    <p className="text-xs text-muted-foreground">Formato: (DDD)Número</p>
                   </div>
 
                   <div className="space-y-2">
@@ -259,12 +294,13 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                       id="whatsapp_numero"
                       value={formData.whatsapp_numero}
                       onChange={(e) => handleChange('whatsapp_numero', formatWhatsApp(e.target.value))}
-                      placeholder="5581998765432"
+                      placeholder="(99)99999-9999"
+                      maxLength={14}
                       required
                       disabled={isView}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Apenas números: código do país (55) + DDD + número
+                      Formato: (DDD)Número
                     </p>
                   </div>
                 </div>

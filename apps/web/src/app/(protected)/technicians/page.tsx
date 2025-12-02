@@ -32,6 +32,16 @@ import { MoreHorizontal, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Colaborador } from '@/lib/supabase'
 
+// Função para formatar telefone com máscara
+const formatPhoneDisplay = (phone: string | null | undefined) => {
+  if (!phone) return '-'
+  const numbers = phone.replace(/\D/g, '')
+  if (numbers.length === 11) {
+    return `(${numbers.slice(0, 2)})${numbers.slice(2, 7)}-${numbers.slice(7)}`
+  }
+  return phone
+}
+
 export default function TechniciansPage() {
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -181,8 +191,8 @@ export default function TechniciansPage() {
                   <TableRow key={t.id} className="cursor-pointer" onClick={() => setViewTec(t)}>
                     <TableCell className="font-medium">{t.nome}</TableCell>
                     <TableCell>{t.funcao || '-'}</TableCell>
-                    <TableCell>{t.telefone || '-'}</TableCell>
-                    <TableCell>{t.whatsapp_numero}</TableCell>
+                    <TableCell>{formatPhoneDisplay(t.telefone)}</TableCell>
+                    <TableCell>{formatPhoneDisplay(t.whatsapp_numero)}</TableCell>
                     <TableCell>
                       <Badge variant={t.ativo ? 'default' : 'outline'}>
                         {t.ativo ? 'Ativo' : 'Inativo'}
