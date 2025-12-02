@@ -11,7 +11,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Plus, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
-import type { Checklist } from '@/types/checklist'
 
 interface OrderDialogProps {
   empresaId: string
@@ -57,9 +56,6 @@ export function OrderDialog({
     // Garantir que o modo local reflita o prop ao abrir/alterar
     setLocalMode(mode)
   }, [defaultOpen, ordem?.id, mode])
-  const [allChecklists, setAllChecklists] = useState<Checklist[]>([])
-  const [filteredTemplates, setFilteredTemplates] = useState<Checklist[]>([])
-  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -68,8 +64,6 @@ export function OrderDialog({
     tecnico_id: ordem?.tecnico_id || '',
     tipo: ordem?.tipo || defaultTipo || 'preventiva',
     prioridade: ordem?.prioridade || 'media',
-    status: ordem?.status || 'novo',
-    data_programada: ordem?.data_programada ? ordem.data_programada.split('T')[0] : '',
     observacoes: ordem?.observacoes || '',
     numero_os: ordem?.numero_os || '',
     data_abertura: new Date().toISOString().slice(0,16),
@@ -79,7 +73,7 @@ export function OrderDialog({
   // Filtrar equipamentos do cliente selecionado
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([])
   
-  // Sincronizar formData quando ordem muda (importante para refletir status atualizado)
+  // Sincronizar formData quando ordem muda (importante para refletir dados atualizados)
   useEffect(() => {
     if (ordem) {
       setFormData({
@@ -88,15 +82,13 @@ export function OrderDialog({
         tecnico_id: ordem.tecnico_id || '',
         tipo: ordem.tipo || defaultTipo || 'preventiva',
         prioridade: ordem.prioridade || 'media',
-        status: ordem.status || 'novo',
-        data_programada: ordem.data_programada ? ordem.data_programada.split('T')[0] : '',
         observacoes: ordem.observacoes || '',
         numero_os: ordem.numero_os || '',
         data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0,16) : new Date().toISOString().slice(0,16),
         quem_solicitou: ordem.quem_solicitou || '',
       })
     }
-  }, [ordem?.id, ordem?.status, ordem?.tecnico_id, defaultTipo])
+  }, [ordem?.id, ordem?.tecnico_id, defaultTipo])
   
   // Accordion com persistência (shadcn)
   const accKey = (s: string) => `order_dialog:${s}`
@@ -157,44 +149,6 @@ export function OrderDialog({
     loadEquip()
   }, [formData.cliente_id])
 
-  // Load checklists when dialog opens (create mode)
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const { createSupabaseBrowser } = await import('@/lib/supabase')
-        const supabase = createSupabaseBrowser()
-        const { data, error } = await supabase
-          .from('checklists')
-          .select('*')
-          .eq('empresa_id', empresaId)
-          .eq('ativo', true)
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setAllChecklists(data || [])
-      } catch (err) {
-        console.error('[OrderDialog] Erro ao carregar templates:', err)
-      }
-    }
-    if (open) load()
-  }, [open, empresaId])
-
-  // Filter templates by OS type and auto-select default
-  useEffect(() => {
-    const tipo = formData.tipo as Checklist['tipo_servico']
-    const list = allChecklists.filter(c => c.tipo_servico === tipo || c.tipo_servico === 'todos')
-    setFilteredTemplates(list)
-    if (!selectedChecklistId) {
-      const preferred = list.find(c => c.tipo_servico === tipo) || list[0] || null
-      setSelectedChecklistId(preferred ? preferred.id : null)
-    } else {
-      // Ensure currently selected is in filtered list; otherwise, switch
-      if (!list.some(c => c.id === selectedChecklistId)) {
-        const preferred = list.find(c => c.tipo_servico === tipo) || list[0] || null
-        setSelectedChecklistId(preferred ? preferred.id : null)
-      }
-    }
-  }, [allChecklists, formData.tipo, selectedChecklistId])
-
   const handleChange = (field: string, value: string) => {
     if (isView) return
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -230,9 +184,8 @@ export function OrderDialog({
         tecnico_id: formData.tecnico_id || null,
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
-        status: formData.status as 'novo' | 'em_deslocamento' | 'checkin' | 'em_andamento' | 'checkout' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado' | 'reaberta',
+        status: 'novo' as const,
         data_abertura: formData.data_abertura ? new Date(formData.data_abertura).toISOString() : new Date().toISOString(),
-        data_programada: formData.data_programada ? new Date(formData.data_programada).toISOString() : null,
         observacoes: formData.observacoes?.trim() || null,
         numero_os: formData.numero_os.trim() || null,
         quem_solicitou: formData.quem_solicitou?.trim() || null,
@@ -274,30 +227,6 @@ export function OrderDialog({
             body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id } }),
           }).catch(() => {})
         }
-
-        // Vincular checklist template (opcional)
-        if (data?.id && selectedChecklistId) {
-          try {
-            const resp = await fetch(`/api/os/${data.id}/start-checklist`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ checklistId: selectedChecklistId })
-            })
-            if (resp.ok) {
-              toast.success('Checklist vinculado à OS')
-              // Telemetry
-              fetch('/api/telemetry/logsnag', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: 'orders', event: 'Checklist Linked', icon: '🧩', tags: { os_id: data?.id, checklist_id: selectedChecklistId } }),
-              }).catch(() => {})
-            } else {
-              console.warn('Falha ao iniciar checklist para OS')
-            }
-          } catch (e) {
-            console.warn('Erro ao iniciar checklist para OS', e)
-          }
-        }
       }
 
       setOpen(false)
@@ -310,8 +239,6 @@ export function OrderDialog({
         tecnico_id: '',
         tipo: 'preventiva',
         prioridade: 'media',
-        status: 'novo',
-        data_programada: '',
         observacoes: '',
         numero_os: '',
         data_abertura: new Date().toISOString().slice(0,16),
@@ -404,7 +331,7 @@ export function OrderDialog({
             <AccordionItem value="detalhes">
               <AccordionTrigger>Detalhes da Ordem</AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
                 <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
@@ -433,27 +360,6 @@ export function OrderDialog({
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="novo">Nova</SelectItem>
-                    <SelectItem value="em_deslocamento">Em Deslocamento</SelectItem>
-                    <SelectItem value="checkin">No Local</SelectItem>
-                    <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                    <SelectItem value="checkout">Finalizado</SelectItem>
-                    <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                    <SelectItem value="concluido">Concluída</SelectItem>
-                    <SelectItem value="cancelado">Cancelada</SelectItem>
-                    <SelectItem value="parado">Parado</SelectItem>
-                    <SelectItem value="reaberta">Reaberta</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="space-y-2">
@@ -475,17 +381,8 @@ export function OrderDialog({
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="data_programada">Data Programada</Label>
-                <Input
-                  id="data_programada"
-                  type="date"
-                  value={formData.data_programada}
-                  onChange={(e) => handleChange('data_programada', e.target.value)}
-                  disabled={isView}
-                />
-              </div>
+                </div>
+                <div className="space-y-2 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
                 <Input
@@ -519,40 +416,6 @@ export function OrderDialog({
                 </div>
               </AccordionContent>
             </AccordionItem>
-
-          {/* Checklist Template (Create mode) */}
-          {mode === 'create' && !isView && (
-            <AccordionItem value="checklist">
-              <AccordionTrigger>Checklist</AccordionTrigger>
-              <AccordionContent>
-              <div className="space-y-2">
-                <Label htmlFor="checklist_id">Template sugerido pelo tipo</Label>
-                <Select
-                  value={selectedChecklistId || '__none__'}
-                  onValueChange={(value) => setSelectedChecklistId(value === '__none__' ? null : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={filteredTemplates.length ? 'Selecione o template' : 'Nenhum template disponível'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredTemplates.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">Nenhum template encontrado para este tipo</div>
-                    ) : (
-                      filteredTemplates.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.nome} · v{t.versao} · {t.origem === 'abnt' ? 'ABNT' : t.origem === 'elisha' ? 'Elisha' : 'Personalizado'}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Selecionamos automaticamente com base no tipo da OS. Você pode trocar se preferir.
-                </p>
-               </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
 
           {/* Observações */}
           <AccordionItem value="observacoes">

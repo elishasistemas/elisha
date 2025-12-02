@@ -376,18 +376,17 @@ export default function DashboardPage() {
       o.status === 'concluido' || o.status === 'cancelado'
     ).length
 
-    // Indicador 2: Preventivas Programadas do Dia
-    const hoje = new Date().toISOString().split('T')[0]
-    let preventivasHoje = ordens.filter(o => 
-      o.tipo === 'preventiva' && o.data_programada === hoje
+    // Indicador 2: Preventivas Programadas (Total de preventivas)
+    let preventivasTotal = ordens.filter(o => 
+      o.tipo === 'preventiva'
     )
     
     // Se for técnico, filtrar apenas suas OS
     if (isTecnico && tecnicoId) {
-      preventivasHoje = preventivasHoje.filter(o => o.tecnico_id === tecnicoId)
+      preventivasTotal = preventivasTotal.filter(o => o.tecnico_id === tecnicoId)
     }
-    const preventivasProgramadas = preventivasHoje.length
-    const preventivasConcluidas = preventivasHoje.filter(o => o.status === 'concluido').length
+    const preventivasProgramadas = preventivasTotal.length
+    const preventivasConcluidas = preventivasTotal.filter(o => o.status === 'concluido').length
     const percentualConcluidas = preventivasProgramadas > 0 
       ? Math.round((preventivasConcluidas / preventivasProgramadas) * 100) 
       : 0
@@ -534,19 +533,19 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Card 2: Preventivas Programadas do Dia */}
+        {/* Card 2: Preventivas Totais */}
         <Card className="shadow-none gap-2">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </div>
-              <CardTitle className="text-base font-semibold">Preventivas Hoje</CardTitle>
+              <CardTitle className="text-base font-semibold">Preventivas</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 justify-between flex-col h-full flex">
             <div>
-              <p className="text-xs text-muted-foreground">Programadas</p>
+              <p className="text-xs text-muted-foreground">Total</p>
               <div className="text-3xl font-medium">{stats.preventivasProgramadas}</div>
             </div>
             <div className="space-y-2">
