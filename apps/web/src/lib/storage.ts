@@ -39,15 +39,13 @@ export function validateImageUrl(url: string): ImageValidation {
 }
 
 /**
- * Upload de logo da empresa para Supabase Storage
+ * Upload de logo da empresa para o backend
  */
 export async function uploadCompanyLogo(
   file: File,
   empresaId: string
 ): Promise<UploadResult> {
   try {
-    const supabase = createSupabaseBrowser()
-
     // Validar tipo de arquivo
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
     if (!allowedTypes.includes(file.type)) {
@@ -66,34 +64,45 @@ export async function uploadCompanyLogo(
       }
     }
 
-    // Gerar nome único para o arquivo
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${empresaId}-logo-${Date.now()}.${fileExt}`
-    const filePath = `empresas/logos/${fileName}`
-
-    // Upload para Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('empresas')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      })
-
-    if (error) {
+    // Obter token de autenticação
+    const supabase = createSupabaseBrowser()
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.access_token) {
       return {
         success: false,
-        error: `Erro no upload: ${error.message}`
+        error: 'Usuário não autenticado'
       }
     }
 
-    // Obter URL pública
-    const { data: urlData } = supabase.storage
-      .from('empresas')
-      .getPublicUrl(filePath)
+    // Preparar FormData para upload
+    const formData = new FormData()
+    formData.append('file', file)
 
+    // Fazer upload para o backend
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    const response = await fetch(`${apiUrl}/api/v1/empresas/${empresaId}/logo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
+      return {
+        success: false,
+        error: `Erro no upload: ${errorData.message || response.statusText}`
+      }
+    }
+
+    const data = await response.json()
+    
+    // Backend retorna a URL completa do Supabase Storage
     return {
       success: true,
-      url: urlData.publicUrl
+      url: data.logo_url
     }
   } catch (error) {
     return {
