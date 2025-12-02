@@ -138,7 +138,7 @@ export default function ChecklistsPage() {
         tipo_servico: checklist.tipo_servico,
         itens: checklist.itens,
         versao: 1,
-        origem: 'custom',
+        origem: checklist.origem,
         abnt_refs: checklist.abnt_refs,
         ativo: true
       })

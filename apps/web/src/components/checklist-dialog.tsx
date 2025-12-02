@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Loader2, Trash2, MoveUp, MoveDown, CheckSquare } from 'lucide-react'
-import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 import { toast } from 'sonner'
 import type { Checklist, ChecklistItem, TipoServico, OrigemChecklist, TipoItem } from '@/types/checklist'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -75,8 +75,6 @@ export function ChecklistDialog({
   const [origem, setOrigem] = useState<OrigemChecklist>('custom')
   const [abntRefs, setAbntRefs] = useState('')
   const [itens, setItens] = useState<ChecklistItem[]>([])
-
-  const supabase = createSupabaseBrowser()
 
   // Load existing data when editing
   useEffect(() => {
@@ -174,22 +172,17 @@ export function ChecklistDialog({
         versao: mode === 'edit' ? (checklist?.versao || 1) + 1 : 1,
       }
 
-      let error
+      // Pegar token de autenticação
+      const { createSupabaseBrowser } = await import('@/lib/supabase')
+      const supabase = createSupabaseBrowser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
       if (mode === 'edit' && checklist) {
-        const result = await supabase
-          .from('checklists')
-          .update(data)
-          .eq('id', checklist.id)
-        error = result.error
+        await apiClient.checklists.update(checklist.id, data, token)
       } else {
-        const result = await supabase
-          .from('checklists')
-          .insert(data)
-        error = result.error
+        await apiClient.checklists.create(data, token)
       }
-
-      if (error) throw error
 
       toast.success(
         mode === 'edit' 
