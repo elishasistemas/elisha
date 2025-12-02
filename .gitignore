@@ -173,3 +173,6 @@ CHANGELOG.md
 # MCP credentials
 .env.mcp
 .cursor/mcp.json
+
+# Uploads folder
+apps/api/uploads/
