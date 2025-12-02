@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   // Evita heurística errada de monorepo que pode causar falhas de chunks em dev/build
-  outputFileTracingRoot: path.join(__dirname),
+  // Deve ser o mesmo que `turbopack.root` para evitar conflito de resolução
+  outputFileTracingRoot: path.resolve(__dirname, '..', '..'),
   // Ensure Turbopack resolves the correct monorepo root (avoids wrong root
   // inference when there are lockfiles elsewhere on the machine).
   turbopack: {
