@@ -326,7 +326,13 @@ export default function OrdersPage() {
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   return (
                     <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
-                      <TableCell className="font-medium">{ordem.numero_os || ordem.id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-medium">
+                        {ordem.numero_os ? (
+                          ordem.numero_os
+                        ) : (
+                          <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
+                        )}
+                      </TableCell>
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
                       <TableCell className="text-muted-foreground">

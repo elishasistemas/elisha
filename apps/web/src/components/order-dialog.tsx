@@ -350,7 +350,12 @@ export function OrderDialog({
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <DialogTitle>{isView ? 'Visualizar Ordem de Serviço' : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')}</DialogTitle>
+              <DialogTitle>
+                {isView 
+                  ? (formData.numero_os || 'Ordem de Serviço sem número') 
+                  : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
+                }
+              </DialogTitle>
               <DialogDescription>
                 {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
               </DialogDescription>
@@ -493,14 +498,14 @@ export function OrderDialog({
               </div>
                 </div>
                 <div className="space-y-2 mt-4">
-              <Label htmlFor="numero_os">Número da OS (opcional)</Label>
-              <Input
-                id="numero_os"
-                value={formData.numero_os}
-                onChange={(e) => handleChange('numero_os', e.target.value)}
-                placeholder="Ex: OS-2024-001"
-                disabled={isView}
-              />
+                  <Label htmlFor="numero_os">Número da OS (opcional)</Label>
+                  <Input
+                    id="numero_os"
+                    value={formData.numero_os}
+                    onChange={(e) => handleChange('numero_os', e.target.value)}
+                    placeholder="Ex: OS-2024-001"
+                    disabled={isView}
+                  />
                 </div>
                 <div className="space-y-2 mt-2">
               <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>

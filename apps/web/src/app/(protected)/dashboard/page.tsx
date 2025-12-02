@@ -733,7 +733,11 @@ export default function DashboardPage() {
                   return (
                     <TableRow key={ordem.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">
-                        {ordem.numero_os || ordem.id.slice(0, 8)}
+                        {ordem.numero_os ? (
+                          ordem.numero_os
+                        ) : (
+                          <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
+                        )}
                       </TableCell>
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
