@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { Separator } from '@/components/ui/separator'
@@ -30,17 +31,17 @@ export default function ProtectedLayout({
           router.replace('/login')
           setHasSession(false)
         } else {
-          // Verificar se é super admin SEM estar impersonando
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('is_elisha_admin, impersonating_empresa_id')
-            .eq('user_id', session.user.id)
-            .single()
-          
-          // Se é super admin MAS NÃO está impersonando, redireciona para /admin/companies
-          if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
-            router.replace('/admin/companies')
-            return
+          try {
+            // Verificar se é super admin SEM estar impersonando via backend
+            const profile = await apiClient.profiles.getByUserId(session.user.id, session.access_token)
+            
+            // Se é super admin MAS NÃO está impersonando, redireciona para /admin/companies
+            if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
+              router.replace('/admin/companies')
+              return
+            }
+          } catch (error) {
+            console.error('Erro ao buscar profile:', error)
           }
           
           setHasSession(true)

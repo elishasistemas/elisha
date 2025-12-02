@@ -48,6 +48,12 @@ export const apiClient = {
         body: JSON.stringify(data),
         token 
       }),
+    updateActiveRole: (userId: string, activeRole: string, token?: string) => 
+      apiFetch(`/profiles/${userId}/active-role`, { 
+        method: 'PATCH', 
+        body: JSON.stringify({ active_role: activeRole }),
+        token 
+      }),
   },
 
   // Empresas

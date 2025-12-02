@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 
 export default function HomePage() {
   const router = useRouter()
@@ -17,18 +18,19 @@ export default function HomePage() {
         const { data } = await supabase.auth.getSession()
         if (!mounted) return
         if (data.session) {
-          // Verificar se é Elisha Admin (Super Admin) e se está impersonando
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('is_elisha_admin, impersonating_empresa_id')
-            .eq('user_id', data.session.user.id)
-            .single()
-          
-          // Se é super admin sem impersonar, vai para /admin/companies
-          // Se está impersonando ou não é super admin, vai para /dashboard
-          if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
-            router.replace('/admin/companies')
-          } else {
+          try {
+            // Verificar se é Elisha Admin (Super Admin) e se está impersonando via backend
+            const profile = await apiClient.profiles.getByUserId(data.session.user.id, data.session.access_token)
+            
+            // Se é super admin sem impersonar, vai para /admin/companies
+            // Se está impersonando ou não é super admin, vai para /dashboard
+            if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
+              router.replace('/admin/companies')
+            } else {
+              router.replace('/dashboard')
+            }
+          } catch (error) {
+            console.error('Erro ao buscar profile:', error)
             router.replace('/dashboard')
           }
         } else {

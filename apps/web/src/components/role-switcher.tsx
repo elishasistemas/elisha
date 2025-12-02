@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { User } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -33,8 +34,8 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
     try {
       setSwitching(true)
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const { data: { user, session } } = await supabase.auth.getUser()
+      if (!user || !session) {
         toast.error('Sessão expirada. Redirecionando para login...')
         setTimeout(() => {
           window.location.href = '/login'
@@ -42,13 +43,8 @@ export function RoleSwitcher({ className }: RoleSwitcherProps) {
         return
       }
 
-      // Atualizar active_role no profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ active_role: newRole })
-        .eq('user_id', user.id)
-
-      if (updateError) throw updateError
+      // Atualizar active_role no profile via backend
+      await apiClient.profiles.updateActiveRole(user.id, newRole, session.access_token)
 
       // Chamar API para atualizar JWT claims
       const response = await fetch('/api/auth/update-claims', {

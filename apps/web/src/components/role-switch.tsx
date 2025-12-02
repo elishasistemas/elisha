@@ -7,6 +7,7 @@ import { LayoutDashboard, Wrench } from 'lucide-react'
 import { useAuth, useProfile } from '@/hooks/use-supabase'
 import { getActiveRole, getRoles, setActiveRoleClient, type ActiveRole } from '@/utils/auth'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 
 export function RoleSwitch() {
   const { user } = useAuth()
@@ -46,13 +47,10 @@ export function RoleSwitch() {
 
       // 2) Persiste no profile para páginas que leem profile.active_role
       const supabase = createSupabaseBrowser()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ active_role: to })
-          .eq('user_id', user.id)
-        if (updateError) throw updateError
+      const { data: { user, session } } = await supabase.auth.getUser()
+      if (user && session) {
+        // Atualizar active_role via backend
+        await apiClient.profiles.updateActiveRole(user.id, to, session.access_token)
 
         // 3) Atualiza claims e sessão para refletir nas próximas renderizações
         const response = await fetch('/api/auth/update-claims', {

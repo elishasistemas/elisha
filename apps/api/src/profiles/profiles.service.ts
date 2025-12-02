@@ -5,8 +5,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class ProfilesService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async getProfileByUserId(userId: string) {
-    const client = this.supabaseService.getClient();
+  async getProfileByUserId(userId: string, token?: string) {
+    const client = token 
+      ? this.supabaseService.createUserClient(token)
+      : this.supabaseService.client;
     const { data, error } = await client
       .from('profiles')
       .select('*')
@@ -17,8 +19,10 @@ export class ProfilesService {
     return data;
   }
 
-  async updateProfile(userId: string, updates: any) {
-    const client = this.supabaseService.getClient();
+  async updateProfile(userId: string, updates: any, token?: string) {
+    const client = token 
+      ? this.supabaseService.createUserClient(token)
+      : this.supabaseService.client;
     const { data, error } = await client
       .from('profiles')
       .update(updates)
@@ -30,8 +34,10 @@ export class ProfilesService {
     return data;
   }
 
-  async listProfiles(empresaId?: string) {
-    const client = this.supabaseService.getClient();
+  async listProfiles(empresaId?: string, token?: string) {
+    const client = token 
+      ? this.supabaseService.createUserClient(token)
+      : this.supabaseService.client;
     let query = client.from('profiles').select('*');
     
     if (empresaId) {

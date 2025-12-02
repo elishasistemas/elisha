@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { apiClient } from '@/lib/api-client'
 import { User, Session } from '@supabase/supabase-js'
 import { dataCache } from '@/lib/cache'
 
@@ -41,27 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Carregar usuário e perfil uma única vez
     async function loadAuth() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user, session } } = await supabase.auth.getUser()
         
         if (!mounted) return
         
         setUser(user)
 
-        if (!user) {
+        if (!user || !session) {
           setLoading(false)
           return
         }
         
         // Usar dedupe para evitar múltiplas requisições
         const profileData = await dataCache.dedupe(`profile:${user.id}`, async () => {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .single()
-
-          if (error) throw error
-          return data
+          return await apiClient.profiles.getByUserId(user.id, session.access_token)
         })
 
         if (mounted) {
