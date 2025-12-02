@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
+import { createSupabaseBrowser } from '@/lib/supabase'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
 
 interface OrderDialogProps {
@@ -47,6 +48,7 @@ export function OrderDialog({
   const [loading, setLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
+  const supabase = createSupabaseBrowser()
   // Abre o diálogo quando defaultOpen for true e também quando a ordem mudar
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
   useEffect(() => {
@@ -65,7 +67,6 @@ export function OrderDialog({
     tipo: ordem?.tipo || defaultTipo || 'preventiva',
     prioridade: ordem?.prioridade || 'media',
     observacoes: ordem?.observacoes || '',
-    numero_os: ordem?.numero_os || '',
     data_abertura: new Date().toISOString().slice(0,16),
     quem_solicitou: ordem?.quem_solicitou || '',
   })
@@ -83,7 +84,6 @@ export function OrderDialog({
         tipo: ordem.tipo || defaultTipo || 'preventiva',
         prioridade: ordem.prioridade || 'media',
         observacoes: ordem.observacoes || '',
-        numero_os: ordem.numero_os || '',
         data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0,16) : new Date().toISOString().slice(0,16),
         quem_solicitou: ordem.quem_solicitou || '',
       })
@@ -176,7 +176,7 @@ export function OrderDialog({
         return
       }
 
-      // Preparar dados
+      // Preparar dados (numero_os será gerado automaticamente no backend)
       const ordemData = {
         empresa_id: empresaId,
         cliente_id: formData.cliente_id,
@@ -187,19 +187,36 @@ export function OrderDialog({
         status: 'novo' as const,
         data_abertura: formData.data_abertura ? new Date(formData.data_abertura).toISOString() : new Date().toISOString(),
         observacoes: formData.observacoes?.trim() || null,
-        numero_os: formData.numero_os.trim() || null,
         quem_solicitou: formData.quem_solicitou?.trim() || null,
         origem: 'painel' as const,
       }
 
-      if (localMode === 'edit' && ordem) {
-        // Atualizar ordem
-        const { error } = await supabase
-          .from('ordens_servico')
-          .update(ordemData)
-          .eq('id', ordem.id)
+      // Pegar token de autenticação
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-        if (error) throw error
+      if (!token) {
+        toast.error('Sessão expirada. Por favor, faça login novamente.')
+        return
+      }
+
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+
+      if (localMode === 'edit' && ordem) {
+        // Atualizar ordem via backend
+        const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(ordemData)
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Erro ao atualizar ordem' }))
+          throw new Error(errorData.message || 'Erro ao atualizar ordem')
+        }
 
         toast.success('Ordem de serviço atualizada com sucesso!')
         // Telemetry
@@ -209,14 +226,22 @@ export function OrderDialog({
           body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: ordem.id } }),
         }).catch(() => {})
       } else {
-        // Criar nova ordem
-        const { data, error } = await supabase
-          .from('ordens_servico')
-          .insert([ordemData])
-          .select('id')
-          .single()
+        // Criar nova ordem via backend
+        const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(ordemData)
+        })
 
-        if (error) throw error
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ message: 'Erro ao criar ordem' }))
+          throw new Error(errorData.message || 'Erro ao criar ordem')
+        }
+
+        const data = await res.json()
 
         toast.success('Ordem de serviço criada com sucesso!')
         // Telemetry
@@ -240,7 +265,6 @@ export function OrderDialog({
         tipo: 'preventiva',
         prioridade: 'media',
         observacoes: '',
-        numero_os: '',
         data_abertura: new Date().toISOString().slice(0,16),
         quem_solicitou: '',
       })
@@ -279,7 +303,7 @@ export function OrderDialog({
             <div>
               <DialogTitle>
                 {isView 
-                  ? (formData.numero_os || 'Ordem de Serviço sem número') 
+                  ? (ordem?.numero_os || 'Ordem de Serviço') 
                   : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
                 }
               </DialogTitle>
@@ -394,16 +418,14 @@ export function OrderDialog({
                 />
               </div>
                 </div>
-                <div className="space-y-2 mt-4">
-                  <Label htmlFor="numero_os">Número da OS (opcional)</Label>
-                  <Input
-                    id="numero_os"
-                    value={formData.numero_os}
-                    onChange={(e) => handleChange('numero_os', e.target.value)}
-                    placeholder="Ex: OS-2024-001"
-                    disabled={isView}
-                  />
-                </div>
+                {ordem && (
+                  <div className="space-y-2 mt-4">
+                    <Label>Número da OS</Label>
+                    <div className="p-2 bg-muted rounded-md text-sm font-mono">
+                      {ordem.numero_os || '(Será gerado automaticamente)'}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2 mt-2">
               <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
               <Input

@@ -57,4 +57,8 @@ export class CreateOrdemServicoDto {
   @IsString()
   @IsOptional()
   numero_os?: string;
+
+  @IsString()
+  @IsOptional()
+  quem_solicitou?: string;
 }

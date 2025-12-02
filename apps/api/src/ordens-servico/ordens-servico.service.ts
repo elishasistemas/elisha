@@ -130,9 +130,47 @@ export class OrdensServicoService {
         ? this.supabaseService.createUserClient(accessToken)
         : this.supabaseService.client
 
+      // Gerar número automático da OS no formato OS-0001-2025
+      const ano = new Date().getFullYear();
+      
+      // Buscar a última OS da empresa no ano atual
+      const { data: ultimaOS, error: ultimaOSError } = await client
+        .from('ordens_servico')
+        .select('numero_os')
+        .eq('empresa_id', createOrdemServicoDto.empresa_id)
+        .like('numero_os', `OS-%-${ano}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (ultimaOSError && ultimaOSError.code !== 'PGRST116') {
+        console.error('[OrdensServicoService] Erro ao buscar última OS:', ultimaOSError);
+        throw ultimaOSError;
+      }
+
+      let proximoNumero = 1;
+      if (ultimaOS?.numero_os) {
+        // Extrair o número do formato OS-0001-2025
+        const match = ultimaOS.numero_os.match(/OS-(\d{4})-\d{4}/);
+        if (match) {
+          proximoNumero = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      // Formatar número com 4 dígitos
+      const numeroFormatado = `OS-${proximoNumero.toString().padStart(4, '0')}-${ano}`;
+      
+      console.log('[OrdensServicoService] Número gerado:', numeroFormatado);
+
+      // Sobrescrever o numero_os com o valor gerado
+      const ordemData = {
+        ...createOrdemServicoDto,
+        numero_os: numeroFormatado,
+      };
+
       const { data, error } = await client
         .from('ordens_servico')
-        .insert([createOrdemServicoDto])
+        .insert([ordemData])
         .select()
         .single();
 
@@ -163,9 +201,16 @@ export class OrdensServicoService {
         ? this.supabaseService.createUserClient(accessToken)
         : this.supabaseService.client
 
+      // Remover numero_os se vier no payload (campo não é editável)
+      const { numero_os, ...updateData } = updateOrdemServicoDto;
+      
+      if (numero_os) {
+        console.warn('[OrdensServicoService] Tentativa de editar numero_os ignorada. Campo é auto-gerado.');
+      }
+
       const { data, error } = await client
         .from('ordens_servico')
-        .update(updateOrdemServicoDto)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
