@@ -3,7 +3,8 @@
  * Substitui chamadas diretas ao Supabase REST API por chamadas ao backend NestJS
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+// API_BASE_URL já inclui /api/v1 no final
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/v1';
 
 interface FetchOptions extends RequestInit {
   token?: string;
