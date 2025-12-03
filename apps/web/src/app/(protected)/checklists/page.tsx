@@ -2,7 +2,6 @@
 
 // Force rebuild - Vercel cache issue
 import React, { useState } from 'react'
-import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -65,9 +64,6 @@ const origemColors = {
 }
 
 export default function ChecklistsPage() {
-  // Proteger rota: apenas admin pode acessar
-  const { isTecnico } = useAdminRoute()
-  
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
