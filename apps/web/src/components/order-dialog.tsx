@@ -117,7 +117,7 @@ export function OrderDialog({
         const token = session?.access_token
         if (!token) throw new Error('Não autenticado')
         
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?clienteId=${formData.cliente_id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -200,7 +200,7 @@ export function OrderDialog({
         return
       }
 
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
       if (localMode === 'edit' && ordem) {
         // Atualizar ordem via backend

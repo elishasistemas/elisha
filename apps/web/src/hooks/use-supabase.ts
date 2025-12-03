@@ -213,7 +213,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
           ...(search ? { search } : {})
         })
 
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/clientes?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -339,7 +339,7 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
           ...(search ? { search } : {})
         })
 
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -369,7 +369,7 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos`, {
         method: 'POST',
         headers: {
@@ -424,7 +424,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
           ...(search ? { search } : {})
         })
 
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/colaboradores?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -614,7 +614,7 @@ export function useOrdensServico(
           ...(orderBy ? { orderBy: String(orderBy) } : {}),
         })
 
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -643,7 +643,7 @@ export function useOrdensServico(
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico`, {
         method: 'POST',
         headers: {
@@ -671,7 +671,7 @@ export function useOrdensServico(
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${id}`, {
         method: 'PATCH',
         headers: {
@@ -700,7 +700,7 @@ export function useOrdensServico(
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${id}`, {
         method: 'DELETE',
         headers: {
@@ -759,7 +759,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
           ...(search ? { search } : {})
         })
 
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/checklists?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -788,7 +788,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/checklists`, {
         method: 'POST',
         headers: {
@@ -810,7 +810,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/checklists/${id}`, {
         method: 'PATCH',
         headers: {
@@ -833,7 +833,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Usuário não autenticado')
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/checklists/${id}`, {
         method: 'DELETE',
         headers: {

@@ -190,7 +190,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       }
 
       let clienteId: string
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
       // Pegar token do Supabase para autenticação no backend
       const { data: { session } } = await supabase.auth.getSession()
