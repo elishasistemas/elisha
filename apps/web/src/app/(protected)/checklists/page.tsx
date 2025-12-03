@@ -172,11 +172,6 @@ export default function ChecklistsPage() {
     )
   }
 
-  // Se for técnico, não renderiza nada (já redirecionou)
-  if (isTecnico) {
-    return null
-  }
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full py-4">
       <div className="flex items-center justify-between">
