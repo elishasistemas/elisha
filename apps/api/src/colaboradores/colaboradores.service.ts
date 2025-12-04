@@ -7,7 +7,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class ColaboradoresService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(empresaId?: string, ativo?: boolean, accessToken?: string) {
+  async findAll(empresaId?: string, ativo?: boolean, search?: string, accessToken?: string) {
     const client = accessToken
       ? this.supabaseService.createUserClient(accessToken)
       : this.supabaseService.client
@@ -17,7 +17,7 @@ export class ColaboradoresService {
       .select('*')
       .order('created_at', { ascending: false });
 
-    console.log('[ColaboradoresService][findAll] Filtros:', { empresaId, ativo });
+    console.log('[ColaboradoresService][findAll] Filtros:', { empresaId, ativo, search });
 
     if (empresaId) {
       query = query.eq('empresa_id', empresaId);
@@ -33,6 +33,24 @@ export class ColaboradoresService {
       console.error('[ColaboradoresService][findAll] Supabase error:', error);
       throw new NotFoundException(`Erro ao buscar colaboradores: ${error.message}`);
     }
+
+    // Filtro adicional no backend para busca sem acentos
+    if (search && search.trim() && data) {
+      const searchNormalized = search.trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+      
+      return data.filter(col => {
+        const nome = (col.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const funcao = (col.funcao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const whatsapp = (col.whatsapp_numero || '').replace(/\D/g, ''); // Remove formatação
+        const searchNumbers = search.replace(/\D/g, '');
+        
+        return nome.includes(searchNormalized) || 
+               funcao.includes(searchNormalized) ||
+               (searchNumbers && whatsapp.includes(searchNumbers));
+      });
+    }
+
     return data;
   }
 

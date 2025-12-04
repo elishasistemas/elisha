@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -54,40 +54,42 @@ export default function TechniciansPage() {
   const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'inativos'>('ativos')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [viewTec, setViewTec] = useState<Colaborador | null>(null)
   
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
+  
   // Hooks que dependem dos estados
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId, { refreshKey })
+  const { colaboradores, loading, error, toggleAtivoColaborador, deleteColaborador } = useColaboradores(empresaId, { search: debouncedSearch, refreshKey })
   const canAdmin = isAdmin(session, profile)
 
   const isLoading = empresasLoading || loading
   const hasError = empresasError || error
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
     let list = colaboradores
     
-    // Filtrar por status
+    // Filtrar por status apenas (busca já vem filtrada do backend)
     if (statusFilter === 'ativos') {
       list = list.filter(c => c.ativo)
     } else if (statusFilter === 'inativos') {
       list = list.filter(c => !c.ativo)
     }
     
-    // Filtrar por busca
-    if (!q) return list
-    return list.filter((t) => {
-      return (
-        (t.nome || '').toLowerCase().includes(q) ||
-        (t.funcao || '').toLowerCase().includes(q) ||
-        (t.whatsapp_numero || '').toLowerCase().includes(q)
-      )
-    })
-  }, [colaboradores, search, statusFilter])
+    return list
+  }, [colaboradores, statusFilter])
 
   const total = useMemo(() => filtered.filter(c => c.ativo).length, [filtered])
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))

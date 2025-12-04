@@ -16,14 +16,16 @@ export class ColaboradoresController {
   @ApiOperation({ summary: 'Listar todos os colaboradores' })
   @ApiQuery({ name: 'empresaId', required: false, type: String })
   @ApiQuery({ name: 'ativo', required: false, type: Boolean })
+  @ApiQuery({ name: 'search', required: false, type: String })
   async findAll(
     @Query('empresaId') empresaId?: string,
     @Query('ativo') ativo?: string,
+    @Query('search') search?: string,
     @Req() request?: any,
   ) {
     const ativoBoolean = ativo === 'true' ? true : ativo === 'false' ? false : undefined;
     const token = request?.user?.access_token
-    return this.colaboradoresService.findAll(empresaId, ativoBoolean, token);
+    return this.colaboradoresService.findAll(empresaId, ativoBoolean, search, token);
   }
 
   @Get(':id')

@@ -446,7 +446,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
     }
 
     fetchColaboradores()
-  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
+  }, [empresaId, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
   const createColaborador = async (colaborador: Omit<Colaborador, 'id' | 'created_at' | 'updated_at'>) => {
     try {
