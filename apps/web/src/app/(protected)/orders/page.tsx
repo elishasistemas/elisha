@@ -116,6 +116,7 @@ export default function OrdersPage() {
   const [ordemToDelete, setOrdemToDelete] = useState<OrdemServico | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
@@ -128,6 +129,15 @@ export default function OrdersPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
   const active = getActiveRole(session, profile)
   const canAdmin = isAdmin(session, profile)
@@ -140,7 +150,7 @@ export default function OrdersPage() {
   const { ordens, loading, error, deleteOrdem, count } = useOrdensServico(empresaId, {
     page,
     pageSize,
-    search,
+    search: debouncedSearch,
     orderBy: orderBy as any,
     tecnicoId: canTecnico ? (profile?.tecnico_id ?? undefined) : undefined,
     refreshKey,

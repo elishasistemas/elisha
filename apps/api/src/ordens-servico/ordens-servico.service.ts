@@ -60,7 +60,11 @@ export class OrdensServicoService {
       }
 
       if (search && search.trim()) {
-        const like = `%${search.trim()}%`;
+        const searchTerm = search.trim().toLowerCase()
+          .replace(/\s+/g, '_')  // "em andamento" -> "em_andamento"
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+        
+        const like = `%${searchTerm}%`;
         query = query.or(
           `numero_os.ilike.${like},tipo.ilike.${like},status.ilike.${like},observacoes.ilike.${like}`
         );
