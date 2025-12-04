@@ -38,18 +38,20 @@ export class ChecklistsController {
   @ApiQuery({ name: 'offset', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'order', required: false })
+  @ApiQuery({ name: 'search', required: false })
   findAll(
     @Query('empresaId') empresaId?: string,
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
     @Query('order') order?: string,
+    @Query('search') search?: string,
     @Req() request?: any,
   ) {
     const off = offset ? parseInt(offset, 10) : 0;
     const lim = limit ? parseInt(limit, 10) : 10;
     const ord = order || 'created_at.desc';
     const token = request?.user?.access_token
-    return this.checklistsService.findAll(empresaId, off, lim, ord, token);
+    return this.checklistsService.findAll(empresaId, off, lim, ord, search, token);
   }
 
   @Get(':id')

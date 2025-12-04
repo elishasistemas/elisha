@@ -1,7 +1,7 @@
 'use client'
 
 // Force rebuild - Vercel cache issue
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +65,7 @@ const origemColors = {
 
 export default function ChecklistsPage() {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -82,7 +83,17 @@ export default function ChecklistsPage() {
   const { loading: empresasLoading } = useEmpresas()
   const canAdmin = isAdmin(session, profile)
 
-  // Usar hook useChecklists
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1) // Reset to first page on search
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Usar hook useChecklists com debouncedSearch
   const { 
     checklists, 
     loading, 
@@ -90,7 +101,7 @@ export default function ChecklistsPage() {
     deleteChecklist,
     updateChecklist,
     createChecklist 
-  } = useChecklists(empresaId, { page, pageSize, search, refreshKey })
+  } = useChecklists(empresaId, { page, pageSize, search: debouncedSearch, refreshKey })
 
   // Refresh helper
   const loadChecklists = () => {
@@ -164,7 +175,10 @@ export default function ChecklistsPage() {
     }
   }
 
-  if (empresasLoading || loading) {
+  // Mostrar loading apenas na primeira carga (quando não tem dados ainda)
+  const isInitialLoading = empresasLoading || (loading && checklists.length === 0)
+  
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -199,15 +213,17 @@ export default function ChecklistsPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Input
-                placeholder="Buscar por nome, tipo, origem"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-                className="w-[260px]"
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Buscar por nome, tipo, origem"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-[260px]"
+                />
+                {loading && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
               <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
                 <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
                 <SelectContent>

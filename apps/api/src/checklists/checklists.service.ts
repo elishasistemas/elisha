@@ -12,6 +12,7 @@ export class ChecklistsService {
     offset = 0,
     limit = 10,
     order = 'created_at.desc',
+    search?: string,
     accessToken?: string,
   ) {
     const [orderField, orderDir] = order.split('.');
@@ -26,6 +27,12 @@ export class ChecklistsService {
       .select('*', { count: 'exact' });
 
     if (empresaId) query = query.eq('empresa_id', empresaId);
+
+    // Filtro de busca por nome, tipo_servico ou origem
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      query = query.or(`nome.ilike.%${searchTerm}%,tipo_servico.ilike.%${searchTerm}%,origem.ilike.%${searchTerm}%`);
+    }
 
     query = query.order(orderField, { ascending });
 

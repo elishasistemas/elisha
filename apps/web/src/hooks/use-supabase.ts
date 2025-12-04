@@ -31,7 +31,7 @@ export function useAuth() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [])
 
   return {
     user,
@@ -87,7 +87,7 @@ export function useProfile(userId?: string) {
     return () => {
       mounted = false
     }
-  }, [userId, supabase])
+  }, [userId])
 
   return { profile, loading, error }
 }
@@ -131,7 +131,7 @@ export function useEmpresas() {
     return () => {
       mounted = false
     }
-  }, [supabase])
+  }, [])
 
   const createEmpresa = async (empresa: Omit<Empresa, 'id' | 'created_at'>) => {
     try {
@@ -781,7 +781,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
     }
 
     fetchChecklists()
-  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
+  }, [empresaId, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
   const createChecklist = async (checklist: any) => {
     try {
