@@ -59,4 +59,9 @@ export class CreateClienteDto {
   @IsOptional()
   @IsString()
   numero_art?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  zona_id?: string;
 }

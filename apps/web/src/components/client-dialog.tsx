@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Cliente } from '@/lib/supabase'
+import { useZonas, useColaboradores } from '@/hooks/use-supabase'
+import { ZonaDialog } from './zona-dialog'
 
 interface Equipamento {
   id?: string
@@ -76,7 +78,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
     status_contrato: cliente?.status_contrato || 'ativo',
     valor_mensal_contrato: '',
     numero_art: '',
+    zona_id: cliente?.zona_id || '',
   })
+
+  // Zona state and hooks
+  const [zonaDialogOpen, setZonaDialogOpen] = useState(false)
+  const [zonaRefreshKey, setZonaRefreshKey] = useState(0)
+  const { zonas, loading: zonasLoading } = useZonas(empresaId, { refreshKey: zonaRefreshKey })
+  const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaId)
 
   // Equipamentos state
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
@@ -219,6 +228,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         status_contrato: formData.status_contrato as 'ativo' | 'em_renovacao' | 'encerrado',
         valor_mensal_contrato: valorMensalNumerico,
         numero_art: formData.numero_art.trim() || null,
+        zona_id: formData.zona_id || null,
       }
 
       let clienteId: string
@@ -435,6 +445,41 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     <SelectItem value="ativo">Ativo</SelectItem>
                     <SelectItem value="em_renovacao">Em Renovação</SelectItem>
                     <SelectItem value="encerrado">Encerrado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="zona_id">
+                  <MapPin className="inline w-4 h-4 mr-1" />
+                  Zona
+                </Label>
+                <Select 
+                  value={formData.zona_id || 'sem_zona'} 
+                  onValueChange={(value) => {
+                    if (value === 'criar_nova') {
+                      setZonaDialogOpen(true)
+                    } else if (value === 'sem_zona') {
+                      handleChange('zona_id', '')
+                    } else {
+                      handleChange('zona_id', value)
+                    }
+                  }}
+                  disabled={isView || zonasLoading}
+                >
+                  <SelectTrigger id="zona_id">
+                    <SelectValue placeholder="Selecione uma zona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem_zona">Sem zona</SelectItem>
+                    <SelectItem value="criar_nova" className="text-primary font-medium">
+                      + Criar nova zona
+                    </SelectItem>
+                    {zonas.map((zona) => (
+                      <SelectItem key={zona.id} value={zona.id}>
+                        {zona.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -713,6 +758,18 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <ZonaDialog
+        open={zonaDialogOpen}
+        onOpenChange={setZonaDialogOpen}
+        empresaId={empresaId}
+        colaboradores={colaboradores}
+        onSuccess={(zonaId) => {
+          setZonaRefreshKey(prev => prev + 1)
+          handleChange('zona_id', zonaId)
+          toast.success('Zona criada e selecionada!')
+        }}
+      />
     </Dialog>
   )
 }

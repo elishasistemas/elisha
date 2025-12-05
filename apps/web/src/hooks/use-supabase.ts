@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
-import type { Profile, Empresa, Cliente, Equipamento, Colaborador, OrdemServico } from '@/lib/supabase'
+import type { Profile, Empresa, Cliente, Equipamento, Colaborador, OrdemServico, Zona, ZonaTecnico } from '@/lib/supabase'
 import { dataCache } from '@/lib/cache'
 import apiClient from '@/lib/api-client'
 
@@ -563,6 +563,106 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
   }
 
   return { colaboradores, loading, error, count, createColaborador, updateColaborador, toggleAtivoColaborador, deleteColaborador }
+}
+
+export function useZonas(empresaId?: string, opts?: { refreshKey?: number }) {
+  const [zonas, setZonas] = useState<Zona[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const supabase = createSupabaseBrowser()
+
+  useEffect(() => {
+    if (!empresaId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchZonas = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('zonas')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('nome', { ascending: true })
+
+        if (error) throw error
+        setZonas(data || [])
+      } catch (err) {
+        console.error('[useZonas] Erro:', err)
+        setError(err instanceof Error ? err.message : 'Erro ao carregar zonas')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchZonas()
+  }, [empresaId, opts?.refreshKey])
+
+  const createZona = async (nome: string, tecnicoResponsavelId?: string | null) => {
+    if (!empresaId) {
+      return { data: null, error: 'EmpresaId não fornecido' }
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('create_zona', {
+        p_empresa_id: empresaId,
+        p_nome: nome,
+        p_tecnico_responsavel_id: tecnicoResponsavelId || null,
+      })
+
+      if (error) throw error
+      
+      // Refetch to update list
+      const { data: updatedZonas } = await supabase
+        .from('zonas')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .order('nome', { ascending: true })
+      
+      if (updatedZonas) {
+        setZonas(updatedZonas)
+      }
+
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar zona' }
+    }
+  }
+
+  const updateZona = async (id: string, updates: Partial<Pick<Zona, 'nome' | 'tecnico_responsavel_id'>>) => {
+    try {
+      const { data, error } = await supabase
+        .from('zonas')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setZonas(prev => prev.map(z => z.id === id ? data : z))
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar zona' }
+    }
+  }
+
+  const deleteZona = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('zonas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setZonas(prev => prev.filter(z => z.id !== id))
+      return { error: null }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Erro ao deletar zona' }
+    }
+  }
+
+  return { zonas, loading, error, createZona, updateZona, deleteZona }
 }
 
 export function useOrdensServico(

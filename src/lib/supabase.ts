@@ -37,6 +37,7 @@ export interface Cliente {
   data_inicio_contrato: string | null
   data_fim_contrato: string | null
   status_contrato: 'ativo' | 'em_renovacao' | 'encerrado'
+  zona_id: string | null
   created_at: string
   updated_at: string
 }
@@ -66,6 +67,22 @@ export interface Colaborador {
   ativo: boolean
   created_at: string
   updated_at: string
+}
+
+export interface Zona {
+  id: string
+  empresa_id: string
+  nome: string
+  tecnico_responsavel_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ZonaTecnico {
+  id: string
+  zona_id: string
+  tecnico_id: string
+  created_at: string
 }
 
 export interface OrdemServico {
