@@ -94,25 +94,38 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
   }
 
   const formatCNPJ = (value: string) => {
+    // Remove tudo que não é dígito
     const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 14) {
-      return numbers
-        .replace(/^(\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-        .replace(/\.(\d{3})(\d)/, '.$1/$2')
-        .replace(/(\d{4})(\d)/, '$1-$2')
-    }
-    return value
+    // Limita a 14 dígitos (CNPJ completo)
+    const limited = numbers.slice(0, 14)
+    // Aplica a máscara: XX.XXX.XXX/XXXX-XX
+    return limited
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
   const formatPhone = (value: string) => {
+    // Remove tudo que não é dígito
     const numbers = value.replace(/\D/g, '')
-    if (numbers.length <= 11) {
-      return numbers
+    // Limita a 11 dígitos (DDD + 9 dígitos)
+    const limited = numbers.slice(0, 11)
+    // Aplica a máscara: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+    if (limited.length <= 10) {
+      return limited
         .replace(/^(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{5})(\d)/, '$1-$2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
     }
-    return value
+    return limited
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+  }
+
+  const isValidEmail = (email: string): boolean => {
+    if (!email) return true // Email opcional
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return regex.test(email)
   }
 
   const formatCurrency = (value: string) => {
@@ -168,6 +181,25 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         toast.error('CNPJ é obrigatório')
         setLoading(false)
         return
+      }
+
+      // Validar email se preenchido
+      if (formData.responsavel_email.trim() && !isValidEmail(formData.responsavel_email.trim())) {
+        toast.error('E-mail inválido')
+        setLoading(false)
+        return
+      }
+
+      // Validar datas de contrato
+      if (formData.data_inicio_contrato && formData.data_fim_contrato) {
+        const dataInicio = new Date(formData.data_inicio_contrato)
+        const dataFim = new Date(formData.data_fim_contrato)
+        
+        if (dataInicio > dataFim) {
+          toast.error('Data de início não pode ser maior que data de término')
+          setLoading(false)
+          return
+        }
       }
 
       // Preparar dados do cliente
