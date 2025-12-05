@@ -284,6 +284,11 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
       const equipMsg = equipamentos.length > 0 ? ` e ${equipamentos.length} equipamento(s) ${localMode === 'edit' ? 'adicionado(s)' : 'criado(s)'}` : ''
       toast.success(`Cliente ${actionText} com sucesso${equipMsg}!`)
 
+      // Chamar onSuccess ANTES de fechar o diálogo para garantir que a lista seja atualizada
+      if (onSuccess) {
+        onSuccess()
+      }
+
       setOpen(false)
       
       // Resetar form
@@ -308,11 +313,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         marca: '',
         capacidade: '',
       })
-
-      // Chamar onSuccess APÓS fechar o diálogo para atualizar a lista
-      if (onSuccess) {
-        setTimeout(() => onSuccess(), 100)
-      }
     } catch (error) {
       console.error('Erro ao salvar cliente:', error)
       toast.error(error instanceof Error ? error.message : 'Erro ao salvar cliente')

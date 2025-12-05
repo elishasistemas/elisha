@@ -40,16 +40,19 @@ export default function ClientsPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
   
-  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
-  const { clientes, loading, error, deleteCliente } = useClientes(empresaId)
-  const canAdmin = isAdmin(session, profile)
+  // All state declarations first
+  const [refreshKey, setRefreshKey] = useState(0)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [viewCliente, setViewCliente] = useState<Cliente | null>(null)
   const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  
+  // Now hooks that depend on state
+  const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
+  const { clientes, loading, error, deleteCliente } = useClientes(empresaId, { refreshKey })
+  const canAdmin = isAdmin(session, profile)
 
   const isLoading = empresasLoading || loading
   const hasError = empresasError || error

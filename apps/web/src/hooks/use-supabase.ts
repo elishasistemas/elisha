@@ -234,7 +234,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
     }
 
     fetchClientes()
-  }, [empresaId, supabase, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
+  }, [empresaId, opts?.page, opts?.pageSize, opts?.search, opts?.refreshKey])
 
   const createCliente = async (cliente: Omit<Cliente, 'id' | 'created_at' | 'updated_at'>) => {
     try {
