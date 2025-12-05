@@ -20,6 +20,7 @@ export async function POST(request: Request) {
 
     const roleLabels: Record<string, string> = {
       admin: 'Admin',
+      supervisor: 'Supervisor',
       tecnico: 'Técnico',
     }
 

@@ -5,8 +5,8 @@ import { cookies } from 'next/headers'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const role = body?.role as 'admin' | 'tecnico'
-    if (role !== 'admin' && role !== 'tecnico') {
+    const role = body?.role as 'admin' | 'supervisor' | 'tecnico'
+    if (role !== 'admin' && role !== 'supervisor' && role !== 'tecnico') {
       return NextResponse.json({ error: 'role inválido' }, { status: 400 })
     }
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { LayoutDashboard, Wrench } from 'lucide-react'
+import { LayoutDashboard, Wrench, UserCog } from 'lucide-react'
 import { useAuth, useProfile } from '@/hooks/use-supabase'
 import { getActiveRole, getRoles, setActiveRoleClient, type ActiveRole } from '@/utils/auth'
 import { createSupabaseBrowser } from '@/lib/supabase'
@@ -27,6 +27,10 @@ export function RoleSwitch() {
       if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault()
         toggle('admin')
+      }
+      if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault()
+        toggle('supervisor')
       }
       if (e.ctrlKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault()
@@ -64,7 +68,13 @@ export function RoleSwitch() {
 
       // Feedback
       setActive(to)
-      toast.success(to === 'tecnico' ? 'Modo Campo: suas OS do dia e checklists.' : 'Modo Gestão: indicadores e controle de equipe.')
+      const messages = {
+        admin: 'Modo Gestão: indicadores e controle completo.',
+        supervisor: 'Modo Supervisor: gerenciar ordens de serviço e equipe.',
+        tecnico: 'Modo Campo: suas OS do dia e checklists.',
+        elisha_admin: 'Modo Super Admin'
+      }
+      toast.success(messages[to] || 'Modo alterado')
 
       // 4) Recarrega a página para aplicar menus/consultas com RLS
       setTimeout(() => { window.location.reload() }, 400)
@@ -78,6 +88,7 @@ export function RoleSwitch() {
   if (!roles.length) return null
 
   const adminEnabled = roles.includes('admin')
+  const supervisorEnabled = roles.includes('supervisor')
   const tecnicoEnabled = roles.includes('tecnico')
 
   return (
@@ -90,6 +101,15 @@ export function RoleSwitch() {
         title="Ctrl+A"
       >
         <LayoutDashboard className="h-4 w-4 mr-1" /> Admin
+      </Button>
+      <Button
+        variant={active === 'supervisor' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => toggle('supervisor')}
+        disabled={!supervisorEnabled || pending}
+        title="Ctrl+S"
+      >
+        <UserCog className="h-4 w-4 mr-1" /> Supervisor
       </Button>
       <Button
         variant={active === 'tecnico' ? 'default' : 'outline'}

@@ -33,7 +33,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "tecnico">("tecnico");
+  const [role, setRole] = useState<"admin" | "supervisor" | "tecnico">("tecnico");
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -117,6 +117,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: "Admin",
+      supervisor: "Supervisor",
       tecnico: "Técnico",
     };
     return labels[role] || role;
@@ -168,11 +169,13 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="tecnico">Técnico</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
                   {role === "admin" && "Acesso total ao sistema"}
+                  {role === "supervisor" && "Gerencia ordens de serviço e equipe"}
                   {role === "tecnico" && "Acesso apenas às suas ordens de serviço"}
                 </p>
               </div>

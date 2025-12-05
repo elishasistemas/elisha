@@ -49,7 +49,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
   const [formData, setFormData] = useState({
     email: '',
     name: '',
-    role: 'admin' as 'admin' | 'tecnico',
+    role: 'admin' as 'admin' | 'supervisor' | 'tecnico',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,6 +129,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: 'Admin',
+      supervisor: 'Supervisor',
       tecnico: 'Técnico',
     }
     return labels[role] || role
@@ -178,7 +179,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <Label htmlFor="role">Papel / Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'tecnico') => 
+                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') => 
                     setFormData({ ...formData, role: value })
                   }
                   disabled={loading}
@@ -187,12 +188,14 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">⚙️ Administrador</SelectItem>
-                    <SelectItem value="tecnico">🔧 Técnico</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="tecnico">Técnico</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   {formData.role === 'admin' && 'Acesso total ao sistema'}
+                  {formData.role === 'supervisor' && 'Gerencia ordens de serviço e equipe'}
                   {formData.role === 'tecnico' && 'Acesso apenas às suas ordens de serviço'}
                 </p>
               </div>

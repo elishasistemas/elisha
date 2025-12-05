@@ -7,6 +7,7 @@ interface UserRoleData {
   activeRole: string | null
   availableRoles: string[]
   isAdmin: boolean
+  isSupervisor: boolean
   isTecnico: boolean
   tecnicoId: string | null
   loading: boolean
@@ -24,6 +25,7 @@ export function useActiveRole(): UserRoleData {
       activeRole: null,
       availableRoles: [],
       isAdmin: false,
+      isSupervisor: false,
       isTecnico: false,
       tecnicoId: null,
       loading
@@ -34,6 +36,7 @@ export function useActiveRole(): UserRoleData {
     activeRole: profile.active_role,
     availableRoles: profile.roles || [],
     isAdmin: profile.active_role === 'admin',
+    isSupervisor: profile.active_role === 'supervisor',
     isTecnico: profile.active_role === 'tecnico',
     tecnicoId: profile.tecnico_id,
     loading: false
