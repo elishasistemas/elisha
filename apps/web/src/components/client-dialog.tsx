@@ -211,6 +211,13 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         }
       }
 
+      // Validar se tem pelo menos um equipamento
+      if (equipamentos.length === 0) {
+        toast.error('Todo cliente precisa ter pelo menos um equipamento cadastrado')
+        setLoading(false)
+        return
+      }
+
       // Preparar dados do cliente
       const valorMensal = formData.valor_mensal_contrato.replace(/\D/g, '')
       const valorMensalNumerico = valorMensal ? Number(valorMensal) / 100 : null
@@ -605,7 +612,9 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           {/* Equipamentos */}
           <div className="space-y-4 border-t pt-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Equipamentos</h3>
+              <h3 className="text-sm font-semibold">
+                Equipamentos <span className="text-red-500">*</span>
+              </h3>
               <span className="text-xs text-muted-foreground">
                 {equipamentos.length} equipamento(s)
               </span>
