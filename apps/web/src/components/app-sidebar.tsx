@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield, Wrench } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -36,6 +36,7 @@ const data = {
     { title: "Checklists", url: "/checklists", icon: CheckSquare },
     { title: "Clientes", url: "/clients", icon: Building2 },
     { title: "Técnicos", url: "/technicians", icon: Users },
+    { title: "Equipamentos", url: "/equipments", icon: Wrench },
   ],
 }
 
@@ -52,14 +53,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const active = getActiveRole(session ?? null, profile)
 
   const filteredItems = ((): typeof data.navMain => {
+    if (active === 'supervisor') {
+      // Supervisor: Dashboard + Ordens de Serviço + Checklists
+      return data.navMain.filter((i) => 
+        i.url === '/dashboard' || i.url === '/orders' || i.url === '/checklists'
+      )
+    }
+    
     if (active === 'tecnico') {
       // Técnico: Dashboard + Ordens de Serviço apenas
-      // Configurações dele estão no NavUser (menu de perfil)
       return data.navMain.filter((i) => 
         i.url === '/dashboard' || i.url === '/orders'
       )
     }
-    // Admin: menu completo
+    
+    // Admin: menu completo (Dashboard, OS, Checklists, Clientes, Técnicos, Equipamentos)
     return data.navMain
   })()
 

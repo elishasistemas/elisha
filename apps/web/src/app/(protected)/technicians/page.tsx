@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -43,6 +44,8 @@ const formatPhoneDisplay = (phone: string | null | undefined) => {
 }
 
 export default function TechniciansPage() {
+  useAdminRoute() // Protege a rota - redireciona técnicos e supervisores
+  
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
   

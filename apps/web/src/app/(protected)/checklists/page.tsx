@@ -2,6 +2,7 @@
 
 // Force rebuild - Vercel cache issue
 import React, { useState, useEffect } from 'react'
+import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,8 @@ const origemColors = {
 }
 
 export default function ChecklistsPage() {
+  useAdminRoute() // Protege a rota - redireciona técnicos e supervisores
+  
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)

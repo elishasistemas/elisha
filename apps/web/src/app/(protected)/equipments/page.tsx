@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAdminRoute } from '@/utils/route-protection'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth, useProfile } from '@/hooks/use-supabase'
 
 export default function EquipmentsPage() {
+  useAdminRoute() // Protege a rota - redireciona técnicos e supervisores
+  
   const { user } = useAuth()
   const { profile } = useProfile(user?.id)
   

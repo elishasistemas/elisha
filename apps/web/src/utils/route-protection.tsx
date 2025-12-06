@@ -7,8 +7,27 @@ import { useEffect } from 'react'
 
 /**
  * Hook para proteger rotas administrativas
- * Redireciona técnicos para /orders
- * Redireciona supervisores para /orders se tentarem acessar rotas administrativas
+ * 
+ * ADMIN: Acesso total
+ *   - Dashboard (análise de negócios)
+ *   - Ordens de Serviço (geração e gestão)
+ *   - Clientes (cadastro e gestão)
+ *   - Técnicos (cadastro e gestão)
+ *   - Equipamentos (cadastro e gestão)
+ *   - Checklists (criação e gestão de templates)
+ *   - Relatórios e dados totais do negócio
+ * 
+ * SUPERVISOR: Acesso operacional limitado
+ *   - Dashboard (visualização)
+ *   - Ordens de Serviço (acessa, cria e atende)
+ *   - Checklists (visualiza e preenche)
+ *   - Relatórios (visualização)
+ *   - NÃO acessa: Cadastros (clientes, técnicos, equipamentos)
+ * 
+ * TÉCNICO: Acesso apenas execução
+ *   - Dashboard (visualização básica)
+ *   - Ordens de Serviço (atende ordens atribuídas)
+ *   - NÃO acessa: Cadastros, relatórios gerenciais, criação de OS
  */
 export function useAdminRoute() {
   const { user } = useAuth()
@@ -23,20 +42,22 @@ export function useAdminRoute() {
       router.replace('/orders')
     }
     
-    // Supervisor tem acesso limitado - apenas ordens de serviço e relatórios (não acessa cadastros)
+    // Supervisor tem acesso operacional limitado - pode acessar OS, Dashboard e Checklists
+    // NÃO pode acessar cadastros (clientes, técnicos, equipamentos)
     if (active === 'supervisor') {
       const supervisorAllowedRoutes = [
-        '/orders',           // Acessa e atende ordens de serviço
-        '/reports',          // Acessa relatórios
+        '/dashboard',        // Dashboard (visualização)
+        '/orders',           // Acessa, cria e atende ordens de serviço
+        '/checklists',       // Visualiza e preenche checklists
+        '/reports',          // Acessa relatórios (quando implementado)
         '/service-orders',   // Histórico de ordens de serviço
         '/os/',              // Detalhes de ordem de serviço individual
-        '/dashboard'         // Dashboard (visualização)
       ]
       
       const isAllowed = supervisorAllowedRoutes.some(route => pathname?.startsWith(route))
       
       if (!isAllowed) {
-        console.log('[RouteProtection] Supervisor tentando acessar rota não permitida - redirecionando para /orders')
+        console.log('[RouteProtection] Supervisor tentando acessar rota não permitida (cadastros) - redirecionando para /orders')
         router.replace('/orders')
       }
     }
