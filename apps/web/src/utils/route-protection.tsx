@@ -37,6 +37,12 @@ export function useAdminRoute() {
   const pathname = usePathname()
 
   useEffect(() => {
+    // Aguardar profile carregar antes de verificar permissões
+    if (!profile || !user) {
+      console.log('[RouteProtection] Aguardando profile carregar...', { user, profile })
+      return
+    }
+
     // DEBUG: Ver o que está sendo detectado
     console.log('[RouteProtection DEBUG]', {
       active,
@@ -72,12 +78,12 @@ export function useAdminRoute() {
         router.replace('/orders')
       }
     }
-  }, [active, router, pathname])
+  }, [active, router, pathname, profile, user])
 
   return {
     isTecnico: active === 'tecnico',
     isSupervisor: active === 'supervisor',
-    isLoading: !active
+    isLoading: !profile || !user
   }
 }
 

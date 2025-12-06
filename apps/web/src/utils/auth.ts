@@ -10,14 +10,16 @@ interface UserMetadata {
 }
 
 export function getActiveRole(session?: Session | null, profile?: Profile | null): ActiveRole | null {
-  // Prioridade: app_metadata (JWT) > profile > cookie
+  // Prioridade: app_metadata (JWT) > profile > cookie (apenas se tiver session)
   const appMeta = (session?.user?.app_metadata || {}) as UserMetadata
   const userMeta = (session?.user?.user_metadata || {}) as UserMetadata
   
   const fromAppMeta = appMeta.active_role
   const fromUserMeta = userMeta.active_role
   const fromProfile = (profile?.active_role as ActiveRole | null) ?? null
-  const fromCookie = typeof document !== 'undefined'
+  
+  // Só usar cookie se tiver session válida (evita usar cookie obsoleto)
+  const fromCookie = (session && typeof document !== 'undefined')
     ? (matchCookie('active_role') as ActiveRole | null)
     : null
     
