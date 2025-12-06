@@ -147,12 +147,16 @@ export default function OrdersPage() {
   const clienteId = clientes[0]?.id
   const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
   const orderBy = ordenacao === 'data' ? 'created_at' : (ordenacao === 'status' ? 'status' : 'prioridade')
+  
+  // REGRA: Todos os técnicos da empresa veem TODAS as OSs
+  // Após aceitar, a OS fica exclusiva do técnico que aceitou
+  // Outros técnicos veem apenas o status (não podem editar/aceitar OSs atribuídas)
   const { ordens, loading, error, deleteOrdem, count } = useOrdensServico(empresaId, {
     page,
     pageSize,
     search: debouncedSearch,
     orderBy: orderBy as any,
-    tecnicoId: canTecnico ? (profile?.tecnico_id ?? undefined) : undefined,
+    // NÃO filtra por tecnicoId - todos veem todas as OSs
     refreshKey,
   })
 
@@ -334,6 +338,7 @@ export default function OrdersPage() {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
+                  
                   return (
                     <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">
@@ -383,19 +388,32 @@ export default function OrdersPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
+                            Ver Detalhes
+                          </DropdownMenuItem>
+                          {console.log('[Menu Debug]', { 
+                            canAdmin, 
+                            canTecnico, 
+                            canAccept: canAcceptOrDecline(ordem),
+                            status: ordem.status,
+                            tecnico_id: ordem.tecnico_id,
+                            profile_tecnico_id: profile?.tecnico_id
+                          })}
                           {(canAdmin || canTecnico) && canAcceptOrDecline(ordem) && (
                             <>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAccept(ordem) }}>
                                 Aceitar
                               </DropdownMenuItem>
                               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); openDecline(ordem) }}>
                                 Recusar
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
                             </>
                           )}
                           {canAdmin && (
-                            <OrderDialog
+                            <>
+                              <DropdownMenuSeparator />
+                              <OrderDialog
                             empresaId={empresaId!}
                             ordem={ordem}
                             clientes={clientes}
@@ -410,19 +428,18 @@ export default function OrdersPage() {
                                 </DropdownMenuItem>
                               }
                               />
-                            )}
-                            {canAdmin && (
                               <DropdownMenuItem
-                              className="text-destructive"
-                              onSelect={() => {
-                                setOrdemToDelete(ordem)
-                                setDeleteDialogOpen(true)
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
+                                className="text-destructive"
+                                onSelect={() => {
+                                  setOrdemToDelete(ordem)
+                                  setDeleteDialogOpen(true)
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
                               </DropdownMenuItem>
-                            )}
+                            </>
+                          )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -459,6 +476,7 @@ export default function OrdersPage() {
           clientes={clientes}
           colaboradores={colaboradores}
           mode="view"
+          canEdit={canAdmin}
           hideTrigger
           defaultOpen
           onOpenChange={(o) => { if (!o) setViewOrder(null) }}

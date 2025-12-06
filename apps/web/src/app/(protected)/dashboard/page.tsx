@@ -792,6 +792,7 @@ export default function DashboardPage() {
           clientes={clientes}
           colaboradores={colaboradores}
           mode="view"
+          canEdit={isAdmin}
           hideTrigger
           defaultOpen
           onOpenChange={(o) => { if (!o) setViewOrder(null) }}

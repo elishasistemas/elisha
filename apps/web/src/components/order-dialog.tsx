@@ -27,6 +27,7 @@ interface OrderDialogProps {
   defaultOpen?: boolean
   hideTrigger?: boolean
   defaultTipo?: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado'
+  canEdit?: boolean  // Permite edição (apenas admins)
 }
 
 export function OrderDialog({ 
@@ -43,6 +44,7 @@ export function OrderDialog({
   defaultOpen,
   hideTrigger,
   defaultTipo,
+  canEdit = true,
 }: OrderDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -95,11 +97,16 @@ export function OrderDialog({
   const [openSections, setOpenSections] = useState<string[]>(['cliente','detalhes','observacoes'])
   useEffect(() => {
     if (!open) return
+    // Em modo view, sempre abrir todas as seções
+    if (isView) {
+      setOpenSections(['cliente','detalhes','observacoes'])
+      return
+    }
     try {
       const saved = localStorage.getItem(accKey('open'))
       if (saved) setOpenSections(JSON.parse(saved))
     } catch {}
-  }, [open])
+  }, [open, isView])
   const onAccordionChange = (v: string[]) => {
     setOpenSections(v)
     try { localStorage.setItem(accKey('open'), JSON.stringify(v)) } catch {}
@@ -215,6 +222,10 @@ export function OrderDialog({
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({ message: 'Erro ao atualizar ordem' }))
+          // Erro específico de permissão RLS
+          if (res.status === 500 && errorData.message?.includes('0 rows')) {
+            throw new Error('Você não tem permissão para editar esta ordem de serviço. Apenas administradores podem editar OSs.')
+          }
           throw new Error(errorData.message || 'Erro ao atualizar ordem')
         }
 
@@ -462,16 +473,18 @@ export function OrderDialog({
             {isView ? (
               <>
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
-                <Button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
-                  }}
-                >
-                  Editar
-                </Button>
+                {canEdit && (
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
+                    }}
+                  >
+                    Editar
+                  </Button>
+                )}
               </>
             ) : (
               <>

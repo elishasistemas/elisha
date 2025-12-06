@@ -35,21 +35,19 @@ export function getRoles(session?: Session | null, profile?: Profile | null): st
 }
 
 export function isAdmin(session?: Session | null, profile?: Profile | null) {
-  const roles = getRoles(session, profile)
+  // Simplificado: usar apenas active_role, que é o campo autoritativo
   const active = getActiveRole(session, profile)
-  return roles.includes('admin') && active === 'admin'
+  return active === 'admin'
 }
 
 export function isTecnico(session?: Session | null, profile?: Profile | null) {
-  const roles = getRoles(session, profile)
   const active = getActiveRole(session, profile)
-  return roles.includes('tecnico') && active === 'tecnico'
+  return active === 'tecnico'
 }
 
 export function isSupervisor(session?: Session | null, profile?: Profile | null) {
-  const roles = getRoles(session, profile)
   const active = getActiveRole(session, profile)
-  return roles.includes('supervisor') && active === 'supervisor'
+  return active === 'supervisor'
 }
 
 export function isElishaAdmin(session?: Session | null, profile?: Profile | null) {
