@@ -16,7 +16,7 @@ export class CreateOrdemServicoDto {
   tecnico_id?: string;
 
   @IsString()
-  @IsIn(['chamado', 'preventiva', 'corretiva', 'instalacao'])
+  @IsIn(['preventiva', 'corretiva', 'emergencial', 'chamado'])
   tipo: string;
 
   @IsString()
