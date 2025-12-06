@@ -37,6 +37,17 @@ export function useAdminRoute() {
   const pathname = usePathname()
 
   useEffect(() => {
+    // DEBUG: Ver o que está sendo detectado
+    console.log('[RouteProtection DEBUG]', {
+      active,
+      profile_active_role: profile?.active_role,
+      profile_roles: profile?.roles,
+      session_app_meta: session?.user?.app_metadata,
+      session_user_meta: session?.user?.user_metadata,
+      user_id: user?.id,
+      pathname
+    })
+
     if (active === 'tecnico') {
       console.log('[RouteProtection] Técnico tentando acessar rota admin - redirecionando para /orders')
       router.replace('/orders')
