@@ -23,13 +23,14 @@ export function useAdminRoute() {
       router.replace('/orders')
     }
     
-    // Supervisor tem acesso limitado - apenas ordens de serviço e relatórios
+    // Supervisor tem acesso limitado - apenas ordens de serviço e relatórios (não acessa cadastros)
     if (active === 'supervisor') {
       const supervisorAllowedRoutes = [
-        '/orders',
-        '/reports', 
-        '/service-orders',
-        '/checklists'
+        '/orders',           // Acessa e atende ordens de serviço
+        '/reports',          // Acessa relatórios
+        '/service-orders',   // Histórico de ordens de serviço
+        '/os/',              // Detalhes de ordem de serviço individual
+        '/dashboard'         // Dashboard (visualização)
       ]
       
       const isAllowed = supervisorAllowedRoutes.some(route => pathname?.startsWith(route))

@@ -65,6 +65,16 @@ export function SettingsDialog({ open: controlledOpen, onOpenChange, trigger }: 
   const { profile, loading: profileLoading } = useProfile(user?.id)
   const { empresas, loading: empresasLoading } = useEmpresas()
 
+  const getRoleLabel = (role: string) => {
+    const labels: Record<string, string> = {
+      admin: 'Administrador',
+      supervisor: 'Supervisor',
+      tecnico: 'Técnico',
+      elisha_admin: 'Admin Elisha'
+    }
+    return labels[role] || role
+  }
+
   const isOpen = controlledOpen !== undefined ? controlledOpen : open
   const handleOpenChange = onOpenChange || setOpen
 
@@ -340,7 +350,7 @@ export function SettingsDialog({ open: controlledOpen, onOpenChange, trigger }: 
                   <Label htmlFor="funcao">Função</Label>
                   <Input
                     id="funcao"
-                    value={profile?.funcao || ''}
+                    value={profile?.active_role ? getRoleLabel(profile.active_role) : ''}
                     disabled
                     className="bg-muted"
                   />
