@@ -30,9 +30,9 @@ import { useEffect } from 'react'
  *   - NÃO acessa: Cadastros, relatórios gerenciais, criação de OS
  */
 export function useAdminRoute() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
-  const active = getActiveRole(null, profile)
+  const active = getActiveRole(session, profile)
   const router = useRouter()
   const pathname = usePathname()
 
