@@ -96,6 +96,55 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
     marca: '',
     capacidade: '',
   })
+  const [loadingEquipamentos, setLoadingEquipamentos] = useState(false)
+
+  // Carregar equipamentos existentes quando abrir cliente em modo edição/visualização
+  useEffect(() => {
+    if (!open || !cliente?.id) {
+      setEquipamentos([])
+      return
+    }
+
+    const loadEquipamentos = async () => {
+      setLoadingEquipamentos(true)
+      try {
+        const { createSupabaseBrowser } = await import('@/lib/supabase')
+        const supabase = createSupabaseBrowser()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) return
+
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?clienteId=${cliente.id}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (res.ok) {
+          const result = await res.json()
+          const equipamentosData = result.data || []
+          // Mapear para o formato do state local
+          const equipamentosMapeados = equipamentosData.map((eq: any) => ({
+            id: eq.id,
+            nome: eq.nome || '',
+            tipo: eq.tipo || '',
+            pavimentos: eq.pavimentos || '',
+            marca: eq.fabricante || '',
+            capacidade: eq.capacidade || '',
+          }))
+          setEquipamentos(equipamentosMapeados)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error)
+      } finally {
+        setLoadingEquipamentos(false)
+      }
+    }
+
+    loadEquipamentos()
+  }, [open, cliente?.id])
 
   const handleChange = (field: string, value: string) => {
     if (isView) return
@@ -311,20 +360,36 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
           ativo: true,
         }))
 
-        const { error: eqError } = await supabase
-          .from('equipamentos')
-          .insert(equipamentosData)
-
-        if (eqError) {
-          console.error('Erro ao criar equipamentos:', eqError)
-          toast.warning(`Cliente ${mode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar alguns equipamentos`)
-        } else {
-          // Telemetry
-          fetch('/api/telemetry/logsnag', {
+        // Criar equipamentos via backend (um por vez para garantir consistência)
+        const equipamentosPromises = equipamentosData.map(eqData => 
+          fetch(`${BACKEND_URL}/api/v1/equipamentos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel: 'clients', event: 'Equipments Added', icon: '🧩', tags: { cliente_id: clienteId, count: equipamentos.length } }),
-          }).catch(() => {})
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(eqData)
+          })
+        )
+
+        try {
+          const responses = await Promise.all(equipamentosPromises)
+          const failedRequests = responses.filter(r => !r.ok)
+          
+          if (failedRequests.length > 0) {
+            console.error('Erro ao criar equipamentos:', failedRequests)
+            toast.warning(`Cliente ${localMode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar ${failedRequests.length} equipamento(s)`)
+          } else {
+            // Telemetry
+            fetch('/api/telemetry/logsnag', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ channel: 'clients', event: 'Equipments Added', icon: '🧩', tags: { cliente_id: clienteId, count: equipamentos.length } }),
+            }).catch(() => {})
+          }
+        } catch (error) {
+          console.error('Erro ao criar equipamentos:', error)
+          toast.warning(`Cliente ${localMode === 'edit' ? 'atualizado' : 'criado'}, mas houve erro ao adicionar equipamentos`)
         }
       }
 
@@ -633,10 +698,14 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
               
               {/* Lista de equipamentos adicionados */}
               <div id="sec_equip" data-open="1">
-              {equipamentos.length > 0 && (
+              {loadingEquipamentos ? (
+                <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                  Carregando equipamentos...
+                </div>
+              ) : equipamentos.length > 0 ? (
                 <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2 bg-muted/20">
                   {equipamentos.map((eq, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm p-2 border rounded bg-background">
+                    <div key={eq.id || index} className="flex items-center justify-between text-sm p-2 border rounded bg-background">
                       <div className="flex-1">
                         <p className="font-medium">{eq.nome}</p>
                         <p className="text-xs text-muted-foreground">
@@ -657,6 +726,10 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
                     </div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">
+                  {localMode === 'edit' || mode === 'view' ? 'Nenhum equipamento cadastrado.' : 'Nenhum equipamento adicionado ainda.'}
+                </p>
               )}
 
               {/* Formulário para adicionar novo equipamento */}

@@ -10,15 +10,19 @@ import { useEmpresas, useClientes, useEquipamentos } from '@/hooks/use-supabase'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth, useProfile } from '@/hooks/use-supabase'
+import { isAdmin, isSupervisor } from '@/utils/auth'
 
 export default function EquipmentsPage() {
   useAdminRoute() // Protege a rota - redireciona técnicos e supervisores
   
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
   
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
+  
+  // Verificar permissões
+  const canCreate = isAdmin(session, profile) || isSupervisor(session, profile)
   
   const { empresas, loading: empresasLoading, error: empresasError } = useEmpresas()
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
@@ -43,7 +47,7 @@ export default function EquipmentsPage() {
           <h1 className="text-2xl font-bold">Equipamentos</h1>
           <p className="text-muted-foreground">Inventário e dados técnicos</p>
         </div>
-        <Button disabled>Novo Equipamento</Button>
+        <Button disabled={!canCreate}>Novo Equipamento</Button>
       </div>
 
       <Card>
