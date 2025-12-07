@@ -100,6 +100,8 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
   // Carregar equipamentos existentes quando abrir cliente em modo edição/visualização
   useEffect(() => {
+    console.log('[ClientDialog] useEffect equipamentos - open:', open, 'cliente?.id:', cliente?.id)
+    
     if (!open || !cliente?.id) {
       setEquipamentos([])
       return
@@ -112,10 +114,16 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         const supabase = createSupabaseBrowser()
         const { data: { session } } = await supabase.auth.getSession()
         
-        if (!session) return
+        if (!session) {
+          console.log('[ClientDialog] Sem sessão, abortando carregar equipamentos')
+          return
+        }
 
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-        const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?clienteId=${cliente.id}`, {
+        const url = `${BACKEND_URL}/api/v1/equipamentos?clienteId=${cliente.id}`
+        console.log('[ClientDialog] Buscando equipamentos:', url)
+        
+        const res = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json'
@@ -124,6 +132,7 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
         if (res.ok) {
           const result = await res.json()
+          console.log('[ClientDialog] Equipamentos recebidos:', result)
           const equipamentosData = result.data || []
           // Mapear para o formato do state local
           const equipamentosMapeados = equipamentosData.map((eq: any) => ({
@@ -134,10 +143,13 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
             marca: eq.fabricante || '',
             capacidade: eq.capacidade || '',
           }))
+          console.log('[ClientDialog] Equipamentos mapeados:', equipamentosMapeados)
           setEquipamentos(equipamentosMapeados)
+        } else {
+          console.error('[ClientDialog] Erro ao buscar equipamentos:', res.status, await res.text())
         }
       } catch (error) {
-        console.error('Erro ao carregar equipamentos:', error)
+        console.error('[ClientDialog] Erro ao carregar equipamentos:', error)
       } finally {
         setLoadingEquipamentos(false)
       }
@@ -145,6 +157,47 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
     loadEquipamentos()
   }, [open, cliente?.id])
+
+  // Carregar dados do formulário quando abrir o dialog com cliente existente
+  useEffect(() => {
+    if (open && cliente) {
+      setFormData({
+        nome_local: cliente.nome_local || '',
+        cnpj: cliente.cnpj || '',
+        endereco_completo: cliente.endereco_completo || '',
+        responsavel_nome: cliente.responsavel_nome || '',
+        responsavel_telefone: cliente.responsavel_telefone || '',
+        responsavel_email: cliente.responsavel_email || '',
+        data_inicio_contrato: cliente.data_inicio_contrato || '',
+        data_fim_contrato: cliente.data_fim_contrato || '',
+        status_contrato: cliente.status_contrato || 'ativo',
+        valor_mensal_contrato: cliente.valor_mensal_contrato 
+          ? (cliente.valor_mensal_contrato / 100).toLocaleString('pt-BR', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : '',
+        numero_art: cliente.numero_art || '',
+        zona_id: cliente.zona_id || '',
+      })
+    } else if (open && !cliente) {
+      // Resetar formulário quando abrir em modo criar
+      setFormData({
+        nome_local: '',
+        cnpj: '',
+        endereco_completo: '',
+        responsavel_nome: '',
+        responsavel_telefone: '',
+        responsavel_email: '',
+        data_inicio_contrato: '',
+        data_fim_contrato: '',
+        status_contrato: 'ativo',
+        valor_mensal_contrato: '',
+        numero_art: '',
+        zona_id: '',
+      })
+    }
+  }, [open, cliente])
 
   const handleChange = (field: string, value: string) => {
     if (isView) return
@@ -286,6 +339,13 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         numero_art: formData.numero_art.trim() || null,
         zona_id: formData.zona_id || null,
       }
+
+      console.log('[ClientDialog] Dados sendo enviados:', {
+        valor_mensal_contrato: valorMensalNumerico,
+        numero_art: formData.numero_art.trim() || null,
+        formData_valor: formData.valor_mensal_contrato,
+        formData_art: formData.numero_art
+      })
 
       let clienteId: string
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
