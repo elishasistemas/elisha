@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Plus, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Colaborador } from '@/lib/supabase'
+import { useZonas } from '@/hooks/use-supabase'
 
 interface TechnicianDialogProps {
   empresaId: string
@@ -83,6 +85,11 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
     whatsapp_numero: colaborador?.whatsapp_numero ? formatWhatsApp(colaborador.whatsapp_numero) : '',
   })
 
+  // Estados para gerenciamento de zonas
+  const [atendeTodasZonas, setAtendeTodasZonas] = useState(false)
+  const [zonasSelecionadas, setZonasSelecionadas] = useState<string[]>([])
+  const { zonas, loading: zonasLoading } = useZonas(empresaId)
+
   // Atualizar formData quando colaborador mudar
   useEffect(() => {
     if (colaborador) {
@@ -92,6 +99,8 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         telefone: colaborador.telefone ? formatPhone(colaborador.telefone) : '',
         whatsapp_numero: colaborador.whatsapp_numero ? formatWhatsApp(colaborador.whatsapp_numero) : '',
       })
+      // Carregar zonas do técnico
+      loadTecnicoZonas()
     } else {
       setFormData({
         nome: '',
@@ -99,18 +108,54 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         telefone: '',
         whatsapp_numero: '',
       })
+      setAtendeTodasZonas(false)
+      setZonasSelecionadas([])
     }
   }, [colaborador?.id])
+
+  // Carregar zonas do técnico
+  const loadTecnicoZonas = async () => {
+    if (!colaborador?.id) return
+    
+    try {
+      const { createSupabaseBrowser } = await import('@/lib/supabase')
+      const supabase = createSupabaseBrowser()
+      
+      // Buscar zonas_tecnicos
+      const { data: zonasData, error } = await supabase
+        .from('zonas_tecnicos')
+        .select('zona_id')
+        .eq('tecnico_id', colaborador.id)
+      
+      if (error) throw error
+      
+      const zonaIds = zonasData?.map(z => z.zona_id) || []
+      setZonasSelecionadas(zonaIds)
+      
+      // Verificar se atende todas as zonas (campo no colaborador)
+      const { data: colabData } = await supabase
+        .from('colaboradores')
+        .select('atende_todas_zonas')
+        .eq('id', colaborador.id)
+        .single()
+      
+      setAtendeTodasZonas(colabData?.atende_todas_zonas || false)
+    } catch (error) {
+      console.error('Erro ao carregar zonas do técnico:', error)
+    }
+  }
 
   // Accordions com persistência
   const [secPessoais, setSecPessoais] = useState(true)
   const [secContato, setSecContato] = useState(true)
+  const [secZonas, setSecZonas] = useState(true)
   const key = (s: string) => `tech_dialog:${s}`
   useEffect(() => {
     if (!open) return
     try {
       setSecPessoais((localStorage.getItem(key('pessoais')) ?? '1') === '1')
       setSecContato((localStorage.getItem(key('contato')) ?? '1') === '1')
+      setSecZonas((localStorage.getItem(key('zonas')) ?? '1') === '1')
     } catch {}
   }, [open])
   const persist = (name: string, val: boolean) => { try { localStorage.setItem(key(name), val ? '1' : '0') } catch {} }
@@ -145,7 +190,10 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         telefone: formData.telefone.replace(/\D/g, '') || null, // Salva apenas números
         whatsapp_numero: formData.whatsapp_numero.replace(/\D/g, ''), // Salva apenas números
         ativo: true,
+        atende_todas_zonas: atendeTodasZonas, // Novo campo
       }
+
+      let colaboradorId: string
 
       if (localMode === 'edit' && colaborador) {
         // Atualizar colaborador
@@ -155,6 +203,22 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
           .eq('id', colaborador.id)
 
         if (error) throw error
+
+        colaboradorId = colaborador.id
+
+        // Atualizar zonas - remover todas e recriar
+        await supabase
+          .from('zonas_tecnicos')
+          .delete()
+          .eq('tecnico_id', colaboradorId)
+
+        if (!atendeTodasZonas && zonasSelecionadas.length > 0) {
+          const zonasData = zonasSelecionadas.map(zonaId => ({
+            zona_id: zonaId,
+            tecnico_id: colaboradorId
+          }))
+          await supabase.from('zonas_tecnicos').insert(zonasData)
+        }
 
         toast.success('Técnico atualizado com sucesso!')
         // Telemetry
@@ -168,8 +232,21 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         const { data, error } = await supabase
           .from('colaboradores')
           .insert([colaboradorData])
+          .select('id')
+          .single()
 
         if (error) throw error
+
+        colaboradorId = data.id
+
+        // Criar zonas_tecnicos
+        if (!atendeTodasZonas && zonasSelecionadas.length > 0) {
+          const zonasData = zonasSelecionadas.map(zonaId => ({
+            zona_id: zonaId,
+            tecnico_id: colaboradorId
+          }))
+          await supabase.from('zonas_tecnicos').insert(zonasData)
+        }
 
         toast.success('Técnico criado com sucesso!')
         // Telemetry
@@ -233,10 +310,10 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Accordion type="multiple" value={[secPessoais ? 'pessoais' : '', secContato ? 'contato' : ''].filter(Boolean) as string[]} onValueChange={(v) => {
+          <Accordion type="multiple" value={[secPessoais ? 'pessoais' : '', secContato ? 'contato' : '', secZonas ? 'zonas' : ''].filter(Boolean) as string[]} onValueChange={(v) => {
             const set = new Set(v as string[])
-            const p = set.has('pessoais'); const c = set.has('contato')
-            setSecPessoais(p); setSecContato(c); persist('pessoais', p); persist('contato', c)
+            const p = set.has('pessoais'); const c = set.has('contato'); const z = set.has('zonas')
+            setSecPessoais(p); setSecContato(c); setSecZonas(z); persist('pessoais', p); persist('contato', c); persist('zonas', z)
           }} className="w-full">
             <AccordionItem value="pessoais">
               <AccordionTrigger>Dados Pessoais</AccordionTrigger>
@@ -303,6 +380,78 @@ export function TechnicianDialog({ empresaId, colaborador, onSuccess, trigger, m
                       Formato: (DDD)Número
                     </p>
                   </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="zonas">
+              <AccordionTrigger>Zonas de Atendimento</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  {/* Opção: Atende todas as zonas */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="atende_todas_zonas"
+                      checked={atendeTodasZonas}
+                      onCheckedChange={(checked) => {
+                        setAtendeTodasZonas(checked as boolean)
+                        if (checked) {
+                          // Se marcar "todas", desmarca zonas específicas
+                          setZonasSelecionadas([])
+                        }
+                      }}
+                      disabled={isView}
+                    />
+                    <Label 
+                      htmlFor="atende_todas_zonas" 
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Atende todas as zonas
+                    </Label>
+                  </div>
+
+                  {/* Lista de zonas específicas */}
+                  {!atendeTodasZonas && (
+                    <div className="space-y-2">
+                      <Label>Selecione as zonas específicas:</Label>
+                      {zonasLoading ? (
+                        <p className="text-sm text-muted-foreground">Carregando zonas...</p>
+                      ) : zonas.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhuma zona cadastrada</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto border rounded-md p-3">
+                          {zonas.map((zona) => (
+                            <div key={zona.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`zona-${zona.id}`}
+                                checked={zonasSelecionadas.includes(zona.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setZonasSelecionadas([...zonasSelecionadas, zona.id])
+                                  } else {
+                                    setZonasSelecionadas(zonasSelecionadas.filter(id => id !== zona.id))
+                                  }
+                                }}
+                                disabled={isView}
+                              />
+                              <Label
+                                htmlFor={`zona-${zona.id}`}
+                                className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {zona.nome}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {atendeTodasZonas && (
+                    <p className="text-sm text-muted-foreground italic">
+                      Este técnico poderá atender ordens de serviço em qualquer zona da empresa.
+                    </p>
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
