@@ -353,7 +353,7 @@ export function OrderDialog({
                           <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
                         ) : (
                           equipamentosFiltrados.map((eq) => (
-                            <SelectItem key={eq.id} value={eq.id}>{eq.tipo} - {eq.fabricante} {eq.modelo}</SelectItem>
+                            <SelectItem key={eq.id} value={eq.id}>{eq.nome || `${eq.tipo} - ${eq.fabricante} ${eq.modelo}`.trim()}</SelectItem>
                           ))
                         )}
                       </SelectContent>
