@@ -14,7 +14,7 @@ import { Eye, EyeOff } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const supabase = useMemo(() => createSupabaseBrowser(), [])
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('') // username ou email
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,10 +68,26 @@ export default function LoginPage() {
     })
     
     try {
-      console.log('🔐 [LOGIN] Attempting sign in for:', email)
+      console.log('🔐 [LOGIN] Attempting sign in for identifier:', identifier)
+      
+      // Converter username para email se necessário
+      let emailToUse = identifier
+      if (!identifier.includes('@')) {
+        // É um username, buscar email correspondente
+        const { data: emailData, error: rpcError } = await supabase.rpc('get_email_from_identifier', {
+          identifier: identifier.toLowerCase()
+        })
+        
+        if (rpcError) {
+          console.error('❌ [LOGIN] Erro ao buscar email por username:', rpcError)
+        } else if (emailData) {
+          emailToUse = emailData
+          console.log('✅ [LOGIN] Username convertido para email')
+        }
+      }
       
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailToUse,
         password,
       })
 
@@ -203,13 +219,13 @@ export default function LoginPage() {
               ) : null}
               <form className="space-y-8" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="identifier">Usuário ou Email</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="identifier"
+                    type="text"
+                    placeholder="seu.usuario ou seu@email.com"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     required
                   />
                 </div>

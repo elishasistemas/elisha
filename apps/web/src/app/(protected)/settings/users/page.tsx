@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowser } from "@/lib/supabase";
-import { InviteDialog } from "@/components/invite-dialog";
+import { UserCreateDialog } from "@/components/users/user-create-dialog";
+import { UserEditDialog } from "@/components/users/user-edit-dialog";
 import {
   Card,
   CardContent,
@@ -42,20 +43,13 @@ interface Profile {
   active_role?: string;
   created_at: string;
   email?: string; // pode não existir na tabela profiles
-  name?: string;
+  nome?: string;
+  username?: string;
+  telefone?: string;
+  whatsapp_numero?: string;
+  funcao?: string;
   is_elisha_admin?: boolean;
   impersonating_empresa_id?: string | null;
-}
-
-interface Invite {
-  id: string;
-  email: string;
-  role: string;
-  status: string;
-  token: string;
-  expires_at: string;
-  created_at: string;
-  accepted_at?: string;
 }
 
 export default function UsersPage() {
@@ -63,16 +57,16 @@ export default function UsersPage() {
   const { profile: userProfile } = useProfile(user?.id);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [empresaId, setEmpresaId] = useState<string>("");
+  const [empresaNome, setEmpresaNome] = useState<string>("");
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   // Search + pagination state
   const [searchUsers, setSearchUsers] = useState("");
   const [pageUsers, setPageUsers] = useState(1);
   const [pageSizeUsers, setPageSizeUsers] = useState(10);
-  const [searchInvites, setSearchInvites] = useState("");
-  const [pageInvites, setPageInvites] = useState(1);
-  const [pageSizeInvites, setPageSizeInvites] = useState(10);
   
   // Verificar se é admin usando a função correta
   const canAdmin = isAdmin(session, userProfile);
@@ -129,6 +123,17 @@ export default function UsersPage() {
         return;
       }
 
+      // Buscar nome da empresa
+      const { data: empresaData } = await supabase
+        .from("empresas")
+        .select("nome")
+        .eq("id", targetEmpresaId)
+        .single();
+      
+      if (empresaData) {
+        setEmpresaNome(empresaData.nome);
+      }
+
       // Carregar usuários da empresa com emails (via API)
       try {
         const usersResponse = await fetch('/api/admin/users/list', {
@@ -149,22 +154,6 @@ export default function UsersPage() {
         toast.error(message);
         setProfiles([]);
       }
-
-      // Carregar convites da empresa (apenas pendentes)
-      const { data: invitesData, error: invitesError } = await supabase
-        .from("invites")
-        .select("*")
-        .eq("empresa_id", targetEmpresaId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-
-      if (invitesError) {
-        console.error("Erro ao buscar convites:", invitesError);
-        toast.error("Erro ao carregar convites");
-      } else {
-        console.log('[UsersPage] Convites carregados:', invitesData?.length, invitesData);
-        setInvites(invitesData || []);
-      }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
       toast.error("Erro ao carregar dados");
@@ -173,41 +162,9 @@ export default function UsersPage() {
     }
   };
 
-  const handleRevokeInvite = async (inviteId: string) => {
-    if (!confirm("Deseja realmente revogar este convite?")) return;
-
-    const supabase = createSupabaseBrowser();
-
-    try {
-      const { error } = await supabase.rpc("revoke_invite", {
-        p_invite_id: inviteId,
-      });
-
-      if (error) {
-        console.error("Erro ao revogar convite:", error);
-        toast.error(error.message || "Erro ao revogar convite");
-        return;
-      }
-
-      toast.success("Convite revogado com sucesso");
-      loadData();
-    } catch (err: any) {
-      console.error("Erro ao revogar convite:", err);
-      toast.error(err.message || "Erro ao revogar convite");
-    }
-  };
-
-  const handleCopyInviteLink = async (token: string) => {
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const inviteUrl = `${baseUrl}/signup?token=${token}`;
-    
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      toast.success("Link copiado para a área de transferência!");
-    } catch (err) {
-      console.error("Erro ao copiar link:", err);
-      toast.error("Erro ao copiar link");
-    }
+  const handleEditUser = (user: Profile) => {
+    setSelectedUser(user);
+    setEditUserDialogOpen(true);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -251,30 +208,6 @@ export default function UsersPage() {
     return variants[role] || "outline";
   };
 
-  const getStatusBadge = (status: string, expiresAt?: string) => {
-    const isExpired = expiresAt && new Date(expiresAt) < new Date();
-
-    if (isExpired && status === "pending") {
-      return <Badge variant="destructive">Expirado</Badge>;
-    }
-
-    const statusConfig: Record<
-      string,
-      { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
-    > = {
-      pending: { label: "Pendente", variant: "secondary" },
-      accepted: { label: "Aceito", variant: "default" },
-      revoked: { label: "Revogado", variant: "destructive" },
-      expired: { label: "Expirado", variant: "destructive" },
-    };
-
-    const config = statusConfig[status] || {
-      label: status,
-      variant: "outline" as const,
-    };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
   const formatDate = (date: string) => {
     return new Intl.DateTimeFormat("pt-BR", {
       dateStyle: "short",
@@ -310,7 +243,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Usuários e Convites
+            Usuários
           </h1>
           <p className="text-muted-foreground">
             Gerencie os colaboradores da sua empresa
@@ -322,10 +255,9 @@ export default function UsersPage() {
             Atualizar
           </Button>
           {canAdmin && empresaId && (
-            <InviteDialog
-              empresaId={empresaId}
-              onInviteCreated={loadData}
-            />
+            <Button onClick={() => setCreateUserDialogOpen(true)}>
+              Criar Usuário
+            </Button>
           )}
         </div>
       </div>
@@ -342,7 +274,7 @@ export default function UsersPage() {
             </div>
             <div className="flex items-center gap-2">
               <Input
-                placeholder="Buscar por e-mail ou papel"
+                placeholder="Buscar por usuário, e-mail, nome ou papel"
                 value={searchUsers}
                 onChange={(e) => { setSearchUsers(e.target.value); setPageUsers(1); }}
                 className="w-[260px]"
@@ -369,9 +301,11 @@ export default function UsersPage() {
             // Filter + paginate users
             const q = searchUsers.trim().toLowerCase();
             const filtered = !q ? profiles : profiles.filter((p) => {
+              const username = (p.username || "").toLowerCase();
               const email = (p.email || "N/A").toLowerCase();
+              const nome = (p.nome || "").toLowerCase();
               const role = (p.role || "").toLowerCase();
-              return email.includes(q) || role.includes(q);
+              return username.includes(q) || email.includes(q) || nome.includes(q) || role.includes(q);
             });
             const total = filtered.length;
             const totalPages = Math.max(1, Math.ceil(total / pageSizeUsers));
@@ -388,6 +322,7 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Usuário</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Papel</TableHead>
@@ -398,11 +333,14 @@ export default function UsersPage() {
               <TableBody>
                 {pageRows.map((profile) => (
                   <TableRow key={profile.id}>
+                    <TableCell className="font-medium font-mono">
+                      {profile.username || "N/A"}
+                    </TableCell>
                     <TableCell className="font-medium">
                       {profile.email || "N/A"}
                     </TableCell>
                     <TableCell>
-                      {profile.name || "-"}
+                      {profile.nome || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getRoleBadgeVariant(profile.role)}>
@@ -414,21 +352,40 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteUser(profile.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Excluir usuário</p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center justify-end gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleEditUser(profile)}
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Editar usuário</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteUser(profile.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Excluir usuário</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </TooltipProvider>
                     </TableCell>
                   </TableRow>
@@ -440,9 +397,11 @@ export default function UsersPage() {
           {(() => {
             const q = searchUsers.trim().toLowerCase();
             const filtered = !q ? profiles : profiles.filter((p) => {
+              const username = (p.username || "").toLowerCase();
               const email = (p.email || "N/A").toLowerCase();
+              const nome = (p.nome || "").toLowerCase();
               const role = (p.role || "").toLowerCase();
-              return email.includes(q) || role.includes(q);
+              return username.includes(q) || email.includes(q) || nome.includes(q) || role.includes(q);
             });
             const total = filtered.length;
             const totalPages = Math.max(1, Math.ceil(total / pageSizeUsers));
@@ -469,164 +428,28 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Convites */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>Convites</CardTitle>
-              <CardDescription>
-                Convites enviados para novos colaboradores
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Buscar por e-mail ou status"
-                value={searchInvites}
-                onChange={(e) => { setSearchInvites(e.target.value); setPageInvites(1); }}
-                className="w-[260px]"
-              />
-              <Select value={String(pageSizeInvites)} onValueChange={(v) => { setPageSizeInvites(Number(v)); setPageInvites(1); }}>
-                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 / página</SelectItem>
-                  <SelectItem value="20">20 / página</SelectItem>
-                  <SelectItem value="50">50 / página</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : (() => {
-            // Filter + paginate invites
-            const q = searchInvites.trim().toLowerCase();
-            const filtered = !q ? invites : invites.filter((i) => {
-              const email = (i.email || "").toLowerCase();
-              const status = (i.status || "").toLowerCase();
-              const role = (i.role || "").toLowerCase();
-              return email.includes(q) || status.includes(q) || role.includes(q);
-            });
-            const total = filtered.length;
-            const totalPages = Math.max(1, Math.ceil(total / pageSizeInvites));
-            const currentPage = Math.min(pageInvites, totalPages);
-            const start = (currentPage - 1) * pageSizeInvites;
-            const end = start + pageSizeInvites;
-            const pageRows = filtered.slice(start, end);
+      {/* Dialog: Criar Usuário */}
+      {empresaId && empresaNome && (
+        <UserCreateDialog
+          open={createUserDialogOpen}
+          onOpenChange={setCreateUserDialogOpen}
+          empresaId={empresaId}
+          empresaNome={empresaNome}
+          onUserCreated={loadData}
+        />
+      )}
 
-            return filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Nenhum convite {q ? 'encontrado' : 'criado ainda'}
-            </p>
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Papel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expira em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.map((invite) => (
-                  <TableRow key={invite.id}>
-                    <TableCell className="font-medium">
-                      {invite.email}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(invite.role)}>
-                        {getRoleLabel(invite.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(invite.status, invite.expires_at)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(invite.expires_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {invite.status === "pending" && (
-                        <TooltipProvider>
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleCopyInviteLink(invite.token)}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Copiar link do convite</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleRevokeInvite(invite.id)}
-                                >
-                                  <Trash className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Revogar convite</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TooltipProvider>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            );
-          })()}
-          {(() => {
-            const q = searchInvites.trim().toLowerCase();
-            const filtered = !q ? invites : invites.filter((i) => {
-              const email = (i.email || "").toLowerCase();
-              const status = (i.status || "").toLowerCase();
-              const role = (i.role || "").toLowerCase();
-              return email.includes(q) || status.includes(q) || role.includes(q);
-            });
-            const total = filtered.length;
-            const totalPages = Math.max(1, Math.ceil(total / pageSizeInvites));
-            const currentPage = Math.min(pageInvites, totalPages);
-            const start = (currentPage - 1) * pageSizeInvites;
-            const end = start + pageSizeInvites;
-            return filtered.length > 0 ? (
-              <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-                <div>
-                  Mostrando {Math.min(end, total)} de {total}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPageInvites((p) => Math.max(1, p - 1))}>
-                    Anterior
-                  </Button>
-                  <span>Página {currentPage} de {totalPages}</span>
-                  <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPageInvites((p) => Math.min(totalPages, p + 1))}>
-                    Próxima
-                  </Button>
-                </div>
-              </div>
-            ) : null;
-          })()}
-        </CardContent>
-      </Card>
+      {/* Dialog: Editar Usuário */}
+      {empresaId && empresaNome && selectedUser && (
+        <UserEditDialog
+          open={editUserDialogOpen}
+          onOpenChange={setEditUserDialogOpen}
+          user={selectedUser}
+          empresaId={empresaId}
+          empresaNome={empresaNome}
+          onUserUpdated={loadData}
+        />
+      )}
     </div>
   );
-}
+

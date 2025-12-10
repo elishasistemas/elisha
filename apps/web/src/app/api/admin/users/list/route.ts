@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     console.log(`[admin/users/list] Buscando usuários para empresa: ${empresaId}`)
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, user_id, empresa_id, role, nome, created_at')
+      .select('id, user_id, empresa_id, role, nome, username, telefone, whatsapp_numero, funcao, created_at')
       .eq('empresa_id', empresaId)
       .order('created_at', { ascending: false })
     

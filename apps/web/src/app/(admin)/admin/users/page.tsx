@@ -31,6 +31,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Trash2, Edit, UserPlus, RefreshCw } from 'lucide-react'
+import { UserCreateDialog } from '@/components/users/user-create-dialog'
 
 interface UserProfile {
   id: string
@@ -79,7 +80,8 @@ export default function AdminUsersPage() {
   })
 
   // Invite user dialog
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false)
+  const [selectedEmpresaForUser, setSelectedEmpresaForUser] = useState<{ id: string; nome: string } | null>(null)
   const [inviteForm, setInviteForm] = useState({
     email: '',
     name: '',
@@ -289,9 +291,38 @@ export default function AdminUsersPage() {
             <RefreshCw className="size-4 mr-2" />
             Atualizar
           </Button>
-          <Button onClick={() => setInviteDialogOpen(true)}>
+          <Select 
+            value={selectedEmpresaForUser?.id || ''} 
+            onValueChange={(value) => {
+              const empresa = empresas.find(e => e.id === value)
+              if (empresa) {
+                setSelectedEmpresaForUser({ id: empresa.id, nome: empresa.nome })
+              }
+            }}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Selecione empresa..." />
+            </SelectTrigger>
+            <SelectContent>
+              {empresas.map((emp) => (
+                <SelectItem key={emp.id} value={emp.id}>
+                  {emp.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={() => {
+              if (!selectedEmpresaForUser) {
+                toast.error('Selecione uma empresa primeiro')
+                return
+              }
+              setCreateUserDialogOpen(true)
+            }}
+            disabled={!selectedEmpresaForUser}
+          >
             <UserPlus className="size-4 mr-2" />
-            Convidar Usuário
+            Criar Usuário
           </Button>
         </div>
       </div>
@@ -631,6 +662,20 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Criar Usuário Diretamente */}
+      {selectedEmpresaForUser && (
+        <UserCreateDialog
+          open={createUserDialogOpen}
+          onOpenChange={setCreateUserDialogOpen}
+          empresaId={selectedEmpresaForUser.id}
+          empresaNome={selectedEmpresaForUser.nome}
+          onUserCreated={() => {
+            loadData()
+            setSelectedEmpresaForUser(null)
+          }}
+        />
+      )}
     </div>
   )
 }

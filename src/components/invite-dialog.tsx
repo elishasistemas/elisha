@@ -128,12 +128,12 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
       <DialogTrigger asChild>
         <Button>
           <UserPlus className="h-4 w-4 mr-2" />
-          Convidar colaborador
+          Criar Usuário
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Convidar novo colaborador</DialogTitle>
+          <DialogTitle>Criar Novo Usuário</DialogTitle>
           <DialogDescription>
             {inviteToken
               ? "Convite criado! Copie o link abaixo e envie para o colaborador."
