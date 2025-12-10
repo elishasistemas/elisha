@@ -26,12 +26,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
 import { createSupabaseBrowser } from '@/lib/supabase'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
 import { OrderDialog } from '@/components/order-dialog'
+import { SignatureDialog } from '@/components/signature-dialog'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
 
@@ -110,6 +111,7 @@ function formatDate(dateString: string) {
 
 export default function OrdersPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const newParam = searchParams?.get('new')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -163,6 +165,8 @@ export default function OrdersPage() {
   const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
+  const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
 
   const [openCreate, setOpenCreate] = useState(false)
   // Abre automaticamente o diálogo de criação quando new=true
@@ -173,6 +177,7 @@ export default function OrdersPage() {
   }, [newParam, empresaId, clientes.length, canAdmin])
 
   const handleRefresh = () => {
+    console.log('[handleRefresh] Incrementando refreshKey de', refreshKey, 'para', refreshKey + 1)
     setRefreshKey(prev => prev + 1)
   }
 
@@ -191,16 +196,20 @@ export default function OrdersPage() {
 
   const handleAccept = async (ordem: OrdemServico) => {
     try {
+      console.log('[handleAccept] Aceitando OS:', ordem.id, 'Status atual:', ordem.status)
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: ordem.id })
       if (error) throw error
       const result = data as { success: boolean; error?: string; message?: string }
+      console.log('[handleAccept] Resultado RPC:', result)
       if (!result?.success) {
         toast.error(result?.message || result?.error || 'Erro ao aceitar OS')
         return
       }
       toast.success(result?.message || 'OS aceita com sucesso')
+      console.log('[handleAccept] Chamando handleRefresh()...')
       handleRefresh()
     } catch (e) {
+      console.error('[handleAccept] Erro:', e)
       toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
     }
   }
@@ -229,6 +238,68 @@ export default function OrdersPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao recusar OS')
     }
+  }
+
+  const handleFinalizeWithSignature = async (signatureDataUrl: string, clientName: string, clientEmail?: string) => {
+    if (!ordemToFinalize) return
+
+    try {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const session = await supabase.auth.getSession()
+      const token = session.data.session?.access_token
+
+      if (!token) {
+        throw new Error('Usuário não autenticado')
+      }
+
+      // Finalizar OS via backend
+      const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordemToFinalize.id}/finalize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          assinatura_cliente: signatureDataUrl,
+          nome_cliente_assinatura: clientName,
+          email_cliente_assinatura: clientEmail || null,
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao finalizar OS')
+      }
+
+      // Se tiver email, enviar por email (implementar endpoint depois)
+      if (clientEmail) {
+        try {
+          await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordemToFinalize.id}/send-completed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email: clientEmail })
+          })
+        } catch (emailError) {
+          console.error('Erro ao enviar email:', emailError)
+          // Não bloqueia a finalização se falhar o envio do email
+        }
+      }
+
+      toast.success('OS finalizada com sucesso!')
+      setSignatureDialogOpen(false)
+      setOrdemToFinalize(null)
+      handleRefresh()
+    } catch (error) {
+      console.error('Erro ao finalizar OS:', error)
+      throw error
+    }
+  }
+
+  const openFinalizeDialog = (ordem: OrdemServico) => {
+    setOrdemToFinalize(ordem)
+    setSignatureDialogOpen(true)
   }
 
   const handleDelete = async () => {
@@ -339,6 +410,16 @@ export default function OrdersPage() {
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
                   
+                  // Debug: Verificar inconsistências
+                  if (ordem.status === 'em_andamento' && !ordem.tecnico_id) {
+                    console.warn('[OrdersPage] OS com status em_andamento mas sem técnico:', {
+                      id: ordem.id,
+                      numero_os: ordem.numero_os,
+                      status: ordem.status,
+                      tecnico_id: ordem.tecnico_id
+                    })
+                  }
+                  
                   return (
                     <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">
@@ -391,14 +472,9 @@ export default function OrdersPage() {
                           <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
                             Ver Detalhes
                           </DropdownMenuItem>
-                          {console.log('[Menu Debug]', { 
-                            canAdmin, 
-                            canTecnico, 
-                            canAccept: canAcceptOrDecline(ordem),
-                            status: ordem.status,
-                            tecnico_id: ordem.tecnico_id,
-                            profile_tecnico_id: profile?.tecnico_id
-                          })}
+                          {(() => {
+                            return null
+                          })()}
                           {(canAdmin || canTecnico) && canAcceptOrDecline(ordem) && (
                             <>
                               <DropdownMenuSeparator />
@@ -407,6 +483,16 @@ export default function OrdersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); openDecline(ordem) }}>
                                 Recusar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {/* Opção de finalizar para técnicos com OS não finalizada */}
+                          {canTecnico && ordem.tecnico_id === profile?.tecnico_id && !['concluido', 'cancelado'].includes(ordem.status) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push(`/os/${ordem.id}/full`) }}>
+                                <FileSignature className="mr-2 h-4 w-4" />
+                                {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Fazer Check-in' : 'Continuar Atendimento'}
                               </DropdownMenuItem>
                             </>
                           )}
@@ -521,6 +607,14 @@ export default function OrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Assinatura para Finalização */}
+      <SignatureDialog
+        open={signatureDialogOpen}
+        onOpenChange={setSignatureDialogOpen}
+        onSubmit={handleFinalizeWithSignature}
+        ordenServicoNumero={ordemToFinalize?.numero_os || undefined}
+      />
     </div>
   )
 }

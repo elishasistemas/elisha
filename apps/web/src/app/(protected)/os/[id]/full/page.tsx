@@ -19,7 +19,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
-import { OSAtendimentoChecklist } from '@/components/os-atendimento-checklist'
+import { OSChamadoCorretiva } from '@/components/os-chamado-corretiva'
+import { OSPreventiva } from '@/components/os-preventiva'
 
 interface StatusHistory {
   id: string
@@ -81,7 +82,6 @@ export default function OSFullScreenPage() {
       total_seconds: seconds
     }
     
-    console.log('[os-full] Tempo decorrido:', tempo)
     return tempo
   }, [emDeslocamentoTimestamp, currentTime])
 
@@ -397,10 +397,19 @@ export default function OSFullScreenPage() {
       {/* Checklist + Laudo + Evidências (aparece após check-in) */}
       {os.status === 'checkin' && os.empresa_id && (
         <div className="max-w-5xl mx-auto">
-          <OSAtendimentoChecklist 
-            osId={os.id} 
-            empresaId={os.empresa_id}
-          />
+          {os.tipo === 'preventiva' ? (
+            <OSPreventiva 
+              osId={os.id} 
+              empresaId={os.empresa_id}
+              osData={os}
+            />
+          ) : (
+            <OSChamadoCorretiva 
+              osId={os.id} 
+              empresaId={os.empresa_id}
+              osData={os}
+            />
+          )}
         </div>
       )}
 
