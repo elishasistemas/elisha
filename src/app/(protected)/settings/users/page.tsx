@@ -45,6 +45,7 @@ interface Profile {
   name?: string;
   is_elisha_admin?: boolean;
   impersonating_empresa_id?: string | null;
+
 }
 
 interface Invite {
