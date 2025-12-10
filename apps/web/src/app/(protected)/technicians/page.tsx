@@ -107,16 +107,30 @@ export default function TechniciansPage() {
 
   const handleToggleAtivo = async (colaborador: Colaborador) => {
     try {
+      // Se estiver desativando, mostrar confirmação
+      if (colaborador.ativo) {
+        const confirmacao = window.confirm(
+          `Tem certeza que deseja desativar o técnico ${colaborador.nome}?\n\n` +
+          'O sistema verificará se há ordens de serviço atribuídas.'
+        )
+        if (!confirmacao) return
+      }
+
       const result = await toggleAtivoColaborador(colaborador.id, !colaborador.ativo) as any
       if (result.error) {
         if (result.hasActiveOS) {
-          // Erro mais específico para OSs em andamento
-          toast.error(result.error, {
-            duration: 8000,
-            description: 'Finalize ou reatribua as OSs pendentes antes de desativar.',
+          // Erro crítico: técnico possui OSs ativas - BLOQUEAR desativação
+          toast.error('Desativação bloqueada', {
+            duration: 10000,
+            description: result.error,
           })
+          // Mostrar também um alert para garantir visibilidade
+          alert(
+            `⚠️ DESATIVAÇÃO BLOQUEADA\n\n${result.error}\n\n` +
+            'Ação necessária: Finalize ou reatribua estas ordens de serviço antes de desativar o técnico.'
+          )
         } else {
-          toast.error(result.error)
+          toast.error(result.error, { duration: 5000 })
         }
       } else {
         // Se desativou um técnico e o filtro está em "ativos", mudar para "todos"

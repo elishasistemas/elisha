@@ -492,24 +492,33 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
   const toggleAtivoColaborador = async (id: string, ativo: boolean) => {
     try {
-      // Se estiver desativando, verificar se há OSs em andamento
+      // Se estiver desativando, verificar se há OSs ativas atribuídas ao técnico
       if (!ativo) {
-        const { data: osEmAndamento, error: osError } = await supabase
+        const { data: osAtivas, error: osError } = await supabase
           .from('ordens_servico')
           .select('id, numero_os, status')
           .eq('tecnico_id', id)
-          .in('status', ['novo', 'em_andamento', 'aguardando_assinatura'])
-          .limit(5)
+          .in('status', ['novo', 'parado', 'em_deslocamento', 'checkin', 'em_andamento', 'aguardando_assinatura'])
+          .limit(10)
 
         if (osError) {
           console.error('Erro ao verificar OSs:', osError)
-        } else if (osEmAndamento && osEmAndamento.length > 0) {
-          const osNums = osEmAndamento.map(os => os.numero_os || os.id.slice(0, 8)).join(', ')
           return { 
             data: null, 
-            error: `Técnico possui ${osEmAndamento.length} OS(s) em andamento (${osNums}). Por favor, finalize ou reatribua estas OSs antes de desativar o técnico.`,
+            error: 'Erro ao verificar ordens de serviço do técnico.',
+            hasActiveOS: false
+          }
+        }
+        
+        if (osAtivas && osAtivas.length > 0) {
+          const osNums = osAtivas.slice(0, 5).map((os: any) => os.numero_os || `#${os.id.slice(0, 8)}`).join(', ')
+          const maisOs = osAtivas.length > 5 ? ` e mais ${osAtivas.length - 5}` : ''
+          return { 
+            data: null, 
+            error: `Não é possível desativar o técnico. Existem ${osAtivas.length} ordem(ns) de serviço atribuída(s): ${osNums}${maisOs}`,
             hasActiveOS: true,
-            activeOS: osEmAndamento
+            activeOS: osAtivas,
+            count: osAtivas.length
           }
         }
       }
