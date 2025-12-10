@@ -684,6 +684,7 @@ export function useOrdensServico(
   const supabase = createSupabaseBrowser()
 
   useEffect(() => {
+    console.log('[useOrdensServico] useEffect disparado. empresaId:', empresaId, 'refreshKey:', opts?.refreshKey)
     if (!empresaId) {
       setLoading(false)
       return
@@ -692,6 +693,7 @@ export function useOrdensServico(
     const fetchOrdens = async () => {
       try {
         setLoading(true)
+        console.log('[useOrdensServico] Iniciando busca de OSs...')
         // Pega o token JWT do Supabase
         const { data: { session } } = await supabase.auth.getSession()
         const token = session?.access_token
@@ -725,6 +727,7 @@ export function useOrdensServico(
         if (!res.ok) throw new Error('Erro ao buscar ordens de serviço')
         const result = await res.json()
         console.log('[useOrdensServico] Resultado do backend:', result)
+        console.log('[useOrdensServico] Número de OSs retornadas:', result.data?.length || 0)
         setOrdens(result.data || result || [])
         setCount(result.count || result.length || 0)
       } catch (err) {

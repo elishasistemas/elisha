@@ -26,8 +26,9 @@ import { useEffect } from 'react'
  * 
  * TÉCNICO: Acesso apenas execução
  *   - Dashboard (visualização básica)
- *   - Ordens de Serviço (atende ordens atribuídas)
- *   - NÃO acessa: Cadastros, relatórios gerenciais, criação de OS
+ *   - Ordens de Serviço (visualiza e atende ordens atribuídas/disponíveis)
+ *   - Equipamentos (visualização apenas para consulta)
+ *   - NÃO acessa: Cadastros (clientes, técnicos), relatórios gerenciais, criação de OS, zonas
  */
 export function useAdminRoute() {
   const { user, session } = useAuth()
@@ -54,9 +55,20 @@ export function useAdminRoute() {
       pathname
     })
 
+    // Técnicos têm acesso limitado
     if (active === 'tecnico') {
-      console.log('[RouteProtection] Técnico tentando acessar rota admin - redirecionando para /orders')
-      router.replace('/orders')
+      const tecnicoAllowedRoutes = [
+        '/dashboard',        // Dashboard (visualização básica)
+        '/orders',           // Visualiza e atende ordens de serviço
+        '/equipments',       // Visualização de equipamentos
+      ]
+      
+      const isAllowed = tecnicoAllowedRoutes.some(route => pathname?.startsWith(route))
+      
+      if (!isAllowed) {
+        console.log('[RouteProtection] Técnico tentando acessar rota não permitida - redirecionando para /orders')
+        router.replace('/orders')
+      }
     }
     
     // Supervisor tem acesso operacional limitado - pode acessar OS, Dashboard e Checklists
