@@ -29,7 +29,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
   // Configurar validação global
   app.useGlobalPipes(

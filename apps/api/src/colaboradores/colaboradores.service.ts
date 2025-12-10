@@ -17,8 +17,6 @@ export class ColaboradoresService {
       .select('*')
       .order('created_at', { ascending: false });
 
-    console.log('[ColaboradoresService][findAll] Filtros:', { empresaId, ativo, search });
-
     if (empresaId) {
       query = query.eq('empresa_id', empresaId);
     }

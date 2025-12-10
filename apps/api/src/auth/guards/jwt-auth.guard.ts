@@ -9,8 +9,6 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
 
-    console.log('[JwtAuthGuard] Token extraído:', token ? 'presente' : 'ausente');
-    console.log('[JwtAuthGuard] Headers:', request.headers.authorization);
 
     if (!token) {
       throw new UnauthorizedException('Token de acesso requerido');
