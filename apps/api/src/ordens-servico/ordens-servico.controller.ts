@@ -26,7 +26,6 @@ export class OrdensServicoController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar nova ordem de serviço' })
   create(@Body() createOrdemServicoDto: CreateOrdemServicoDto, @Req() request: any) {
-    console.log('[OrdensServicoController] POST /ordens-servico - Criando OS:', createOrdemServicoDto);
     const token = request.user?.access_token
     return this.ordensServicoService.create(createOrdemServicoDto, token);
   }

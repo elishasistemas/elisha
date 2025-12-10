@@ -26,7 +26,6 @@ export class EquipamentosController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criar novo equipamento' })
   create(@Body() createEquipamentoDto: CreateEquipamentoDto, @Req() request: any) {
-    console.log('[EquipamentosController] POST /equipamentos - Criando equipamento:', createEquipamentoDto);
     const token = request.user?.access_token
     return this.equipamentosService.create(createEquipamentoDto, token);
   }

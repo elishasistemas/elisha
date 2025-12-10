@@ -10,7 +10,6 @@ export class EquipamentosService {
 
   async findAll(clienteId?: string, empresaId?: string, ativo?: boolean, page = 1, pageSize = 1000, search?: string, accessToken?: string) {
     try {
-      console.log('[EquipamentosService] Buscando equipamentos com filtros:', { clienteId, empresaId, ativo, page, pageSize, search });
       
       const client = accessToken
         ? this.supabaseService.createUserClient(accessToken)
@@ -51,7 +50,6 @@ export class EquipamentosService {
         throw error;
       }
 
-      console.log('[EquipamentosService] Equipamentos encontrados:', data?.length || 0);
 
       return {
         data: data || [],

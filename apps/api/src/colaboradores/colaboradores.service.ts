@@ -26,7 +26,6 @@ export class ColaboradoresService {
     }
 
     const { data, error } = await query;
-    console.log('[ColaboradoresService][findAll] Resultado:', { count: data?.length, error });
     if (error) {
       console.error('[ColaboradoresService][findAll] Supabase error:', error);
       throw new NotFoundException(`Erro ao buscar colaboradores: ${error.message}`);

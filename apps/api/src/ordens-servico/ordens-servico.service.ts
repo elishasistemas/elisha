@@ -60,16 +60,6 @@ export class OrdensServicoService {
     accessToken?: string,
   ) {
     try {
-      console.log('[OrdensServicoService] Buscando OS com filtros:', {
-        empresaId,
-        tecnicoId,
-        status,
-        prioridade,
-        orderBy,
-        page,
-        pageSize,
-        search,
-      });
 
       // Usar view enriquecida se ordenar por status ou prioridade
       const fromTable = orderBy === 'status' || orderBy === 'prioridade'
@@ -138,7 +128,6 @@ export class OrdensServicoService {
         throw error;
       }
 
-      console.log('[OrdensServicoService] OS encontradas:', data?.length || 0);
 
       return {
         data: data || [],
@@ -183,7 +172,6 @@ export class OrdensServicoService {
 
   async create(createOrdemServicoDto: CreateOrdemServicoDto, accessToken?: string) {
     try {
-      console.log('[OrdensServicoService] Criando OS:', createOrdemServicoDto);
       
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
@@ -233,7 +221,6 @@ export class OrdensServicoService {
       // Formatar número com 4 dígitos
       const numeroFormatado = `OS-${proximoNumero.toString().padStart(4, '0')}-${ano}`;
       
-      console.log('[OrdensServicoService] Número gerado:', numeroFormatado);
 
       // Sobrescrever o numero_os com o valor gerado
       const ordemData = {
@@ -260,17 +247,14 @@ export class OrdensServicoService {
         }
         throw error;
       }
-      console.log('[OrdensServicoService] OS criada com sucesso:', data);
       return data;
     } catch (error) {
-      console.error('[OrdensServicoService] Erro ao criar OS:', error);
       throw error;
     }
   }
 
   async update(id: string, updateOrdemServicoDto: UpdateOrdemServicoDto, accessToken?: string) {
     try {
-      console.log('[OrdensServicoService] Atualizando OS:', id, updateOrdemServicoDto);
       
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
@@ -328,10 +312,8 @@ export class OrdensServicoService {
         }
         throw error;
       }
-      console.log('[OrdensServicoService] OS atualizada com sucesso:', data);
       return data;
     } catch (error) {
-      console.error('[OrdensServicoService] Erro ao atualizar OS:', error);
       throw error;
     }
   }
@@ -386,7 +368,6 @@ export class OrdensServicoService {
     accessToken?: string
   ) {
     try {
-      console.log('[OrdensServicoService] Finalizando OS:', id);
       
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
@@ -441,14 +422,11 @@ export class OrdensServicoService {
         .single();
 
       if (error) {
-        console.error('[OrdensServicoService] Erro ao finalizar OS:', error);
         throw error;
       }
 
-      console.log('[OrdensServicoService] OS finalizada com sucesso:', updatedOS);
       return updatedOS;
     } catch (error) {
-      console.error('[OrdensServicoService] Erro ao finalizar OS:', error);
       throw error;
     }
   }
