@@ -323,11 +323,11 @@ export default function OrdersPage() {
   const endIdx = Math.min(page * pageSize, total)
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto w-full py-4 ">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto w-full py-2 md:py-4 px-2 md:px-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
-          <p className="text-muted-foreground">Crie, acompanhe e finalize ordens</p>
+          <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Crie, acompanhe e finalize ordens</p>
         </div>  
         {empresaId && clientes.length > 0 && canAdmin && (
           <OrderDialog 
@@ -343,35 +343,37 @@ export default function OrdersPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <CardTitle>Lista de Ordens</CardTitle>
-              <CardDescription>{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
+              <CardDescription className="text-sm">{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Ordenar por:</span>
-              <Select value={ordenacao} onValueChange={setOrdenacao}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="prioridade">Prioridade</SelectItem>
-                  <SelectItem value="data">Data (Recente)</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Ordenar:</span>
+                <Select value={ordenacao} onValueChange={setOrdenacao}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Ordenar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prioridade">Prioridade</SelectItem>
+                    <SelectItem value="data">Data</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Input
-                placeholder="Buscar número, tipo, status"
+                placeholder="Buscar OS..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="w-[280px]"
+                className="flex-1 sm:w-[200px] md:w-[280px]"
               />
               <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="w-[120px]"><SelectValue placeholder="Por página" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[100px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10 / página</SelectItem>
-                  <SelectItem value="20">20 / página</SelectItem>
-                  <SelectItem value="50">50 / página</SelectItem>
+                  <SelectItem value="10">10/pág</SelectItem>
+                  <SelectItem value="20">20/pág</SelectItem>
+                  <SelectItem value="50">50/pág</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -387,7 +389,8 @@ export default function OrdersPage() {
           ) : ordens.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">Nenhuma ordem encontrada</div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto -mx-2 md:mx-0">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Número OS</TableHead>
@@ -530,19 +533,22 @@ export default function OrdersPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
           {total > 0 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-              <div>
-                Mostrando {startIdx}-{endIdx} de {total}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 text-sm text-muted-foreground">
+              <div className="text-center sm:text-left">
+                {startIdx}-{endIdx} de {total}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                  Anterior
+                  <span className="hidden sm:inline">Anterior</span>
+                  <span className="sm:hidden">←</span>
                 </Button>
-                <span>Página {page} de {totalPages}</span>
+                <span className="whitespace-nowrap text-xs sm:text-sm">Pág {page}/{totalPages}</span>
                 <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-                  Próxima
+                  <span className="hidden sm:inline">Próxima</span>
+                  <span className="sm:hidden">→</span>
                 </Button>
               </div>
             </div>
@@ -607,9 +613,7 @@ export default function OrdersPage() {
       {/* Dialog de Assinatura para Finalização */}
       <SignatureDialog
         open={signatureDialogOpen}
-        onOpenChange={setSignatureDialogOpen}
-        onSubmit={handleFinalizeWithSignature}
-        ordenServicoNumero={ordemToFinalize?.numero_os || undefined}
+        onClose={() => setSignatureDialogOpen(false)}
       />
     </div>
   )

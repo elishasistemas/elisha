@@ -61,9 +61,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
     
     if (active === 'tecnico') {
-      // Técnico: Dashboard + Ordens de Serviço apenas
+      // Técnico: Ordens de Serviço apenas (otimizado para campo/mobile)
       return data.navMain.filter((i) => 
-        i.url === '/dashboard' || i.url === '/orders'
+        i.url === '/orders'
       )
     }
     
@@ -76,7 +76,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="border-b border-sidebar-border/60 px-2 py-2">
         <div className="flex w-full items-center gap-[1.5]">
           <Link
-            href="/dashboard"
+            href={active === 'tecnico' ? '/orders' : '/dashboard'}
             className="flex items-center gap-2"
             title="Elisha"
           >

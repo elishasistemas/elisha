@@ -127,6 +127,13 @@ export default function DashboardPage() {
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
   
+  // Redirecionar técnicos para /orders (dashboard não é acessível para técnicos)
+  useEffect(() => {
+    if (isTecnico && isHydrated) {
+      router.replace('/orders')
+    }
+  }, [isTecnico, isHydrated, router])
+  
   // OS abertas para aceitar/recusar (apenas chamados)
   const ordensAbertas = useMemo(() => {
     const base = ordens.filter(o => 

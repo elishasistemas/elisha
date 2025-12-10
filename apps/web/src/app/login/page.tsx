@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (data.session) {
         try {
           // Verificar se é Elisha Admin (Super Admin) e se está impersonando via backend
-          const profile = await apiClient.profiles.getByUserId(data.session.user.id, data.session.access_token)
+          const profile = await apiClient.profiles.getByUserId(data.session.user.id, data.session.access_token) as any
           
           // Se é super admin sem impersonar, vai para /admin/companies
           // Se está impersonando ou não é super admin, vai para /dashboard
@@ -106,13 +106,18 @@ export default function LoginPage() {
         
         try {
           // Verificar se é Elisha Admin (Super Admin) e se está impersonando via backend
-          const profile = await apiClient.profiles.getByUserId(data.user.id, data.session.access_token)
+          const profile = await apiClient.profiles.getByUserId(data.user.id, data.session.access_token) as any
           
-          // Se é super admin sem impersonar, vai para /admin/companies
-          // Se está impersonando ou não é super admin, vai para /dashboard
-          const redirectPath = (profile?.is_elisha_admin && !profile.impersonating_empresa_id) 
-            ? '/admin/companies' 
-            : '/dashboard'
+          // Determinar redirecionamento baseado no perfil
+          let redirectPath = '/dashboard'
+          
+          if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
+            // Super admin sem impersonar vai para /admin/companies
+            redirectPath = '/admin/companies'
+          } else if (profile?.active_role === 'tecnico') {
+            // Técnicos vão diretamente para /orders (otimizado para mobile)
+            redirectPath = '/orders'
+          }
           
           // Tentar redirecionamento com Next.js router
           router.replace(redirectPath)
@@ -160,13 +165,26 @@ export default function LoginPage() {
   const handleForgotPassword = async () => {
     setError(null)
     setInfo(null)
-    if (!email) {
-      setError('Informe seu email para recuperar a senha.')
+    if (!identifier) {
+      setError('Informe seu email ou username para recuperar a senha.')
       return
     }
     try {
+      // Se for username, tentar converter para email
+      let emailToUse = identifier
+      if (!identifier.includes('@')) {
+        const { data: emailData, error: rpcError } = await supabase.rpc('get_email_from_identifier', {
+          identifier: identifier.toLowerCase()
+        })
+        if (rpcError || !emailData) {
+          setError('Não foi possível encontrar o email associado a este username.')
+          return
+        }
+        emailToUse = emailData
+      }
+      
       const redirectTo = `${window.location.origin}/reset-password`
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToUse, {
         redirectTo,
       })
       if (resetError) {
