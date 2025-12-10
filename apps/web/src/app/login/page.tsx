@@ -58,17 +58,7 @@ export default function LoginPage() {
     setError(null)
     setIsLoading(true)
     
-    // Debug: Log environment variables
-    console.log('🔍 [LOGIN DEBUG] Environment Check:', {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      anonKeyPrefix: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20) + '...',
-      nodeEnv: process.env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    })
-    
     try {
-      console.log('🔐 [LOGIN] Attempting sign in for identifier:', identifier)
       
       // Converter username para email se necessário
       let emailToUse = identifier
@@ -79,10 +69,8 @@ export default function LoginPage() {
         })
         
         if (rpcError) {
-          console.error('❌ [LOGIN] Erro ao buscar email por username:', rpcError)
         } else if (emailData) {
           emailToUse = emailData
-          console.log('✅ [LOGIN] Username convertido para email')
         }
       }
       

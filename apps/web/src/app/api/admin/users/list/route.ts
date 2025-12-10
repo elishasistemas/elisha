@@ -32,15 +32,12 @@ export async function POST(request: Request) {
     )
 
     // Buscar profiles da empresa
-    console.log(`[admin/users/list] Buscando usuários para empresa: ${empresaId}`)
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, user_id, empresa_id, role, nome, username, telefone, whatsapp_numero, funcao, created_at')
       .eq('empresa_id', empresaId)
       .order('created_at', { ascending: false })
     
-    console.log(`[admin/users/list] Profiles encontrados: ${profiles?.length || 0}`)
-
     if (profilesError) {
       console.error('[admin/users/list] Erro ao buscar profiles:', profilesError)
       return NextResponse.json(
@@ -71,7 +68,6 @@ export async function POST(request: Request) {
           return null // Marcar para filtrar
         }
 
-        console.log(`[admin/users/list] Email encontrado para ${profile.user_id}: ${authUser.user?.email}`)
         return {
           ...profile,
           email: authUser.user?.email || 'N/A'
@@ -82,8 +78,6 @@ export async function POST(request: Request) {
     // Filtrar profiles órfãos (null)
     const validUsers = usersWithEmail.filter(user => user !== null)
     
-    console.log(`[admin/users/list] Total de usuários válidos: ${validUsers.length}`)
-
     return NextResponse.json({ users: validUsers })
 
   } catch (error) {

@@ -177,7 +177,6 @@ export default function OrdersPage() {
   }, [newParam, empresaId, clientes.length, canAdmin])
 
   const handleRefresh = () => {
-    console.log('[handleRefresh] Incrementando refreshKey de', refreshKey, 'para', refreshKey + 1)
     setRefreshKey(prev => prev + 1)
   }
 
@@ -196,17 +195,14 @@ export default function OrdersPage() {
 
   const handleAccept = async (ordem: OrdemServico) => {
     try {
-      console.log('[handleAccept] Aceitando OS:', ordem.id, 'Status atual:', ordem.status)
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: ordem.id })
       if (error) throw error
       const result = data as { success: boolean; error?: string; message?: string }
-      console.log('[handleAccept] Resultado RPC:', result)
       if (!result?.success) {
         toast.error(result?.message || result?.error || 'Erro ao aceitar OS')
         return
       }
       toast.success(result?.message || 'OS aceita com sucesso')
-      console.log('[handleAccept] Chamando handleRefresh()...')
       handleRefresh()
     } catch (e) {
       console.error('[handleAccept] Erro:', e)

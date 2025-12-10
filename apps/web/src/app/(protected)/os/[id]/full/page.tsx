@@ -55,18 +55,15 @@ export default function OSFullScreenPage() {
 
   // Encontrar o timestamp do evento "em_deslocamento"
   const emDeslocamentoTimestamp = useMemo(() => {
-    console.log('[os-full] Status History:', statusHistory)
     const event = statusHistory.find(
       h => h.status_novo === 'em_deslocamento' && h.action_type === 'accept'
     )
-    console.log('[os-full] Evento em_deslocamento encontrado:', event)
     return event ? new Date(event.changed_at) : null
   }, [statusHistory])
 
   // Calcular tempo decorrido desde "em_deslocamento"
   const tempoDecorrido = useMemo(() => {
     if (!emDeslocamentoTimestamp) {
-      console.log('[os-full] Não há timestamp de em_deslocamento')
       return null
     }
 
@@ -134,8 +131,6 @@ export default function OSFullScreenPage() {
           throw historyError
         }
 
-        console.log('[os-full] Histórico carregado:', historyData)
-        console.log('[os-full] Quantidade de registros:', historyData?.length || 0)
         setStatusHistory(historyData || [])
       } catch (error) {
         console.error('[os-full] Erro ao carregar dados:', error)
@@ -161,7 +156,6 @@ export default function OSFullScreenPage() {
           filter: `id=eq.${osId}`
         },
         (payload: any) => {
-          console.log('[os-full] Realtime update:', payload)
           if (payload.eventType === 'UPDATE' && payload.new) {
             setOs(prev => prev ? { ...prev, ...payload.new } : null)
             toast.success('OS atualizada em tempo real')
@@ -177,7 +171,6 @@ export default function OSFullScreenPage() {
           filter: `os_id=eq.${osId}`
         },
         (payload: any) => {
-          console.log('[os-full] Novo status:', payload)
           if (payload.new) {
             setStatusHistory(prev => [payload.new as StatusHistory, ...prev])
             toast.info(`Status alterado: ${(payload.new as any).status_novo}`)
@@ -244,7 +237,6 @@ export default function OSFullScreenPage() {
             timestamp: new Date(position.timestamp).toISOString()
           }
           
-          console.log('[os-full] Localização capturada:', location)
         } catch (geoError) {
           console.warn('[os-full] Não foi possível obter localização:', geoError)
           // Continua mesmo sem localização
@@ -268,7 +260,6 @@ export default function OSFullScreenPage() {
         return
       }
 
-      console.log('[os-full] Check-in realizado com sucesso:', result)
       toast.success(result.message || 'Check-in realizado com sucesso!')
       
       // Atualizar estado local da OS

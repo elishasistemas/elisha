@@ -95,17 +95,14 @@ function SignupContent() {
       setIsAuthenticated(!!user);
 
       // Buscar dados do convite
-      console.log('[Signup] Buscando convite:', token);
       const { data: inviteData, error: inviteError } = await supabase
         .from("invites")
         .select("*")
         .eq("token", token)
         .single();
 
-      console.log('[Signup] Resultado convite:', { inviteData, inviteError });
 
       if (inviteError || !inviteData) {
-        console.error("[Signup] Erro ao buscar convite:", inviteError);
         setError("Convite inválido ou não encontrado");
         setLoading(false);
         return;
@@ -118,15 +115,11 @@ function SignupContent() {
         .eq("id", inviteData.empresa_id)
         .single();
 
-      console.log('[Signup] Nome da empresa:', empresaData);
-
       // Adicionar nome da empresa ao invite
       const inviteWithEmpresa = {
         ...inviteData,
         empresa_nome: empresaData?.nome || 'Empresa'
       }
-
-      console.log('[Signup] Convite completo:', inviteWithEmpresa);
 
       // Verificar se o convite expirou
       if (new Date(inviteWithEmpresa.expires_at) < new Date()) {
@@ -293,7 +286,6 @@ function SignupContent() {
     try {
       const supabase = createSupabaseBrowser();
 
-      console.log('[Signup] Aceitando convite...', token);
       const { data, error } = await supabase.rpc("accept_invite", {
         p_token: token,
         p_nome: nome || null,
@@ -301,8 +293,6 @@ function SignupContent() {
         p_whatsapp_numero: whatsappNumero || null,
         p_funcao: funcao || null,
       });
-
-      console.log('[Signup] Resultado accept_invite:', { data, error });
 
       if (error) {
         console.error("Erro ao aceitar convite:", error);
@@ -320,7 +310,6 @@ function SignupContent() {
         return;
       }
 
-      console.log('[Signup] Convite aceito com sucesso! Dados:', data);
       // Telemetry: convite aceito
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
@@ -336,7 +325,6 @@ function SignupContent() {
       
       // Redirect para dashboard
       setTimeout(() => {
-        console.log('[Signup] Redirecionando para dashboard...');
         router.push("/dashboard");
       }, 1000);
     } catch (err: any) {

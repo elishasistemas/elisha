@@ -149,9 +149,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
           }
         }
 
-        console.log('[chamado-corretiva] Laudo salvo automaticamente')
       } catch (error) {
-        console.error('[chamado-corretiva] Erro ao salvar laudo:', error)
       } finally {
         setSavingLaudo(false)
       }

@@ -87,13 +87,6 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const inviteUrl = `${baseUrl}/signup?token=${inviteData.token}`
 
-    console.log('[create-company-user] Convite criado:', {
-      token: inviteData.token,
-      email: email,
-      empresa: empresa.nome,
-      url: inviteUrl
-    })
-
     // LogSnag: convite criado
     logEvent({
       channel: 'invites',
@@ -137,7 +130,6 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log('[create-company-user] Retornando resposta:', responseData)
 
     return NextResponse.json(responseData)
 

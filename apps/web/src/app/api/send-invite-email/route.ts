@@ -210,8 +210,6 @@ Este é um email automático. Por favor, não responda.
       )
     }
 
-    console.log('[send-invite-email] Email enviado com sucesso:', data)
-
     return NextResponse.json({
       success: true,
       messageId: data?.id,

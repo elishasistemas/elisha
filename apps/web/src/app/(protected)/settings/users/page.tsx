@@ -83,7 +83,6 @@ export default function UsersPage() {
   }, []);
 
   const loadData = async () => {
-    console.log('[UsersPage] loadData() chamado');
     setLoading(true);
     const supabase = createSupabaseBrowser();
 
@@ -163,7 +162,6 @@ export default function UsersPage() {
         console.error("Erro ao buscar convites:", invitesError);
         toast.error("Erro ao carregar convites");
       } else {
-        console.log('[UsersPage] Convites carregados:', invitesData?.length, invitesData);
         setInvites(invitesData || []);
       }
     } catch (err) {
@@ -282,13 +280,6 @@ export default function UsersPage() {
       timeStyle: "short",
     }).format(new Date(date));
   };
-
-  console.log('[UsersPage] Permission check:', {
-    active_role: userProfile?.active_role,
-    roles: userProfile?.roles,
-    is_elisha_admin: userProfile?.is_elisha_admin,
-    canAdmin
-  });
 
   if (!canAdmin && !loading) {
     return (

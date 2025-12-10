@@ -65,20 +65,16 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
       });
 
       if (error) {
-        console.error("Erro ao criar convite:", error);
         toast.error(error.message || "Erro ao criar convite");
         return;
       }
 
       if (data) {
-        console.log('[InviteDialog] Convite criado:', data);
         setInviteToken(data.token);
         toast.success("Convite criado com sucesso!");
-        console.log('[InviteDialog] Chamando onInviteCreated...');
         onInviteCreated?.();
       }
     } catch (err: any) {
-      console.error("Erro ao criar convite:", err);
       toast.error(err.message || "Erro ao criar convite");
     } finally {
       setLoading(false);

@@ -100,7 +100,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
   // Carregar equipamentos existentes quando abrir cliente em modo edição/visualização
   useEffect(() => {
-    console.log('[ClientDialog] useEffect equipamentos - open:', open, 'cliente?.id:', cliente?.id)
     
     if (!open || !cliente?.id) {
       setEquipamentos([])
@@ -115,13 +114,11 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!session) {
-          console.log('[ClientDialog] Sem sessão, abortando carregar equipamentos')
           return
         }
 
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const url = `${BACKEND_URL}/api/v1/equipamentos?clienteId=${cliente.id}`
-        console.log('[ClientDialog] Buscando equipamentos:', url)
         
         const res = await fetch(url, {
           headers: {
@@ -132,7 +129,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
 
         if (res.ok) {
           const result = await res.json()
-          console.log('[ClientDialog] Equipamentos recebidos:', result)
           const equipamentosData = result.data || []
           // Mapear para o formato do state local
           const equipamentosMapeados = equipamentosData.map((eq: any) => ({
@@ -143,7 +139,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
             marca: eq.fabricante || '',
             capacidade: eq.capacidade || '',
           }))
-          console.log('[ClientDialog] Equipamentos mapeados:', equipamentosMapeados)
           setEquipamentos(equipamentosMapeados)
         } else {
           console.error('[ClientDialog] Erro ao buscar equipamentos:', res.status, await res.text())
@@ -339,13 +334,6 @@ export function ClientDialog({ empresaId, cliente, onSuccess, trigger, mode = 'c
         numero_art: formData.numero_art.trim() || null,
         zona_id: formData.zona_id || null,
       }
-
-      console.log('[ClientDialog] Dados sendo enviados:', {
-        valor_mensal_contrato: valorMensalNumerico,
-        numero_art: formData.numero_art.trim() || null,
-        formData_valor: formData.valor_mensal_contrato,
-        formData_art: formData.numero_art
-      })
 
       let clienteId: string
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'

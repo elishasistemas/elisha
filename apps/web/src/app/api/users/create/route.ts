@@ -56,8 +56,6 @@ export async function POST(request: Request) {
       }
     )
 
-    console.log('[users/create] Criando usuário:', { username, email, role, empresa_id })
-
     // 1. Verificar se username já existe
     const { data: existingProfile } = await supabase
       .from('profiles')
@@ -114,8 +112,6 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log('[users/create] Usuário criado no auth:', authData.user.id)
-
     // 4. Criar/Atualizar profile
     let tecnico_id = null
 
@@ -138,7 +134,6 @@ export async function POST(request: Request) {
         // Não falhar, apenas log
       } else {
         tecnico_id = tecnicoData.id
-        console.log('[users/create] Técnico criado:', tecnico_id)
       }
     }
 
@@ -172,8 +167,6 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
-
-    console.log('[users/create] Profile criado com sucesso')
 
     // 5. Log de auditoria
     await logEvent({

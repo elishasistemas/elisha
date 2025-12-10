@@ -149,7 +149,6 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
           }
         }
 
-        console.log('[checklist] Laudo salvo automaticamente')
       } catch (error) {
         console.error('[checklist] Erro ao salvar laudo:', error)
         toast.error('Erro ao salvar laudo automaticamente')

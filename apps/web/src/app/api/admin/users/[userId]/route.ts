@@ -130,8 +130,6 @@ export async function PUT(
       }
     )
 
-    console.log('[admin/users/edit] Editando usuário:', { userId, username, email, role })
-
     // Verificar se username já existe (exceto para o próprio usuário)
     const { data: existingProfile } = await supabase
       .from('profiles')
@@ -215,8 +213,6 @@ export async function PUT(
       }
     }
 
-    console.log('[admin/users/edit] Usuário atualizado com sucesso')
-
     // Log de auditoria
     await logEvent({
       channel: 'users',
@@ -262,8 +258,6 @@ export async function DELETE(
       )
     }
 
-    console.log('[admin/users/delete] Tentando deletar usuário:', userId)
-
     // Service role client
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -300,8 +294,6 @@ export async function DELETE(
       )
     }
 
-    console.log('[admin/users/delete] Profile encontrado:', profile)
-
     // Primeiro deletar profile
     const { error: deleteProfileError } = await supabase
       .from('profiles')
@@ -326,8 +318,6 @@ export async function DELETE(
         { status: 500 }
       )
     }
-
-    console.log('[admin/users/delete] Usuário deletado com sucesso:', userId)
 
     // Telemetry: user deleted
     logEvent({

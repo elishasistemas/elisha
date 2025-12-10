@@ -349,11 +349,9 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
         
         if (!res.ok) throw new Error('Erro ao buscar equipamentos')
         const result = await res.json()
-        console.log('[useEquipamentos] Resultado do backend:', result)
         setEquipamentos(result.data || result || [])
         setCount(result.count || result.length || 0)
       } catch (err) {
-        console.error('[useEquipamentos] Erro:', err)
         setError(err instanceof Error ? err.message : 'Erro ao carregar equipamentos')
       } finally {
         setLoading(false)
@@ -434,7 +432,6 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         
         if (!res.ok) throw new Error('Erro ao buscar colaboradores')
         const result = await res.json()
-        console.log('[useColaboradores] Resultado do backend:', result)
         setColaboradores(Array.isArray(result) ? result : [])
         setCount(Array.isArray(result) ? result.length : 0)
       } catch (err) {

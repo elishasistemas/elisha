@@ -86,8 +86,6 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
       const result = await response.json()
 
-      console.log('[user-dialog] Response status:', response.status)
-      console.log('[user-dialog] Response data:', result)
 
       if (!response.ok) {
         throw new Error(result.error || 'Erro ao criar convite')
@@ -95,12 +93,9 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
       // Verificar se result.invite existe
       if (!result.invite) {
-        console.error('[user-dialog] Resposta não contém "invite":', result)
         toast.error('Erro: Resposta da API inválida')
         return
       }
-
-      console.log('[user-dialog] Invite data:', result.invite)
 
       // Mostrar resultado com link
       setInviteResult(result.invite)
