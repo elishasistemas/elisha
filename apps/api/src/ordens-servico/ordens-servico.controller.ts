@@ -97,4 +97,21 @@ export class OrdensServicoController {
     const token = request.user?.access_token
     return this.ordensServicoService.remove(id, token);
   }
+
+  @Post(':id/finalize')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Finalizar ordem de serviço com assinatura do cliente' })
+  finalize(
+    @Param('id') id: string, 
+    @Body() data: { 
+      assinatura_cliente: string; 
+      nome_cliente_assinatura: string; 
+      email_cliente_assinatura?: string 
+    }, 
+    @Req() request: any
+  ) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.finalize(id, data, token);
+  }
 }

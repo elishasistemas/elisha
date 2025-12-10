@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateOrdemServicoDto } from './dto/create-ordem-servico.dto';
 import { UpdateOrdemServicoDto } from './dto/update-ordem-servico.dto';
@@ -6,6 +6,47 @@ import { UpdateOrdemServicoDto } from './dto/update-ordem-servico.dto';
 @Injectable()
 export class OrdensServicoService {
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  /**
+   * Obtém o perfil do usuário a partir do token JWT
+   */
+  private async getUserProfile(accessToken: string) {
+    const userClient = this.supabaseService.createUserClient(accessToken);
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    
+    if (userError || !user) {
+      throw new ForbiddenException('Token inválido ou expirado');
+    }
+
+    const { data: profile, error: profileError } = await this.supabaseService.client
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new ForbiddenException('Perfil não encontrado');
+    }
+
+    return { user, profile };
+  }
+
+  /**
+   * Valida se o usuário tem permissão de admin
+   */
+  private isAdmin(profile: any): boolean {
+    return profile.active_role === 'admin' || profile.is_elisha_admin === true;
+  }
+
+  /**
+   * Obtém a empresa ativa do perfil (considera impersonation)
+   */
+  private getActiveEmpresaId(profile: any): string {
+    if (profile.is_elisha_admin && profile.impersonating_empresa_id) {
+      return profile.impersonating_empresa_id;
+    }
+    return profile.empresa_id;
+  }
 
   async findAll(
     empresaId?: string,
@@ -113,32 +154,60 @@ export class OrdensServicoService {
   }
 
   async findOne(id: string, accessToken?: string) {
-    const client = accessToken
-      ? this.supabaseService.createUserClient(accessToken)
-      : this.supabaseService.client
+    if (!accessToken) {
+      throw new ForbiddenException('Token de autenticação não fornecido');
+    }
 
-    const { data, error } = await client
+    // Obter perfil do usuário
+    const { profile } = await this.getUserProfile(accessToken);
+    const empresaAtiva = this.getActiveEmpresaId(profile);
+
+    // Buscar OS usando service role (bypassa RLS)
+    const { data, error } = await this.supabaseService.client
       .from('ordens_servico')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (error) throw error;
+    if (error || !data) {
+      throw new NotFoundException('Ordem de serviço não encontrada');
+    }
+
+    // Validar que a OS pertence à empresa do usuário
+    if (data.empresa_id !== empresaAtiva) {
+      throw new ForbiddenException('Você não tem permissão para visualizar esta OS');
+    }
+
     return data;
   }
 
   async create(createOrdemServicoDto: CreateOrdemServicoDto, accessToken?: string) {
     try {
       console.log('[OrdensServicoService] Criando OS:', createOrdemServicoDto);
-      const client = accessToken
-        ? this.supabaseService.createUserClient(accessToken)
-        : this.supabaseService.client
+      
+      if (!accessToken) {
+        throw new ForbiddenException('Token de autenticação não fornecido');
+      }
+
+      // Obter perfil do usuário
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaAtiva = this.getActiveEmpresaId(profile);
+
+      // Apenas admins podem criar OSs
+      if (!this.isAdmin(profile)) {
+        throw new ForbiddenException('Apenas administradores podem criar ordens de serviço');
+      }
+
+      // Validar que a empresa_id da OS corresponde à empresa ativa do usuário
+      if (createOrdemServicoDto.empresa_id !== empresaAtiva) {
+        throw new ForbiddenException('Você não pode criar OS para outra empresa');
+      }
 
       // Gerar número automático da OS no formato OS-0001-2025
       const ano = new Date().getFullYear();
       
-      // Buscar a última OS da empresa no ano atual
-      const { data: ultimaOS, error: ultimaOSError } = await client
+      // Buscar a última OS da empresa no ano atual (usando service role)
+      const { data: ultimaOS, error: ultimaOSError } = await this.supabaseService.client
         .from('ordens_servico')
         .select('numero_os')
         .eq('empresa_id', createOrdemServicoDto.empresa_id)
@@ -172,7 +241,8 @@ export class OrdensServicoService {
         numero_os: numeroFormatado,
       };
 
-      const { data, error } = await client
+      // Inserir usando service role (bypassa RLS)
+      const { data, error } = await this.supabaseService.client
         .from('ordens_servico')
         .insert([ordemData])
         .select()
@@ -201,9 +271,35 @@ export class OrdensServicoService {
   async update(id: string, updateOrdemServicoDto: UpdateOrdemServicoDto, accessToken?: string) {
     try {
       console.log('[OrdensServicoService] Atualizando OS:', id, updateOrdemServicoDto);
-      const client = accessToken
-        ? this.supabaseService.createUserClient(accessToken)
-        : this.supabaseService.client
+      
+      if (!accessToken) {
+        throw new ForbiddenException('Token de autenticação não fornecido');
+      }
+
+      // Obter perfil do usuário
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaAtiva = this.getActiveEmpresaId(profile);
+
+      // Buscar OS usando service role (bypassa RLS)
+      const { data: os, error: osError } = await this.supabaseService.client
+        .from('ordens_servico')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (osError || !os) {
+        throw new NotFoundException('Ordem de serviço não encontrada');
+      }
+
+      // Validar que a OS pertence à empresa do usuário
+      if (os.empresa_id !== empresaAtiva) {
+        throw new ForbiddenException('Você não tem permissão para editar esta OS');
+      }
+
+      // Apenas admins podem editar OSs via UPDATE direto
+      if (!this.isAdmin(profile)) {
+        throw new ForbiddenException('Apenas administradores podem editar ordens de serviço. Técnicos devem usar os RPCs apropriados (os_accept, os_checkin, etc).');
+      }
 
       // Remover numero_os se vier no payload (campo não é editável)
       const { numero_os, ...updateData } = updateOrdemServicoDto;
@@ -212,7 +308,8 @@ export class OrdensServicoService {
         console.warn('[OrdensServicoService] Tentativa de editar numero_os ignorada. Campo é auto-gerado.');
       }
 
-      const { data, error } = await client
+      // Atualizar usando service role (bypassa RLS)
+      const { data, error } = await this.supabaseService.client
         .from('ordens_servico')
         .update(updateData)
         .eq('id', id)
@@ -240,16 +337,119 @@ export class OrdensServicoService {
   }
 
   async remove(id: string, accessToken?: string) {
-    const client = accessToken
-      ? this.supabaseService.createUserClient(accessToken)
-      : this.supabaseService.client
+    if (!accessToken) {
+      throw new ForbiddenException('Token de autenticação não fornecido');
+    }
 
-    const { error } = await client
+    // Obter perfil do usuário
+    const { profile } = await this.getUserProfile(accessToken);
+    const empresaAtiva = this.getActiveEmpresaId(profile);
+
+    // Buscar OS usando service role (bypassa RLS)
+    const { data: os, error: osError } = await this.supabaseService.client
+      .from('ordens_servico')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (osError || !os) {
+      throw new NotFoundException('Ordem de serviço não encontrada');
+    }
+
+    // Validar que a OS pertence à empresa do usuário
+    if (os.empresa_id !== empresaAtiva) {
+      throw new ForbiddenException('Você não tem permissão para deletar esta OS');
+    }
+
+    // Apenas admins podem deletar OSs
+    if (!this.isAdmin(profile)) {
+      throw new ForbiddenException('Apenas administradores podem deletar ordens de serviço');
+    }
+
+    // Deletar usando service role (bypassa RLS)
+    const { error } = await this.supabaseService.client
       .from('ordens_servico')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
     return { message: 'Ordem de serviço removida com sucesso' };
+  }
+
+  async finalize(
+    id: string, 
+    data: { 
+      assinatura_cliente: string; 
+      nome_cliente_assinatura: string; 
+      email_cliente_assinatura?: string 
+    }, 
+    accessToken?: string
+  ) {
+    try {
+      console.log('[OrdensServicoService] Finalizando OS:', id);
+      
+      if (!accessToken) {
+        throw new ForbiddenException('Token de autenticação não fornecido');
+      }
+
+      // Obter perfil do usuário
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaAtiva = this.getActiveEmpresaId(profile);
+
+      // Buscar OS usando service role (bypassa RLS)
+      const { data: os, error: osError } = await this.supabaseService.client
+        .from('ordens_servico')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (osError || !os) {
+        throw new NotFoundException('Ordem de serviço não encontrada');
+      }
+
+      // Validar que a OS pertence à empresa do usuário
+      if (os.empresa_id !== empresaAtiva) {
+        throw new ForbiddenException('Você não tem permissão para finalizar esta OS');
+      }
+
+      // Validar que a OS tem um técnico atribuído
+      if (!os.tecnico_id) {
+        throw new ForbiddenException('Esta OS não possui técnico atribuído. É necessário aceitar a OS antes de finalizá-la.');
+      }
+
+      // Validar que apenas técnicos com a OS atribuída ou admins podem finalizar
+      if (!this.isAdmin(profile)) {
+        // Se não for admin, deve ser técnico com a OS atribuída
+        if (profile.active_role !== 'tecnico' || os.tecnico_id !== profile.tecnico_id) {
+          throw new ForbiddenException('Apenas o técnico responsável pode finalizar esta OS');
+        }
+      }
+
+      // Atualizar usando service role (bypassa RLS)
+      const { data: updatedOS, error } = await this.supabaseService.client
+        .from('ordens_servico')
+        .update({
+          status: 'concluido',
+          data_fim: new Date().toISOString(),
+          assinatura_cliente: data.assinatura_cliente,
+          nome_cliente_assinatura: data.nome_cliente_assinatura,
+          email_cliente_assinatura: data.email_cliente_assinatura || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[OrdensServicoService] Erro ao finalizar OS:', error);
+        throw error;
+      }
+
+      console.log('[OrdensServicoService] OS finalizada com sucesso:', updatedOS);
+      return updatedOS;
+    } catch (error) {
+      console.error('[OrdensServicoService] Erro ao finalizar OS:', error);
+      throw error;
+    }
   }
 }
