@@ -43,7 +43,36 @@ function SignupContent() {
   // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [whatsappNumero, setWhatsappNumero] = useState("");
+  const [funcao, setFuncao] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Phone mask utility
+  const formatPhone = (value: string): string => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 10) {
+      // (00) 0000-0000
+      return numbers
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4})(\d)/, "$1-$2")
+        .slice(0, 14);
+    } else {
+      // (00) 00000-0000
+      return numbers
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{5})(\d)/, "$1-$2")
+        .slice(0, 15);
+    }
+  };
+
+  const handlePhoneChange = (value: string, setter: (val: string) => void) => {
+    const formatted = formatPhone(value);
+    setter(formatted);
+  };
 
   useEffect(() => {
     if (!token) {
@@ -137,8 +166,13 @@ function SignupContent() {
     }
 
     // Validações
-    if (!email || !password) {
-      toast.error("Preencha todos os campos");
+    if (!email || !password || !confirmPassword) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    if (!nome || !whatsappNumero) {
+      toast.error("Nome e WhatsApp são obrigatórios");
       return;
     }
 
@@ -149,6 +183,11 @@ function SignupContent() {
 
     if (password.length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("As senhas não coincidem");
       return;
     }
 
@@ -257,6 +296,10 @@ function SignupContent() {
       console.log('[Signup] Aceitando convite...', token);
       const { data, error } = await supabase.rpc("accept_invite", {
         p_token: token,
+        p_nome: nome || null,
+        p_telefone: telefone || null,
+        p_whatsapp_numero: whatsappNumero || null,
+        p_funcao: funcao || null,
       });
 
       console.log('[Signup] Resultado accept_invite:', { data, error });
@@ -400,6 +443,66 @@ function SignupContent() {
                 />
               </div>
 
+              {!isAuthenticated && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">
+                      Nome Completo <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="nome"
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      disabled={submitting}
+                      required
+                      placeholder="Seu nome completo"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">
+                      WhatsApp <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="whatsapp"
+                      type="tel"
+                      value={whatsappNumero}
+                      onChange={(e) => handlePhoneChange(e.target.value, setWhatsappNumero)}
+                      disabled={submitting}
+                      required
+                      placeholder="(81) 99999-9999"
+                      maxLength={15}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="telefone">Telefone</Label>
+                    <Input
+                      id="telefone"
+                      type="tel"
+                      value={telefone}
+                      onChange={(e) => handlePhoneChange(e.target.value, setTelefone)}
+                      disabled={submitting}
+                      placeholder="(81) 3333-4444"
+                      maxLength={15}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="funcao">Função/Cargo</Label>
+                    <Input
+                      id="funcao"
+                      type="text"
+                      value={funcao}
+                      onChange={(e) => setFuncao(e.target.value)}
+                      disabled={submitting}
+                      placeholder="Ex: Técnico de Manutenção"
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="password">
                   {isAuthenticated ? "Senha" : "Criar senha"}
@@ -433,7 +536,46 @@ function SignupContent() {
                 </div>
               </div>
 
-              <PasswordStrength password={password} />
+              {!isAuthenticated && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">
+                      Confirmar senha <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={submitting}
+                        required
+                        minLength={6}
+                        placeholder="Digite a senha novamente"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        disabled={submitting}
+                        title={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                        aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <PasswordStrength password={password} />
+                </>
+              )}
+
+              {isAuthenticated && <PasswordStrength password={password} />}
 
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting
