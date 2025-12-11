@@ -188,7 +188,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
           <div>
             <Label className="text-muted-foreground mb-2 block">Problema relatado pelo cliente</Label>
             <div className="p-4 bg-muted rounded-md">
-              <p className="text-sm">{osData?.descricao || 'Nenhuma descrição fornecida'}</p>
+              <p className="text-sm">{osData?.descricao || osData?.observacoes || 'Nenhuma descrição fornecida'}</p>
             </div>
           </div>
 
@@ -199,7 +199,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
                 Nome do Solicitante
               </Label>
               <Input
-                value={clienteData?.responsavel_nome || 'N/A'}
+                value={osData?.solicitante_nome || clienteData?.responsavel_nome || clienteData?.nome_local || 'N/A'}
                 disabled
                 className="bg-muted"
               />
@@ -210,7 +210,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
                 Telefone
               </Label>
               <Input
-                value={clienteData?.responsavel_telefone || 'N/A'}
+                value={osData?.solicitante_telefone || clienteData?.responsavel_telefone || clienteData?.telefone || 'N/A'}
                 disabled
                 className="bg-muted"
               />

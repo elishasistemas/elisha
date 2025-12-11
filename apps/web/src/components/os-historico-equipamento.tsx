@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { FileText } from 'lucide-react'
+import { Button } from './ui/button'
+import { FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 
 interface OSHistoricoEquipamentoProps {
@@ -20,6 +21,7 @@ interface HistoricoItem {
 export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamentoProps) {
   const [historico, setHistorico] = useState<HistoricoItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(true)
 
   const supabase = createSupabaseBrowser()
 
@@ -99,15 +101,21 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5" />
-          <CardTitle>Histórico do Equipamento</CardTitle>
+      <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5" />
+            <div>
+              <CardTitle>Histórico do Equipamento</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Todas as interações anteriores com este equipamento
+              </p>
+            </div>
+          </div>
+          {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
-        <p className="text-sm text-muted-foreground">
-          Todas as interações anteriores com este equipamento
-        </p>
       </CardHeader>
+      {expanded && (
       <CardContent>
         {historico.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
@@ -126,6 +134,7 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
           </div>
         )}
       </CardContent>
+      )}
     </Card>
   )
 }

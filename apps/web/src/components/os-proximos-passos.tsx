@@ -173,7 +173,7 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
           className="w-full"
           size="lg"
         >
-          {realizandoCheckout ? 'Realizando Checkout...' : 'Realizar Checkout'}
+          {realizandoCheckout ? 'Encerrando...' : 'Encerrar Atendimento'}
         </Button>
       </CardContent>
 

@@ -15,7 +15,9 @@ import {
   User,
   Building2,
   Wrench,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
@@ -50,6 +52,7 @@ export default function OSFullScreenPage() {
   const [loading, setLoading] = useState(true)
   const [isMinimized, setIsMinimized] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [historyExpanded, setHistoryExpanded] = useState(true)
 
   const supabase = createSupabaseBrowser()
 
@@ -310,34 +313,87 @@ export default function OSFullScreenPage() {
 
   // Modo full-screen (sobrepõe tudo, incluindo sidebar)
   return (
-    <div className="fixed inset-0 z-[9999] bg-background p-4 md:p-8 overflow-auto">
-      {/* Header com controles */}
-      <div className="max-w-5xl mx-auto mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <Button
-            onClick={() => router.push('/dashboard')}
-            variant="outline"
-            size="sm"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
-          </Button>
-
-          <div className="flex items-center gap-2">
+    <div className="fixed inset-0 z-[9999] bg-background overflow-auto">
+      {/* Header fixo no topo com fundo branco */}
+      <div className="bg-white border-b sticky top-0 z-50 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-4">
+          <div className="flex items-center justify-between mb-4">
             <Button
-              onClick={() => setIsMinimized(true)}
+              onClick={() => router.push('/dashboard')}
               variant="outline"
               size="sm"
             >
-              <Minimize2 className="w-4 h-4 mr-2" />
-              Minimizar
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar
             </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsMinimized(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Minimize2 className="w-4 h-4 mr-2" />
+                Minimizar
+              </Button>
+            </div>
+          </div>
+
+          {/* Informações da OS no header */}
+          <div className="space-y-3">
+            {/* Número da OS e Status */}
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold">{os.numero_os}</h2>
+              <Badge 
+                variant="secondary" 
+                className={
+                  os.tipo === 'corretiva' ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' :
+                  os.tipo === 'preventiva' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' :
+                  os.tipo === 'chamado' ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' :
+                  'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200'
+                }
+              >
+                {os.tipo === 'preventiva' ? 'Preventiva' : 
+                 os.tipo === 'corretiva' ? 'Corretiva' : 
+                 os.tipo === 'chamado' ? 'Chamado' : 
+                 os.tipo}
+              </Badge>
+              <Badge 
+                variant="secondary"
+                className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200"
+              >
+                {os.status === 'em_deslocamento' ? 'Em Deslocamento' :
+                 os.status === 'checkin' ? 'No Local' :
+                 os.status === 'em_andamento' ? 'Em Andamento' :
+                 os.status}
+              </Badge>
+            </div>
+
+            {/* Cliente, Equipamento e Técnico */}
+            <div className="grid gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Cliente: <span className="text-foreground">{os.cliente_nome || 'N/A'}</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Equipamento: <span className="text-foreground">{os.equipamento_nome || 'N/A'}</span></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Técnico: <span className="text-foreground">{os.tecnico_nome || 'N/A'}</span></span>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Cronômetro principal */}
-        {tempoDecorrido && (
-          <Card className="border-2 border-primary">
+      {/* Conteúdo principal com padding */}
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
+
+        {/* Cronômetro principal (apenas durante deslocamento) */}
+        {os.status === 'em_deslocamento' && tempoDecorrido && (
+          <Card className="border-2 border-primary mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5 animate-pulse" />
@@ -356,109 +412,34 @@ export default function OSFullScreenPage() {
             </CardContent>
           </Card>
         )}
-      </div>
 
-      {/* Área de Atendimento (aparece após check-in) */}
-      {os.status === 'checkin' && (
-        <div className="max-w-5xl mx-auto mb-6">
-          <Card className="border-2 border-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-primary" />
-                Área de Atendimento
-              </CardTitle>
-              <CardDescription>
-                Você realizou o check-in com sucesso. Agora você pode iniciar o atendimento.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="p-3 bg-muted rounded-md">
-                <p className="text-sm font-medium mb-1">💡 Próximos passos:</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>1. Preencha o laudo técnico abaixo</li>
-                  <li>2. Registre evidências (fotos, vídeos, áudios)</li>
-                  <li>3. Ao finalizar, faça checkout</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Checklist + Laudo + Evidências (aparece após check-in) */}
-      {os.status === 'checkin' && os.empresa_id && (
-        <div className="max-w-5xl mx-auto">
-          {os.tipo === 'preventiva' ? (
-            <OSPreventiva 
-              osId={os.id} 
-              empresaId={os.empresa_id}
-              osData={os}
-            />
-          ) : (
-            <OSChamadoCorretiva 
-              osId={os.id} 
-              empresaId={os.empresa_id}
-              osData={os}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Informações da OS */}
-      <div className="max-w-5xl mx-auto grid gap-6 md:grid-cols-2">
-        {/* Card da OS */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>{os.numero_os}</span>
-              <Badge variant="default">{os.status}</Badge>
-            </CardTitle>
-            <CardDescription>
-              Tipo: {os.tipo} | Prioridade: {os.prioridade}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Building2 className="w-5 h-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Cliente</p>
-                <p className="text-sm text-muted-foreground">{os.cliente_nome || 'N/A'}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Wrench className="w-5 h-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Equipamento</p>
-                <p className="text-sm text-muted-foreground">{os.equipamento_nome || 'N/A'}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <User className="w-5 h-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Técnico</p>
-                <p className="text-sm text-muted-foreground">{os.tecnico_nome || 'N/A'}</p>
-              </div>
-            </div>
-
-            {os.observacoes && (
-              <div>
-                <p className="text-sm font-medium mb-1">Observações</p>
-                <p className="text-sm text-muted-foreground">{os.observacoes}</p>
-              </div>
+        {/* Checklist + Laudo + Evidências (aparece após check-in ou em_andamento) */}
+        {['checkin', 'em_andamento'].includes(os.status) && os.empresa_id && (
+          <>
+            {os.tipo === 'preventiva' ? (
+              <OSPreventiva 
+                osId={os.id} 
+                empresaId={os.empresa_id}
+                osData={os}
+              />
+            ) : (
+              <OSChamadoCorretiva 
+                osId={os.id} 
+                empresaId={os.empresa_id}
+                osData={os}
+              />
             )}
-          </CardContent>
-        </Card>
+          </>
+        )}
 
-        {/* Card de ações */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações</CardTitle>
-            <CardDescription>Próximos passos do atendimento</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {os.status === 'em_deslocamento' && (
+        {/* Card de ações - apenas durante deslocamento */}
+        {os.status === 'em_deslocamento' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ações</CardTitle>
+              <CardDescription>Próximos passos do atendimento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Button
                 onClick={handleCheckin}
                 className="w-full"
@@ -467,41 +448,38 @@ export default function OSFullScreenPage() {
                 <MapPin className="w-5 h-5 mr-2" />
                 Check-in (Chegada)
               </Button>
-            )}
-
-            {os.status === 'checkin' && (
-              <div className="space-y-2">
-                <Button
-                  onClick={() => toast.info('Checklist em desenvolvimento (Tarefa 4)')}
-                  className="w-full"
-                  size="lg"
-                >
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Iniciar Checklist
-                </Button>
+              <div className="text-sm text-muted-foreground text-center pt-4">
+                Ao chegar no local, faça o check-in.
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Placeholder para outras ações */}
-            <div className="text-sm text-muted-foreground text-center pt-4">
-              {os.status === 'em_deslocamento' && 'Ao chegar no local, faça o check-in.'}
-              {os.status === 'checkin' && 'Após check-in, inicie o checklist de serviço.'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Histórico de status */}
-      {statusHistory.length > 0 && (
-        <div className="max-w-5xl mx-auto mt-6">
+        {/* Histórico da OS */}
+        {statusHistory.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Status</CardTitle>
-              <CardDescription>Timeline de mudanças da OS</CardDescription>
+            <CardHeader className="cursor-pointer" onClick={() => setHistoryExpanded(!historyExpanded)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Histórico da OS</CardTitle>
+                  <CardDescription>Timeline de mudanças da OS</CardDescription>
+                </div>
+                {historyExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </div>
             </CardHeader>
+            {historyExpanded && (
             <CardContent>
               <div className="space-y-3">
-                {statusHistory.map((history, index) => (
+                {statusHistory
+                  .filter((history, index, self) => 
+                    // Remover duplicados
+                    index === self.findIndex(h => 
+                      h.status_novo === history.status_novo && 
+                      h.action_type === history.action_type &&
+                      Math.abs(new Date(h.changed_at).getTime() - new Date(history.changed_at).getTime()) < 1000
+                    )
+                  )
+                  .map((history) => (
                   <div
                     key={history.id}
                     className="flex items-start gap-3 pb-3 border-b last:border-0"
@@ -527,9 +505,10 @@ export default function OSFullScreenPage() {
                 ))}
               </div>
             </CardContent>
+            )}
           </Card>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

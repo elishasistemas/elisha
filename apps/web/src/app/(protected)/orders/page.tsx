@@ -578,7 +578,7 @@ export default function OrdersPage() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push(`/os/${ordem.id}/full`) }}>
                                 <FileSignature className="mr-2 h-4 w-4" />
-                                {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Fazer Check-in' : 'Continuar Atendimento'}
+                                {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Iniciar Atendimento' : 'Continuar Atendimento'}
                               </DropdownMenuItem>
                             </>
                           )}

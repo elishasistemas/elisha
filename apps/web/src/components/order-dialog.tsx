@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Clock, Navigation, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
@@ -48,6 +48,7 @@ export function OrderDialog({
 }: OrderDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
   const supabase = createSupabaseBrowser()
@@ -300,6 +301,71 @@ export function OrderDialog({
     }
   }
 
+  // Função para iniciar deslocamento
+  const handleStartDeslocamento = async () => {
+    if (!ordem) return
+    setActionLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('os_start_deslocamento', { p_os_id: ordem.id })
+      if (error) throw error
+      const result = data as { success: boolean; error?: string; message?: string }
+      if (!result?.success) {
+        toast.error(result?.message || result?.error || 'Erro ao iniciar deslocamento')
+        return
+      }
+      toast.success('Deslocamento iniciado!')
+      if (onSuccess) onSuccess()
+      setOpen(false)
+    } catch (e) {
+      console.error('[handleStartDeslocamento] Erro:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar deslocamento')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Função para fazer checkin (chegou no local)
+  const handleCheckin = async () => {
+    if (!ordem) return
+    setActionLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('os_checkin', { p_os_id: ordem.id })
+      if (error) throw error
+      const result = data as { success: boolean; error?: string; message?: string }
+      if (!result?.success) {
+        toast.error(result?.message || result?.error || 'Erro ao fazer check-in')
+        return
+      }
+      toast.success('Check-in realizado! Agora você pode iniciar o atendimento.')
+      if (onSuccess) onSuccess()
+      setOpen(false)
+    } catch (e) {
+      console.error('[handleCheckin] Erro:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao fazer check-in')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Calcular tempo em deslocamento
+  const calcularTempoDeslocamento = () => {
+    if (!ordem || ordem.status !== 'em_deslocamento' || !ordem.data_inicio_deslocamento) {
+      return null
+    }
+    const inicio = new Date(ordem.data_inicio_deslocamento)
+    const agora = new Date()
+    const diffMs = agora.getTime() - inicio.getTime()
+    const diffMinutos = Math.floor(diffMs / 60000)
+    
+    if (diffMinutos < 60) {
+      return `${diffMinutos} min`
+    } else {
+      const horas = Math.floor(diffMinutos / 60)
+      const minutos = diffMinutos % 60
+      return `${horas}h ${minutos}min`
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
       {!hideTrigger && (
@@ -338,6 +404,21 @@ export function OrderDialog({
             {/* Botão Editar removido do topo em modo visualização */}
           </div>
         </DialogHeader>
+
+        {/* Alerta de tempo em deslocamento */}
+        {ordem?.status === 'em_deslocamento' && calcularTempoDeslocamento() && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                <Clock className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-medium text-purple-900">Em Deslocamento</p>
+                <p className="text-sm text-purple-700">Tempo decorrido: <strong>{calcularTempoDeslocamento()}</strong></p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Cliente e Equipamento (Accordion) */}
@@ -486,6 +567,38 @@ export function OrderDialog({
             {isView ? (
               <>
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
+                
+                {/* Botões de ação para técnicos */}
+                {ordem && ordem.tecnico_id && (
+                  <>
+                    {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
+                    {['novo', 'parado', 'checkin'].includes(ordem.status) && (
+                      <Button
+                        type="button"
+                        onClick={handleStartDeslocamento}
+                        disabled={actionLoading}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        {actionLoading ? 'Iniciando...' : 'Iniciar Deslocamento'}
+                      </Button>
+                    )}
+
+                    {/* Botão: Iniciar Atendimento (apenas se status = em_deslocamento) */}
+                    {ordem.status === 'em_deslocamento' && (
+                      <Button
+                        type="button"
+                        onClick={handleCheckin}
+                        disabled={actionLoading}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        <PlayCircle className="h-4 w-4 mr-2" />
+                        {actionLoading ? 'Iniciando...' : 'Iniciar Atendimento'}
+                      </Button>
+                    )}
+                  </>
+                )}
+                
                 {canEdit && (
                   <Button
                     type="button"
