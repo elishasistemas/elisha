@@ -61,28 +61,46 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Buscar dados do cliente
+        // Buscar dados do cliente via API
         if (osData?.cliente_id) {
-          const { data: cliente } = await supabase
-            .from('clientes')
-            .select('*')
-            .eq('id', osData.cliente_id)
-            .single()
-
-          if (cliente) {
-            setClienteData(cliente)
+          try {
+            const session = await supabase.auth.getSession()
+            const token = session.data.session?.access_token
+            if (token) {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/clientes/${osData.cliente_id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              })
+              if (response.ok) {
+                const cliente = await response.json()
+                setClienteData(cliente)
+              }
+            }
+          } catch (err) {
+            console.error('[chamado-corretiva] Erro ao buscar cliente:', err)
           }
         }
 
-        // Buscar laudo existente
-        const { data: laudoData } = await supabase
-          .from('os_laudos')
-          .select('*')
-          .eq('os_id', osId)
-          .single()
-
-        if (laudoData) {
-          setLaudo(laudoData)
+        // Buscar laudo existente via API
+        try {
+          const session = await supabase.auth.getSession()
+          const token = session.data.session?.access_token
+          if (token) {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/laudo`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            // 404 é OK - significa que não tem laudo ainda
+            if (response.ok) {
+              const text = await response.text()
+              if (text) {
+                const laudoData = JSON.parse(text)
+                if (laudoData) setLaudo(laudoData)
+              }
+            } else if (response.status !== 404) {
+              console.error('[chamado-corretiva] Erro ao buscar laudo:', response.status)
+            }
+          }
+        } catch (err) {
+          console.error('[chamado-corretiva] Erro ao buscar laudo:', err)
         }
 
         // Buscar evidências
@@ -121,30 +139,32 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
       setSavingLaudo(true)
 
       try {
-        if (laudo.id) {
-          const { error } = await supabase
-            .from('os_laudos')
-            .update({
-              o_que_foi_feito: debouncedLaudo.o_que_foi_feito,
-              observacao: debouncedLaudo.observacao
-            })
-            .eq('id', laudo.id)
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        if (!token) return
 
-          if (error) throw error
-        } else {
-          const { data, error } = await supabase
-            .from('os_laudos')
-            .insert({
-              os_id: osId,
-              empresa_id: empresaId,
-              o_que_foi_feito: debouncedLaudo.o_que_foi_feito,
-              observacao: debouncedLaudo.observacao
-            })
-            .select()
-            .single()
+        const url = laudo.id 
+          ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/laudo/${laudo.id}`
+          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/laudo`
+        
+        const response = await fetch(url, {
+          method: laudo.id ? 'PUT' : 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            o_que_foi_feito: debouncedLaudo.o_que_foi_feito,
+            observacao: debouncedLaudo.observacao,
+            empresa_id: empresaId
+          })
+        })
 
-          if (error) throw error
-          if (data) {
+        if (!response.ok) throw new Error('Erro ao salvar laudo')
+        
+        if (!laudo.id) {
+          const data = await response.json()
+          if (data?.id) {
             setLaudo(prev => ({ ...prev, id: data.id }))
           }
         }

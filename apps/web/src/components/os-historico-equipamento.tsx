@@ -33,26 +33,22 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
       }
 
       try {
-        // Buscar OSs concluídas deste equipamento
-        const { data, error } = await supabase
-          .from('ordens_servico')
-          .select(`
-            id,
-            numero_os,
-            tipo,
-            data_fim,
-            tecnico:colaboradores!tecnico_id(nome),
-            laudo:os_laudos(
-              o_que_foi_feito,
-              observacao
-            )
-          `)
-          .eq('equipamento_id', equipamentoId)
-          .eq('status', 'concluido')
-          .order('data_fim', { ascending: false })
-          .limit(10)
+        // Buscar OSs concluídas deste equipamento via API
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        if (!token) {
+          setLoading(false)
+          return
+        }
 
-        if (error) throw error
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/equipamentos/${equipamentoId}/historico?limit=10`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        )
+
+        if (!response.ok) throw new Error('Erro ao buscar histórico')
+
+        const data = await response.json()
 
         const historicoFormatado: HistoricoItem[] = (data || []).map((os: any) => ({
           id: os.id,
@@ -63,9 +59,9 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
             hour: '2-digit',
             minute: '2-digit'
           }) : '',
-          tecnico: (os.tecnico as any)?.nome || 'N/A',
+          tecnico: os.tecnico_nome || 'N/A',
           titulo: getTipoLabel(os.tipo),
-          descricao: (os.laudo as any)?.[0]?.o_que_foi_feito || (os.laudo as any)?.[0]?.observacao || 'Sem descrição'
+          descricao: os.o_que_foi_feito || os.observacao || 'Sem descrição'
         }))
 
         setHistorico(historicoFormatado)

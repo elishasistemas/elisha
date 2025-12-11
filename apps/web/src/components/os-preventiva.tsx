@@ -85,14 +85,23 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
         }
 
         // Buscar observações do laudo
-        const { data: laudoData } = await supabase
-          .from('os_laudos')
-          .select('observacao')
-          .eq('os_id', osId)
-          .single()
-
-        if (laudoData?.observacao) {
-          setObservacoes(laudoData.observacao)
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        
+        if (token) {
+          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+          const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          
+          if (response.ok) {
+            const laudoData = await response.json()
+            if (laudoData?.observacao) {
+              setObservacoes(laudoData.observacao)
+            }
+          }
         }
 
         // Buscar evidências
@@ -125,17 +134,35 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
       setSavingObservacoes(true)
 
       try {
-        const { error } = await supabase
-          .from('os_laudos')
-          .upsert({
-            os_id: osId,
-            empresa_id: empresaId,
-            observacao: debouncedObservacoes
-          }, {
-            onConflict: 'os_id'
-          })
-
-        if (error) throw error
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        
+        if (!token) throw new Error('Não autenticado')
+        
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        
+        // Verificar se já existe laudo
+        const checkResponse = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        const laudoExistente = checkResponse.ok ? await checkResponse.json() : null
+        
+        const method = laudoExistente?.id ? 'PATCH' : 'POST'
+        const url = laudoExistente?.id 
+          ? `${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo/${laudoExistente.id}`
+          : `${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`
+        
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ observacao: debouncedObservacoes })
+        })
+        
+        if (!response.ok) throw new Error('Erro ao salvar observações')
         console.log('[preventiva] Observações salvas automaticamente')
       } catch (error) {
         console.error('[preventiva] Erro ao salvar observações:', error)

@@ -92,51 +92,97 @@ export default function OSFullScreenPage() {
         setLoading(true)
 
         // Buscar OS
-        const { data: osData, error: osError } = await supabase
-          .from('ordens_servico')
-          .select('*')
-          .eq('id', osId)
-          .single()
-
-        if (osError) throw osError
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        
+        if (!token) throw new Error('Não autenticado')
+        
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (!response.ok) throw new Error('Erro ao buscar OS')
+        
+        const osData = await response.json()
 
         if (osData) {
-          // Buscar dados relacionados separadamente
+
+          // Buscar dados relacionados via backend
           const [clienteRes, equipamentoRes, tecnicoRes] = await Promise.all([
             osData.cliente_id 
-              ? supabase.from('clientes').select('nome').eq('id', osData.cliente_id).single()
-              : Promise.resolve({ data: null }),
+              ? fetch(`${BACKEND_URL}/api/v1/clientes/${osData.cliente_id}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                }).then(async r => {
+                  if (!r.ok) {
+                    return null
+                  }
+                  const data = await r.json()
+                  return data
+                })
+              : Promise.resolve(null),
             osData.equipamento_id
-              ? supabase.from('equipamentos').select('nome').eq('id', osData.equipamento_id).single()
-              : Promise.resolve({ data: null }),
+              ? fetch(`${BACKEND_URL}/api/v1/equipamentos/${osData.equipamento_id}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                }).then(async r => {
+                  if (!r.ok) {
+                    return null
+                  }
+                  const data = await r.json()
+                  return data
+                })
+              : Promise.resolve(null),
             osData.tecnico_id
-              ? supabase.from('colaboradores').select('nome').eq('id', osData.tecnico_id).single()
-              : Promise.resolve({ data: null })
+              ? fetch(`${BACKEND_URL}/api/v1/colaboradores/${osData.tecnico_id}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                }).then(async r => {
+                  if (!r.ok) {
+                    return null
+                  }
+                  const data = await r.json()
+                  return data
+                })
+              : Promise.resolve(null)
           ])
 
-          setOs({
+          // Montar nome do equipamento a partir dos campos disponíveis
+          let equipamentoNome = null
+          if (equipamentoRes) {
+            equipamentoNome = equipamentoRes.nome || 
+                            equipamentoRes.tag ||
+                            (equipamentoRes.tipo && equipamentoRes.modelo 
+                              ? `${equipamentoRes.tipo} ${equipamentoRes.modelo}` 
+                              : null) ||
+                            equipamentoRes.tipo ||
+                            equipamentoRes.descricao ||
+                            'Equipamento'
+          }
+
+          const osEnriched = {
             ...osData,
-            cliente_nome: clienteRes.data?.nome,
-            equipamento_nome: equipamentoRes.data?.nome,
-            tecnico_nome: tecnicoRes.data?.nome
-          })
+            cliente_nome: clienteRes?.nome || clienteRes?.nome_local || null,
+            equipamento_nome: equipamentoNome,
+            tecnico_nome: tecnicoRes?.nome || null
+          }
+
+          setOs(osEnriched)
         }
 
-        // Buscar histórico de status
-        const { data: historyData, error: historyError } = await supabase
-          .from('os_status_history')
-          .select('*')
-          .eq('os_id', osId)
-          .order('changed_at', { ascending: false })
-
-        if (historyError) {
-          console.error('[os-full] Erro ao buscar histórico:', historyError)
-          throw historyError
+        // Buscar histórico de status via backend
+        const historyResponse = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/history`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          setStatusHistory(historyData || [])
+        } else {
         }
-
-        setStatusHistory(historyData || [])
       } catch (error) {
-        console.error('[os-full] Erro ao carregar dados:', error)
         toast.error('Erro ao carregar OS')
       } finally {
         setLoading(false)
@@ -241,7 +287,6 @@ export default function OSFullScreenPage() {
           }
           
         } catch (geoError) {
-          console.warn('[os-full] Não foi possível obter localização:', geoError)
           // Continua mesmo sem localização
         }
       }
@@ -258,7 +303,6 @@ export default function OSFullScreenPage() {
 
       if (!result.success) {
         const errorMsg = result.message || result.error || 'Erro ao fazer check-in'
-        console.error('[os-full] os_checkin failed:', result)
         toast.error(errorMsg)
         return
       }
@@ -269,7 +313,6 @@ export default function OSFullScreenPage() {
       setOs(prev => prev ? { ...prev, status: 'checkin' } : null)
 
     } catch (error) {
-      console.error('[os-full] Erro ao fazer check-in:', error)
       toast.error(error instanceof Error ? error.message : 'Erro ao fazer check-in')
     } finally {
       setLoading(false)
@@ -446,10 +489,10 @@ export default function OSFullScreenPage() {
                 size="lg"
               >
                 <MapPin className="w-5 h-5 mr-2" />
-                Check-in (Chegada)
+                Iniciar Atendimento
               </Button>
               <div className="text-sm text-muted-foreground text-center pt-4">
-                Ao chegar no local, faça o check-in.
+                Ao chegar no local, inicie o atendimento.
               </div>
             </CardContent>
           </Card>

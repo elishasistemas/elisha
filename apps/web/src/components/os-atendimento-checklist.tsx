@@ -68,14 +68,23 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
     const fetchData = async () => {
       try {
         // Buscar laudo existente
-        const { data: laudoData } = await supabase
-          .from('os_laudos')
-          .select('*')
-          .eq('os_id', osId)
-          .single()
-
-        if (laudoData) {
-          setLaudo(laudoData)
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        
+        if (token) {
+          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+          const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          
+          if (response.ok) {
+            const laudoData = await response.json()
+            if (laudoData) {
+              setLaudo(laudoData)
+            }
+          }
         }
 
         // Buscar evidências
@@ -115,35 +124,50 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
       setSavingLaudo(true)
 
       try {
+        const session = await supabase.auth.getSession()
+        const token = session.data.session?.access_token
+        
+        if (!token) throw new Error('Não autenticado')
+        
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        
         if (laudo.id) {
           // Atualizar laudo existente
-          const { error } = await supabase
-            .from('os_laudos')
-            .update({
+          const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo/${laudo.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
               descricao: debouncedLaudo.descricao,
               diagnostico: debouncedLaudo.diagnostico,
               solucao_aplicada: debouncedLaudo.solucao_aplicada,
               recomendacoes: debouncedLaudo.recomendacoes
             })
-            .eq('id', laudo.id)
+          })
 
-          if (error) throw error
+          if (!response.ok) throw new Error('Erro ao atualizar laudo')
         } else {
           // Criar novo laudo
-          const { data, error } = await supabase
-            .from('os_laudos')
-            .insert({
-              os_id: osId,
-              empresa_id: empresaId,
+          const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
               descricao: debouncedLaudo.descricao,
               diagnostico: debouncedLaudo.diagnostico,
               solucao_aplicada: debouncedLaudo.solucao_aplicada,
               recomendacoes: debouncedLaudo.recomendacoes
             })
-            .select()
-            .single()
+          })
+          
+          if (!response.ok) throw new Error('Erro ao criar laudo')
+          
+          const data = await response.json()
 
-          if (error) throw error
           if (data) {
             setLaudo(prev => ({ ...prev, id: data.id }))
           }
