@@ -430,4 +430,115 @@ export class OrdensServicoService {
       throw error;
     }
   }
+
+  /**
+   * Buscar laudo da ordem de serviço
+   */
+  async getLaudo(osId: string, accessToken: string) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaId = this.getActiveEmpresaId(profile);
+
+      const { data, error } = await this.supabaseService.client
+        .from('os_laudos')
+        .select('*')
+        .eq('os_id', osId)
+        .eq('empresa_id', empresaId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        throw error;
+      }
+
+      return data || null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Criar laudo para ordem de serviço
+   */
+  async createLaudo(
+    osId: string,
+    data: { o_que_foi_feito?: string; observacao?: string; empresa_id: string },
+    accessToken: string
+  ) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+
+      const { data: laudo, error } = await this.supabaseService.client
+        .from('os_laudos')
+        .insert({
+          os_id: osId,
+          empresa_id: data.empresa_id,
+          o_que_foi_feito: data.o_que_foi_feito,
+          observacao: data.observacao
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return laudo;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Atualizar laudo da ordem de serviço
+   */
+  async updateLaudo(
+    laudoId: string,
+    data: { o_que_foi_feito?: string; observacao?: string },
+    accessToken: string
+  ) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+
+      const { data: laudo, error } = await this.supabaseService.client
+        .from('os_laudos')
+        .update({
+          o_que_foi_feito: data.o_que_foi_feito,
+          observacao: data.observacao
+        })
+        .eq('id', laudoId)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return laudo;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar histórico de status da ordem de serviço
+   */
+  async getHistory(osId: string, accessToken: string) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+
+      const { data, error } = await this.supabaseService.client
+        .from('os_status_history')
+        .select('*')
+        .eq('os_id', osId)
+        .order('changed_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      throw error;
+    }
+  }
 }

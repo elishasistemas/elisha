@@ -91,4 +91,19 @@ export class EquipamentosController {
     const token = request.user?.access_token
     return this.equipamentosService.remove(id, token);
   }
+
+  @Get(':id/historico')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar histórico de manutenções do equipamento' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limitar número de registros', type: Number })
+  async getHistorico(
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+    @Req() request?: any
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const token = request?.user?.access_token
+    return this.equipamentosService.getHistorico(id, limitNum, token);
+  }
 }

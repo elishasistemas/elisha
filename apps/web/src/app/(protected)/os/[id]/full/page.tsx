@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
 import { OSChamadoCorretiva } from '@/components/os-chamado-corretiva'
 import { OSPreventiva } from '@/components/os-preventiva'
+import { OSHistoricoEquipamento } from '@/components/os-historico-equipamento'
 
 interface StatusHistory {
   id: string
@@ -53,6 +54,7 @@ export default function OSFullScreenPage() {
   const [isMinimized, setIsMinimized] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [historyExpanded, setHistoryExpanded] = useState(true)
+  const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false)
 
   const supabase = createSupabaseBrowser()
 
@@ -434,26 +436,50 @@ export default function OSFullScreenPage() {
       {/* Conteúdo principal com padding */}
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-        {/* Cronômetro principal (apenas durante deslocamento) */}
+        {/* Cronômetro e Ações lado a lado (apenas durante deslocamento) */}
         {os.status === 'em_deslocamento' && tempoDecorrido && (
-          <Card className="border-2 border-primary mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 animate-pulse" />
-                Tempo em Deslocamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-6xl font-bold tabular-nums text-center">
-                {String(tempoDecorrido.hours).padStart(2, '0')}:
-                {String(tempoDecorrido.minutes).padStart(2, '0')}:
-                {String(tempoDecorrido.seconds).padStart(2, '0')}
-              </div>
-              <p className="text-center text-sm text-muted-foreground mt-2">
-                Início: {emDeslocamentoTimestamp?.toLocaleString('pt-BR')}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cronômetro */}
+            <Card className="border-2 border-primary">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  Tempo em Deslocamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold tabular-nums text-center">
+                  {String(tempoDecorrido.hours).padStart(2, '0')}:
+                  {String(tempoDecorrido.minutes).padStart(2, '0')}:
+                  {String(tempoDecorrido.seconds).padStart(2, '0')}
+                </div>
+                <p className="text-center text-xs text-muted-foreground mt-2">
+                  Início: {emDeslocamentoTimestamp?.toLocaleTimeString('pt-BR')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Card de ações */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Ações</CardTitle>
+                <CardDescription className="text-xs">Próximos passos</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  onClick={handleCheckin}
+                  className="w-full"
+                  size="lg"
+                >
+                  <MapPin className="w-5 h-5 mr-2" />
+                  Iniciar Atendimento
+                </Button>
+                <div className="text-xs text-muted-foreground text-center">
+                  Ao chegar no local, inicie o atendimento.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Checklist + Laudo + Evidências (aparece após check-in ou em_andamento) */}
@@ -473,29 +499,6 @@ export default function OSFullScreenPage() {
               />
             )}
           </>
-        )}
-
-        {/* Card de ações - apenas durante deslocamento */}
-        {os.status === 'em_deslocamento' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Ações</CardTitle>
-              <CardDescription>Próximos passos do atendimento</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                onClick={handleCheckin}
-                className="w-full"
-                size="lg"
-              >
-                <MapPin className="w-5 h-5 mr-2" />
-                Iniciar Atendimento
-              </Button>
-              <div className="text-sm text-muted-foreground text-center pt-4">
-                Ao chegar no local, inicie o atendimento.
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         {/* Histórico da OS */}
@@ -548,6 +551,32 @@ export default function OSFullScreenPage() {
                 ))}
               </div>
             </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* Histórico do Equipamento */}
+        {os.equipamento_id && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Histórico do Equipamento</CardTitle>
+                  <CardDescription>Consultar manutenções anteriores</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEquipmentHistoryExpanded(!equipmentHistoryExpanded)}
+                >
+                  {equipmentHistoryExpanded ? 'Ocultar' : 'Consultar'}
+                </Button>
+              </div>
+            </CardHeader>
+            {equipmentHistoryExpanded && (
+              <CardContent>
+                <OSHistoricoEquipamento equipamentoId={os.equipamento_id} />
+              </CardContent>
             )}
           </Card>
         )}

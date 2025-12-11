@@ -123,4 +123,53 @@ export class EquipamentosService {
     if (error) throw error;
     return { message: 'Equipamento removido com sucesso' };
   }
+
+  /**
+   * Buscar histórico de manutenções do equipamento
+   */
+  async getHistorico(equipamentoId: string, limit: number = 10, accessToken?: string) {
+    try {
+      const client = accessToken
+        ? this.supabaseService.createUserClient(accessToken)
+        : this.supabaseService.client;
+
+      const { data, error } = await client
+        .from('ordens_servico')
+        .select(`
+          id,
+          numero_os,
+          tipo,
+          data_fim,
+          tecnico_id,
+          colaboradores!tecnico_id (
+            nome
+          ),
+          os_laudos (
+            o_que_foi_feito,
+            observacao
+          )
+        `)
+        .eq('equipamento_id', equipamentoId)
+        .eq('status', 'concluido')
+        .order('data_fim', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      // Formatar resposta
+      const historico = (data || []).map((os: any) => ({
+        id: os.id,
+        numero_os: os.numero_os,
+        tipo: os.tipo,
+        data_fim: os.data_fim,
+        tecnico_nome: os.colaboradores?.nome || null,
+        o_que_foi_feito: os.os_laudos?.[0]?.o_que_foi_feito || null,
+        observacao: os.os_laudos?.[0]?.observacao || null
+      }));
+
+      return historico;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

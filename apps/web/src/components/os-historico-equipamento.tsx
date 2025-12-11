@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Button } from './ui/button'
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 
 interface OSHistoricoEquipamentoProps {
@@ -21,7 +18,6 @@ interface HistoricoItem {
 export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamentoProps) {
   const [historico, setHistorico] = useState<HistoricoItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(true)
 
   const supabase = createSupabaseBrowser()
 
@@ -87,50 +83,30 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Carregando histórico...
-        </CardContent>
-      </Card>
+      <div className="py-8 text-center text-muted-foreground">
+        Carregando histórico...
+      </div>
+    )
+  }
+
+  if (historico.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-4">
+        Nenhum histórico disponível para este equipamento
+      </p>
     )
   }
 
   return (
-    <Card>
-      <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5" />
-            <div>
-              <CardTitle>Histórico do Equipamento</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Todas as interações anteriores com este equipamento
-              </p>
-            </div>
-          </div>
-          {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+    <div className="space-y-6">
+      {historico.map((item) => (
+        <div key={item.id} className="space-y-1">
+          <p className="text-sm font-medium">{item.data}</p>
+          <p className="text-xs text-muted-foreground">Técnico: {item.tecnico}</p>
+          <p className="font-medium">{item.titulo}</p>
+          <p className="text-sm text-muted-foreground">{item.descricao}</p>
         </div>
-      </CardHeader>
-      {expanded && (
-      <CardContent>
-        {historico.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhum histórico disponível para este equipamento
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {historico.map((item) => (
-              <div key={item.id} className="space-y-1">
-                <p className="text-sm font-medium">{item.data}</p>
-                <p className="text-xs text-muted-foreground">Técnico: {item.tecnico}</p>
-                <p className="font-medium">{item.titulo}</p>
-                <p className="text-sm text-muted-foreground">{item.descricao}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-      )}
-    </Card>
+      ))}
+    </div>
   )
 }

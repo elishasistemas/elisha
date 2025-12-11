@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { OrdensServicoService } from './ordens-servico.service';
@@ -112,5 +113,54 @@ export class OrdensServicoController {
   ) {
     const token = request.user?.access_token
     return this.ordensServicoService.finalize(id, data, token);
+  }
+
+  @Get(':id/laudo')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar laudo da ordem de serviço' })
+  async getLaudo(@Param('id') id: string, @Req() request: any, @Res() res: any) {
+    const token = request.user?.access_token
+    const laudo = await this.ordensServicoService.getLaudo(id, token);
+    if (!laudo) {
+      return res.status(404).json({ message: 'Laudo não encontrado' });
+    }
+    return res.json(laudo);
+  }
+
+  @Post(':id/laudo')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Criar laudo para ordem de serviço' })
+  async createLaudo(
+    @Param('id') id: string,
+    @Body() data: { o_que_foi_feito?: string; observacao?: string; empresa_id: string },
+    @Req() request: any
+  ) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.createLaudo(id, data, token);
+  }
+
+  @Patch(':id/laudo/:laudoId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar laudo da ordem de serviço' })
+  async updateLaudo(
+    @Param('id') id: string,
+    @Param('laudoId') laudoId: string,
+    @Body() data: { o_que_foi_feito?: string; observacao?: string },
+    @Req() request: any
+  ) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.updateLaudo(laudoId, data, token);
+  }
+
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar histórico de status da ordem de serviço' })
+  async getHistory(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.getHistory(id, token);
   }
 }
