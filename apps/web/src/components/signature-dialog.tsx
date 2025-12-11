@@ -25,6 +25,7 @@ interface SignatureDialogProps {
   onSubmit?: (signatureDataUrl: string, clientName: string, clientEmail?: string) => void
   requireEmail?: boolean
   initialName?: string
+  showNameField?: boolean
 }
 
 export function SignatureDialog({
@@ -34,6 +35,7 @@ export function SignatureDialog({
   onSubmit,
   requireEmail = false,
   initialName = '',
+  showNameField = true,
 }: SignatureDialogProps) {
   const signatureRef = useRef<SignatureCanvas>(null)
   const [clientName, setClientName] = useState(initialName)
@@ -102,16 +104,18 @@ export function SignatureDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Nome do cliente */}
-            <div className="space-y-2">
-              <Label htmlFor="client-name">Nome do Responsável *</Label>
-              <Input
-                id="client-name"
-                placeholder="Nome completo do responsável"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-              />
-            </div>
+            {/* Nome do cliente - só mostra se showNameField for true */}
+            {showNameField && (
+              <div className="space-y-2">
+                <Label htmlFor="client-name">Nome do Responsável *</Label>
+                <Input
+                  id="client-name"
+                  placeholder="Nome completo do responsável"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                />
+              </div>
+            )}
 
             {/* Email opcional */}
             {requireEmail && (

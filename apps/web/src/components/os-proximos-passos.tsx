@@ -74,23 +74,24 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
     setRealizandoCheckout(true)
 
     try {
-      // Chamar RPC para checkout
-      const { data, error } = await supabase.rpc('os_checkout', {
-        p_os_id: osId,
-        p_estado_equipamento: estadoElevador,
-        p_nome_cliente: nomeResponsavel,
-        p_assinatura_base64: assinaturaUrl
-      })
+      // Obter token de autenticação
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-      if (error) throw error
-
-      const result = data as { success: boolean; error?: string; message?: string }
-
-      if (!result.success) {
-        throw new Error(result.message || result.error || 'Erro ao realizar checkout')
+      if (!token) {
+        throw new Error('Usuário não autenticado')
       }
 
-      toast.success(result.message || 'Checkout realizado com sucesso!')
+      // Chamar API Backend para checkout
+      await import('@/lib/api-client').then(({ default: apiClient }) =>
+        apiClient.ordensServico.finalize(osId, {
+          estado_equipamento: estadoElevador,
+          nome_cliente_assinatura: nomeResponsavel,
+          assinatura_cliente: assinaturaUrl
+        }, token)
+      )
+
+      toast.success('Checkout realizado com sucesso!')
 
       // Redirecionar após sucesso
       setTimeout(() => {
@@ -133,8 +134,8 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
           </Select>
           {estadoFeedback && (
             <p className={`text-sm mt-2 ${estadoFeedback.variant === 'success' ? 'text-green-600' :
-                estadoFeedback.variant === 'warning' ? 'text-yellow-600' :
-                  'text-red-600'
+              estadoFeedback.variant === 'warning' ? 'text-yellow-600' :
+                'text-red-600'
               }`}>
               {estadoFeedback.text}
             </p>
@@ -180,6 +181,8 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
         open={showSignatureDialog}
         onOpenChange={setShowSignatureDialog}
         onSubmit={handleSaveAssinatura}
+        showNameField={false}
+        initialName={nomeResponsavel}
       />
     </Card>
   )

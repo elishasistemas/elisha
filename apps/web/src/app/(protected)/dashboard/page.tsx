@@ -38,14 +38,14 @@ const statusConfig = {
     className: 'bg-purple-500 text-white hover:bg-purple-600'
   },
   checkin: {
-    label: 'No Local',
+    label: 'Em Atendimento',
     variant: 'secondary' as const,
     icon: CheckCircle,
     className: 'bg-indigo-500 text-white hover:bg-indigo-600'
   },
-  em_andamento: { 
-    label: 'Em Andamento', 
-    variant: 'secondary' as const, 
+  em_andamento: {
+    label: 'Em Andamento',
+    variant: 'secondary' as const,
     icon: Clock,
     className: 'bg-yellow-500 text-white hover:bg-yellow-600'
   },
@@ -61,15 +61,15 @@ const statusConfig = {
     icon: Clock,
     className: 'bg-orange-500 text-white hover:bg-orange-600'
   },
-  concluido: { 
-    label: 'Concluída', 
-    variant: 'secondary' as const, 
+  concluido: {
+    label: 'Concluída',
+    variant: 'secondary' as const,
     icon: CheckCircle,
     className: 'bg-green-500 text-white hover:bg-green-600'
   },
-  cancelado: { 
-    label: 'Cancelada', 
-    variant: 'outline' as const, 
+  cancelado: {
+    label: 'Cancelada',
+    variant: 'outline' as const,
     icon: AlertCircle,
     className: 'bg-red-500 text-white hover:bg-red-600'
   },
@@ -99,18 +99,18 @@ export default function DashboardPage() {
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
   const [refreshKey, setRefreshKey] = useState(0)
   const [isHydrated, setIsHydrated] = useState(false)
-  
+
   // Marcar como hidratado após primeiro render
   useEffect(() => {
     setIsHydrated(true)
   }, [])
-  
+
   // Buscar perfil primeiro para determinar empresa correta
   const { profile } = useProfile(user?.id)
-  
+
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaAtiva = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
-  
+
   // Otimização: Carregar apenas dados essenciais com paginação reduzida
   const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey, pageSize: 100 })
   const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey, pageSize: 20, orderBy: 'prioridade' })
@@ -119,28 +119,28 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const isAdmin = profile?.active_role === 'admin'
   const isImpersonating = !!profile?.is_elisha_admin && !!profile?.impersonating_empresa_id
-  
+
   // Mostrar loading apenas se ainda não hidratou OU se está carregando após hidratação
   const isLoading = !isHydrated || clientesLoading || ordensLoading || colaboradoresLoading
-  
+
   // Detectar se é técnico
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
-  
+
   // Redirecionar técnicos para /orders (dashboard não é acessível para técnicos)
   useEffect(() => {
     if (isTecnico && isHydrated) {
       router.replace('/orders')
     }
   }, [isTecnico, isHydrated, router])
-  
+
   // OS abertas para aceitar/recusar (apenas chamados)
   const ordensAbertas = useMemo(() => {
-    const base = ordens.filter(o => 
-      o.tipo === 'chamado' && 
+    const base = ordens.filter(o =>
+      o.tipo === 'chamado' &&
       (o.status === 'novo' || o.status === 'parado')
     )
-    
+
     if (isAdmin || isImpersonating) {
       return base.filter(o => !o.tecnico_id)
     }
@@ -164,9 +164,9 @@ export default function DashboardPage() {
     try {
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: o.id })
       if (error) throw error
-      
+
       const result = data as { success: boolean; error?: string; message?: string }
-      
+
       if (!result.success) {
         // Mostrar mensagem detalhada, não apenas o código do erro
         const errorMsg = result.message || result.error || 'Erro ao aceitar OS'
@@ -174,9 +174,9 @@ export default function DashboardPage() {
         toast.error(errorMsg)
         return
       }
-      
+
       toast.success(result.message || 'OS aceita com sucesso!')
-      
+
       // Navegar para a tela full-screen da OS
       setTimeout(() => {
         router.push(`/os/${o.id}/full`)
@@ -192,15 +192,15 @@ export default function DashboardPage() {
   const handleDecline = async (o: OrdemServico) => {
     const reason = typeof window !== 'undefined' ? window.prompt('Motivo da recusa (opcional):', '') : ''
     if (reason === null) return // Usuário cancelou
-    
+
     setActionLoading(true)
     const supabase = createSupabaseBrowser()
     try {
       const { data, error } = await supabase.rpc('os_decline', { p_os_id: o.id, p_reason: reason || null })
       if (error) throw error
-      
+
       const result = data as { success: boolean; error?: string; message?: string }
-      
+
       if (!result.success) {
         // Mostrar mensagem detalhada, não apenas o código do erro
         const errorMsg = result.message || result.error || 'Erro ao recusar OS'
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         toast.error(errorMsg)
         return
       }
-      
+
       toast.success(result.message || 'OS recusada com sucesso')
       setTimeout(() => setRefreshKey(prev => prev + 1), 300)
     } catch (e) {
@@ -235,7 +235,7 @@ export default function DashboardPage() {
       const dataOrdem = new Date(ordem.created_at)
       return dataOrdem >= dataInicial
     })
-    
+
     // Se for técnico, filtrar apenas suas OS (atribuídas a ele)
     if (isTecnico && tecnicoId) {
       filtradas = filtradas.filter(ordem => ordem.tecnico_id === tecnicoId)
@@ -246,7 +246,7 @@ export default function DashboardPage() {
     const getPrioridadePeso = (ordem: typeof ordens[0]) => {
       // OS paradas têm prioridade máxima
       if (ordem.status === 'parado') return 0
-      
+
       // Depois vem a prioridade da OS
       if (ordem.prioridade === 'alta') return 1
       if (ordem.prioridade === 'media') return 2
@@ -258,23 +258,23 @@ export default function DashboardPage() {
       if (ordenacao === 'prioridade') {
         const pesoA = getPrioridadePeso(a)
         const pesoB = getPrioridadePeso(b)
-        
+
         if (pesoA !== pesoB) return pesoA - pesoB
-        
+
         // Se tiverem o mesmo peso, ordenar por data (mais recente primeiro)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
-      
+
       if (ordenacao === 'data') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
-      
+
       if (ordenacao === 'status') {
         // Parado > Novo > Em andamento > Aguardando > Concluído > Cancelado
         const statusOrdem = ['parado', 'novo', 'em_andamento', 'aguardando_assinatura', 'concluido', 'cancelado']
         return statusOrdem.indexOf(a.status) - statusOrdem.indexOf(b.status)
       }
-      
+
       return 0
     })
   }, [ordens, dataInicial, ordenacao])
@@ -293,9 +293,9 @@ export default function DashboardPage() {
       const dia = new Date(hoje)
       dia.setDate(hoje.getDate() - i)
       dia.setHours(0, 0, 0, 0)
-      
+
       const diaStr = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      
+
       const ordensNoDia = ordensFiltradas.filter(ordem => {
         const dataOrdem = new Date(ordem.created_at)
         dataOrdem.setHours(0, 0, 0, 0)
@@ -347,19 +347,19 @@ export default function DashboardPage() {
       const dia = new Date(hoje)
       dia.setDate(hoje.getDate() - i)
       dia.setHours(0, 0, 0, 0)
-      
+
       const diaStr = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      
+
       const chamadosNoDia = chamadosFiltrados.filter(ordem => {
         const dataOrdem = new Date(ordem.created_at)
         dataOrdem.setHours(0, 0, 0, 0)
         return dataOrdem.getTime() === dia.getTime()
       })
 
-      const abertos = chamadosNoDia.filter(o => 
+      const abertos = chamadosNoDia.filter(o =>
         o.status === 'novo' || o.status === 'em_andamento' || o.status === 'parado'
       ).length
-      const fechados = chamadosNoDia.filter(o => 
+      const fechados = chamadosNoDia.filter(o =>
         o.status === 'concluido' || o.status === 'cancelado'
       ).length
 
@@ -376,26 +376,26 @@ export default function DashboardPage() {
   // Estatísticas dos indicadores
   const stats = useMemo(() => {
     // Indicador 1: Chamados Abertos vs Fechados
-    const chamadosAbertos = chamadosFiltrados.filter(o => 
+    const chamadosAbertos = chamadosFiltrados.filter(o =>
       o.status === 'novo' || o.status === 'em_andamento' || o.status === 'parado'
     ).length
-    const chamadosFechados = chamadosFiltrados.filter(o => 
+    const chamadosFechados = chamadosFiltrados.filter(o =>
       o.status === 'concluido' || o.status === 'cancelado'
     ).length
 
     // Indicador 2: Preventivas Programadas (Total de preventivas)
-    let preventivasTotal = ordens.filter(o => 
+    let preventivasTotal = ordens.filter(o =>
       o.tipo === 'preventiva'
     )
-    
+
     // Se for técnico, filtrar apenas suas OS
     if (isTecnico && tecnicoId) {
       preventivasTotal = preventivasTotal.filter(o => o.tecnico_id === tecnicoId)
     }
     const preventivasProgramadas = preventivasTotal.length
     const preventivasConcluidas = preventivasTotal.filter(o => o.status === 'concluido').length
-    const percentualConcluidas = preventivasProgramadas > 0 
-      ? Math.round((preventivasConcluidas / preventivasProgramadas) * 100) 
+    const percentualConcluidas = preventivasProgramadas > 0
+      ? Math.round((preventivasConcluidas / preventivasProgramadas) * 100)
       : 0
 
     // Indicador 3: Elevadores Parados (Acumulativo)
@@ -429,7 +429,7 @@ export default function DashboardPage() {
     },
     fechados: {
       label: "Chamados Fechados",
-      color:"oklch(0.60 0.13 163)", // emerald-600
+      color: "oklch(0.60 0.13 163)", // emerald-600
     },
   }
 
@@ -454,8 +454,8 @@ export default function DashboardPage() {
           <h2 className='text-2xl font-medium'>Bem vindo de volta </h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             onClick={handleRefresh}
             disabled={isLoading}
@@ -640,43 +640,43 @@ export default function DashboardPage() {
                   {ordensAbertas.slice(0, 10).map((o) => {
                     const cliente = clientes.find(c => c.id === o.cliente_id)
                     return (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-medium">{o.numero_os || o.id.slice(0,8)}</TableCell>
-                      <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">-</TableCell>
-                      <TableCell className="capitalize">{o.tipo}</TableCell>
-                      <TableCell>
-                        <Badge variant={o.prioridade === 'alta' ? 'destructive' : 'secondary'} className="capitalize">{o.prioridade}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={(statusConfig as any)[o.status]?.className}>
-                          {(statusConfig as any)[o.status]?.label || o.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(o.created_at)}</TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            onClick={(e) => { e.stopPropagation(); handleAccept(o); }} 
-                            disabled={actionLoading || !canAcceptOrDecline(o)} 
-                            variant="default"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                          >
-                            <Check className="h-4 w-4 mr-1" /> Aceitar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => { e.stopPropagation(); handleDecline(o); }} 
-                            disabled={actionLoading || !canAcceptOrDecline(o)}
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4 mr-1" /> Recusar
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium">{o.numero_os || o.id.slice(0, 8)}</TableCell>
+                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                        <TableCell className="capitalize">{o.tipo}</TableCell>
+                        <TableCell>
+                          <Badge variant={o.prioridade === 'alta' ? 'destructive' : 'secondary'} className="capitalize">{o.prioridade}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={(statusConfig as any)[o.status]?.className}>
+                            {(statusConfig as any)[o.status]?.label || o.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(o.created_at)}</TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleAccept(o); }}
+                              disabled={actionLoading || !canAcceptOrDecline(o)}
+                              variant="default"
+                              className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Aceitar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { e.stopPropagation(); handleDecline(o); }}
+                              disabled={actionLoading || !canAcceptOrDecline(o)}
+                              className="border-red-300 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-1" /> Recusar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
                 </TableBody>
@@ -735,7 +735,7 @@ export default function DashboardPage() {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
-                  
+
                   return (
                     <TableRow key={ordem.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setViewOrder(ordem)}>
                       <TableCell className="font-medium">
@@ -748,10 +748,10 @@ export default function DashboardPage() {
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {ordem.tipo === 'preventiva' ? 'Preventiva' : 
-                         ordem.tipo === 'corretiva' ? 'Corretiva' : 
-                         ordem.tipo === 'emergencial' ? 'Emergencial' : 
-                         ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
+                        {ordem.tipo === 'preventiva' ? 'Preventiva' :
+                          ordem.tipo === 'corretiva' ? 'Corretiva' :
+                            ordem.tipo === 'emergencial' ? 'Emergencial' :
+                              ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
@@ -782,7 +782,7 @@ export default function DashboardPage() {
                           Ver Detalhes
                         </Button>
                       </TableCell>
-                  </TableRow>
+                    </TableRow>
                   )
                 })}
               </TableBody>

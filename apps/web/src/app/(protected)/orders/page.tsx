@@ -56,7 +56,7 @@ const statusConfig = {
     className: 'bg-purple-500 text-white hover:bg-purple-600'
   },
   checkin: {
-    label: 'No Local',
+    label: 'Em Atendimento',
     variant: 'secondary' as const,
     icon: CheckCircle,
     className: 'bg-indigo-500 text-white hover:bg-indigo-600'

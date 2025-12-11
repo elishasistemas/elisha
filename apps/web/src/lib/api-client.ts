@@ -12,10 +12,10 @@ interface FetchOptions extends RequestInit {
 
 async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { token, ...fetchOptions } = options;
-  
-  const headers: HeadersInit = {
+
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    ...(fetchOptions.headers as Record<string, string> || {}),
   };
 
   if (token) {
@@ -39,40 +39,40 @@ async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
 export const apiClient = {
   // Profiles
   profiles: {
-    getMe: (token?: string) => 
+    getMe: (token?: string) =>
       apiFetch('/profiles/me', { token }),
-    getByUserId: (userId: string, token?: string) => 
+    getByUserId: (userId: string, token?: string) =>
       apiFetch(`/profiles/${userId}`, { token }),
-    update: (userId: string, data: any, token?: string) => 
-      apiFetch(`/profiles/${userId}`, { 
-        method: 'PATCH', 
+    update: (userId: string, data: any, token?: string) =>
+      apiFetch(`/profiles/${userId}`, {
+        method: 'PATCH',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    updateActiveRole: (userId: string, activeRole: string, token?: string) => 
-      apiFetch(`/profiles/${userId}/active-role`, { 
-        method: 'PATCH', 
+    updateActiveRole: (userId: string, activeRole: string, token?: string) =>
+      apiFetch(`/profiles/${userId}/active-role`, {
+        method: 'PATCH',
         body: JSON.stringify({ active_role: activeRole }),
-        token 
+        token
       }),
   },
 
   // Empresas
   empresas: {
-    list: (token?: string) => 
+    list: (token?: string) =>
       apiFetch('/empresas', { token }),
-    getById: (id: string, token?: string) => 
+    getById: (id: string, token?: string) =>
       apiFetch(`/empresas/${id}`, { token }),
-    create: (data: any, token?: string) => 
-      apiFetch('/empresas', { 
-        method: 'POST', 
+    create: (data: any, token?: string) =>
+      apiFetch('/empresas', {
+        method: 'POST',
         body: JSON.stringify(data),
-        token 
+        token
       }),
     uploadLogo: async (id: string, file: File, token?: string) => {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const headers: HeadersInit = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -104,27 +104,33 @@ export const apiClient = {
       if (params.search) queryParams.append('search', params.search);
       if (params.status) queryParams.append('status', params.status);
       if (params.tecnicoId) queryParams.append('tecnicoId', params.tecnicoId);
-      
+
       return apiFetch(`/ordens-servico?${queryParams}`, { token });
     },
-    getById: (id: string, token?: string) => 
+    getById: (id: string, token?: string) =>
       apiFetch(`/ordens-servico/${id}`, { token }),
-    create: (data: any, token?: string) => 
-      apiFetch('/ordens-servico', { 
-        method: 'POST', 
+    create: (data: any, token?: string) =>
+      apiFetch('/ordens-servico', {
+        method: 'POST',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    update: (id: string, data: any, token?: string) => 
-      apiFetch(`/ordens-servico/${id}`, { 
-        method: 'PATCH', 
+    update: (id: string, data: any, token?: string) =>
+      apiFetch(`/ordens-servico/${id}`, {
+        method: 'PATCH',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    delete: (id: string, token?: string) => 
-      apiFetch(`/ordens-servico/${id}`, { 
+    delete: (id: string, token?: string) =>
+      apiFetch(`/ordens-servico/${id}`, {
         method: 'DELETE',
-        token 
+        token
+      }),
+    finalize: (id: string, data: { estado_equipamento: string; nome_cliente_assinatura: string; assinatura_cliente: string }, token?: string) =>
+      apiFetch(`/ordens-servico/${id}/finalize`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        token
       }),
   },
 
@@ -135,24 +141,24 @@ export const apiClient = {
       if (empresaId) queryParams.append('empresaId', empresaId);
       return apiFetch(`/checklists?${queryParams}`, { token });
     },
-    getById: (id: string, token?: string) => 
+    getById: (id: string, token?: string) =>
       apiFetch(`/checklists/${id}`, { token }),
-    create: (data: any, token?: string) => 
-      apiFetch('/checklists', { 
-        method: 'POST', 
+    create: (data: any, token?: string) =>
+      apiFetch('/checklists', {
+        method: 'POST',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    update: (id: string, data: any, token?: string) => 
-      apiFetch(`/checklists/${id}`, { 
-        method: 'PATCH', 
+    update: (id: string, data: any, token?: string) =>
+      apiFetch(`/checklists/${id}`, {
+        method: 'PATCH',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    delete: (id: string, token?: string) => 
-      apiFetch(`/checklists/${id}`, { 
+    delete: (id: string, token?: string) =>
+      apiFetch(`/checklists/${id}`, {
         method: 'DELETE',
-        token 
+        token
       }),
   },
 
@@ -164,27 +170,27 @@ export const apiClient = {
       if (params.page) queryParams.append('page', params.page.toString());
       if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
       if (params.search) queryParams.append('search', params.search);
-      
+
       return apiFetch(`/colaboradores?${queryParams}`, { token });
     },
-    getById: (id: string, token?: string) => 
+    getById: (id: string, token?: string) =>
       apiFetch(`/colaboradores/${id}`, { token }),
-    create: (data: any, token?: string) => 
-      apiFetch('/colaboradores', { 
-        method: 'POST', 
+    create: (data: any, token?: string) =>
+      apiFetch('/colaboradores', {
+        method: 'POST',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    update: (id: string, data: any, token?: string) => 
-      apiFetch(`/colaboradores/${id}`, { 
-        method: 'PUT', 
+    update: (id: string, data: any, token?: string) =>
+      apiFetch(`/colaboradores/${id}`, {
+        method: 'PUT',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    delete: (id: string, token?: string) => 
-      apiFetch(`/colaboradores/${id}`, { 
+    delete: (id: string, token?: string) =>
+      apiFetch(`/colaboradores/${id}`, {
         method: 'DELETE',
-        token 
+        token
       }),
   },
 
@@ -196,27 +202,27 @@ export const apiClient = {
       if (params.clienteId) queryParams.append('clienteId', params.clienteId);
       if (params.page) queryParams.append('page', params.page.toString());
       if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
-      
+
       return apiFetch(`/equipamentos?${queryParams}`, { token });
     },
-    getById: (id: string, token?: string) => 
+    getById: (id: string, token?: string) =>
       apiFetch(`/equipamentos/${id}`, { token }),
-    create: (data: any, token?: string) => 
-      apiFetch('/equipamentos', { 
-        method: 'POST', 
+    create: (data: any, token?: string) =>
+      apiFetch('/equipamentos', {
+        method: 'POST',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    update: (id: string, data: any, token?: string) => 
-      apiFetch(`/equipamentos/${id}`, { 
-        method: 'PATCH', 
+    update: (id: string, data: any, token?: string) =>
+      apiFetch(`/equipamentos/${id}`, {
+        method: 'PATCH',
         body: JSON.stringify(data),
-        token 
+        token
       }),
-    delete: (id: string, token?: string) => 
-      apiFetch(`/equipamentos/${id}`, { 
+    delete: (id: string, token?: string) =>
+      apiFetch(`/equipamentos/${id}`, {
         method: 'DELETE',
-        token 
+        token
       }),
   },
 };

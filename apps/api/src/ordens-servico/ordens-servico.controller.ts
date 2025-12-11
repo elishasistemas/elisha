@@ -10,6 +10,8 @@ import {
   UseGuards,
   Req,
   Res,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { OrdensServicoService } from './ordens-servico.service';
@@ -20,7 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @ApiTags('ordens-servico')
 @Controller('ordens-servico')
 export class OrdensServicoController {
-  constructor(private readonly ordensServicoService: OrdensServicoService) {}
+  constructor(private readonly ordensServicoService: OrdensServicoService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -102,17 +104,44 @@ export class OrdensServicoController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Finalizar ordem de serviço com assinatura do cliente' })
-  finalize(
-    @Param('id') id: string, 
-    @Body() data: { 
-      assinatura_cliente: string; 
-      nome_cliente_assinatura: string; 
-      email_cliente_assinatura?: string 
-    }, 
+  async finalize(
+    @Param('id') id: string,
+    @Body() data: {
+      assinatura_cliente: string;
+      nome_cliente_assinatura: string;
+      email_cliente_assinatura?: string;
+      estado_equipamento?: string;
+    },
     @Req() request: any
   ) {
-    const token = request.user?.access_token
-    return this.ordensServicoService.finalize(id, data, token);
+    try {
+      const token = request.user?.access_token
+      
+      if (!token) {
+        throw new HttpException('Token de autenticação não fornecido', HttpStatus.UNAUTHORIZED);
+      }
+
+      console.log('[finalize] Iniciando finalização da OS:', id);
+      console.log('[finalize] Dados recebidos:', { 
+        tem_assinatura: !!data.assinatura_cliente,
+        nome: data.nome_cliente_assinatura,
+        estado_equipamento: data.estado_equipamento 
+      });
+
+      const result = await this.ordensServicoService.finalize(id, data, token);
+      
+      console.log('[finalize] OS finalizada com sucesso');
+      return result;
+    } catch (error) {
+      console.error('[finalize] Erro ao finalizar OS:', error);
+      
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      const message = error instanceof Error ? error.message : 'Erro desconhecido ao finalizar OS';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Get(':id/laudo')

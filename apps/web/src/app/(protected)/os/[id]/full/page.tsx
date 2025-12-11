@@ -6,10 +6,10 @@ import { createSupabaseBrowser } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  ArrowLeft, 
-  Minimize2, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Minimize2,
+  MapPin,
   Clock,
   CheckCircle,
   User,
@@ -83,7 +83,7 @@ export default function OSFullScreenPage() {
       seconds: seconds % 60,
       total_seconds: seconds
     }
-    
+
     return tempo
   }, [emDeslocamentoTimestamp, currentTime])
 
@@ -96,70 +96,70 @@ export default function OSFullScreenPage() {
         // Buscar OS
         const session = await supabase.auth.getSession()
         const token = session.data.session?.access_token
-        
+
         if (!token) throw new Error('Não autenticado')
-        
+
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
-        
+
         if (!response.ok) throw new Error('Erro ao buscar OS')
-        
+
         const osData = await response.json()
 
         if (osData) {
 
           // Buscar dados relacionados via backend
           const [clienteRes, equipamentoRes, tecnicoRes] = await Promise.all([
-            osData.cliente_id 
+            osData.cliente_id
               ? fetch(`${BACKEND_URL}/api/v1/clientes/${osData.cliente_id}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                }).then(async r => {
-                  if (!r.ok) {
-                    return null
-                  }
-                  const data = await r.json()
-                  return data
-                })
+                headers: { 'Authorization': `Bearer ${token}` }
+              }).then(async r => {
+                if (!r.ok) {
+                  return null
+                }
+                const data = await r.json()
+                return data
+              })
               : Promise.resolve(null),
             osData.equipamento_id
               ? fetch(`${BACKEND_URL}/api/v1/equipamentos/${osData.equipamento_id}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                }).then(async r => {
-                  if (!r.ok) {
-                    return null
-                  }
-                  const data = await r.json()
-                  return data
-                })
+                headers: { 'Authorization': `Bearer ${token}` }
+              }).then(async r => {
+                if (!r.ok) {
+                  return null
+                }
+                const data = await r.json()
+                return data
+              })
               : Promise.resolve(null),
             osData.tecnico_id
               ? fetch(`${BACKEND_URL}/api/v1/colaboradores/${osData.tecnico_id}`, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                }).then(async r => {
-                  if (!r.ok) {
-                    return null
-                  }
-                  const data = await r.json()
-                  return data
-                })
+                headers: { 'Authorization': `Bearer ${token}` }
+              }).then(async r => {
+                if (!r.ok) {
+                  return null
+                }
+                const data = await r.json()
+                return data
+              })
               : Promise.resolve(null)
           ])
 
           // Montar nome do equipamento a partir dos campos disponíveis
           let equipamentoNome = null
           if (equipamentoRes) {
-            equipamentoNome = equipamentoRes.nome || 
-                            equipamentoRes.tag ||
-                            (equipamentoRes.tipo && equipamentoRes.modelo 
-                              ? `${equipamentoRes.tipo} ${equipamentoRes.modelo}` 
-                              : null) ||
-                            equipamentoRes.tipo ||
-                            equipamentoRes.descricao ||
-                            'Equipamento'
+            equipamentoNome = equipamentoRes.nome ||
+              equipamentoRes.tag ||
+              (equipamentoRes.tipo && equipamentoRes.modelo
+                ? `${equipamentoRes.tipo} ${equipamentoRes.modelo}`
+                : null) ||
+              equipamentoRes.tipo ||
+              equipamentoRes.descricao ||
+              'Equipamento'
           }
 
           const osEnriched = {
@@ -178,7 +178,7 @@ export default function OSFullScreenPage() {
             'Authorization': `Bearer ${token}`
           }
         })
-        
+
         if (historyResponse.ok) {
           const historyData = await historyResponse.json()
           setStatusHistory(historyData || [])
@@ -254,10 +254,10 @@ export default function OSFullScreenPage() {
         tempo_inicio: emDeslocamentoTimestamp.toISOString(),
         minimized_at: new Date().toISOString()
       }))
-      
+
       // Disparar evento customizado para atualizar o dock global
       window.dispatchEvent(new CustomEvent('os-dock-updated'))
-      
+
       // Voltar para o dashboard
       router.push('/dashboard')
     }
@@ -269,7 +269,7 @@ export default function OSFullScreenPage() {
 
     try {
       setLoading(true)
-      
+
       // Opcional: Capturar geolocalização
       let location = null
       if ('geolocation' in navigator) {
@@ -280,14 +280,14 @@ export default function OSFullScreenPage() {
               maximumAge: 0
             })
           })
-          
+
           location = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             timestamp: new Date(position.timestamp).toISOString()
           }
-          
+
         } catch (geoError) {
           // Continua mesmo sem localização
         }
@@ -310,7 +310,7 @@ export default function OSFullScreenPage() {
       }
 
       toast.success(result.message || 'Check-in realizado com sucesso!')
-      
+
       // Atualizar estado local da OS
       setOs(prev => prev ? { ...prev, status: 'checkin' } : null)
 
@@ -389,28 +389,28 @@ export default function OSFullScreenPage() {
             {/* Número da OS e Status */}
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold">{os.numero_os}</h2>
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={
                   os.tipo === 'corretiva' ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' :
-                  os.tipo === 'preventiva' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' :
-                  os.tipo === 'chamado' ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' :
-                  'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200'
+                    os.tipo === 'preventiva' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' :
+                      os.tipo === 'chamado' ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' :
+                        'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200'
                 }
               >
-                {os.tipo === 'preventiva' ? 'Preventiva' : 
-                 os.tipo === 'corretiva' ? 'Corretiva' : 
-                 os.tipo === 'chamado' ? 'Chamado' : 
-                 os.tipo}
+                {os.tipo === 'preventiva' ? 'Preventiva' :
+                  os.tipo === 'corretiva' ? 'Corretiva' :
+                    os.tipo === 'chamado' ? 'Chamado' :
+                      os.tipo}
               </Badge>
-              <Badge 
+              <Badge
                 variant="secondary"
                 className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200"
               >
                 {os.status === 'em_deslocamento' ? 'Em Deslocamento' :
-                 os.status === 'checkin' ? 'No Local' :
-                 os.status === 'em_andamento' ? 'Em Andamento' :
-                 os.status}
+                  os.status === 'checkin' ? 'Em Atendimento' :
+                    os.status === 'em_andamento' ? 'Em Andamento' :
+                      os.status}
               </Badge>
             </div>
 
@@ -486,14 +486,14 @@ export default function OSFullScreenPage() {
         {['checkin', 'em_andamento'].includes(os.status) && os.empresa_id && (
           <>
             {os.tipo === 'preventiva' ? (
-              <OSPreventiva 
-                osId={os.id} 
+              <OSPreventiva
+                osId={os.id}
                 empresaId={os.empresa_id}
                 osData={os}
               />
             ) : (
-              <OSChamadoCorretiva 
-                osId={os.id} 
+              <OSChamadoCorretiva
+                osId={os.id}
                 empresaId={os.empresa_id}
                 osData={os}
               />
@@ -514,43 +514,43 @@ export default function OSFullScreenPage() {
               </div>
             </CardHeader>
             {historyExpanded && (
-            <CardContent>
-              <div className="space-y-3">
-                {statusHistory
-                  .filter((history, index, self) => 
-                    // Remover duplicados
-                    index === self.findIndex(h => 
-                      h.status_novo === history.status_novo && 
-                      h.action_type === history.action_type &&
-                      Math.abs(new Date(h.changed_at).getTime() - new Date(history.changed_at).getTime()) < 1000
+              <CardContent>
+                <div className="space-y-3">
+                  {statusHistory
+                    .filter((history, index, self) =>
+                      // Remover duplicados
+                      index === self.findIndex(h =>
+                        h.status_novo === history.status_novo &&
+                        h.action_type === history.action_type &&
+                        Math.abs(new Date(h.changed_at).getTime() - new Date(history.changed_at).getTime()) < 1000
+                      )
                     )
-                  )
-                  .map((history) => (
-                  <div
-                    key={history.id}
-                    className="flex items-start gap-3 pb-3 border-b last:border-0"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline">{history.status_novo}</Badge>
-                        {history.action_type && (
-                          <span className="text-xs text-muted-foreground">
-                            ({history.action_type})
-                          </span>
-                        )}
+                    .map((history) => (
+                      <div
+                        key={history.id}
+                        className="flex items-start gap-3 pb-3 border-b last:border-0"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{history.status_novo}</Badge>
+                            {history.action_type && (
+                              <span className="text-xs text-muted-foreground">
+                                ({history.action_type})
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {new Date(history.changed_at).toLocaleString('pt-BR')}
+                          </p>
+                          {history.reason && (
+                            <p className="text-sm mt-1">Motivo: {history.reason}</p>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {new Date(history.changed_at).toLocaleString('pt-BR')}
-                      </p>
-                      {history.reason && (
-                        <p className="text-sm mt-1">Motivo: {history.reason}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
+                    ))}
+                </div>
+              </CardContent>
             )}
           </Card>
         )}

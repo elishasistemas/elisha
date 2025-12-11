@@ -5,7 +5,7 @@ import { UpdateOrdemServicoDto } from './dto/update-ordem-servico.dto';
 
 @Injectable()
 export class OrdensServicoService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   /**
    * Obtém o perfil do usuário a partir do token JWT
@@ -13,7 +13,7 @@ export class OrdensServicoService {
   private async getUserProfile(accessToken: string) {
     const userClient = this.supabaseService.createUserClient(accessToken);
     const { data: { user }, error: userError } = await userClient.auth.getUser();
-    
+
     if (userError || !user) {
       throw new ForbiddenException('Token inválido ou expirado');
     }
@@ -94,7 +94,7 @@ export class OrdensServicoService {
         const searchTerm = search.trim().toLowerCase()
           .replace(/\s+/g, '_')  // "em andamento" -> "em_andamento"
           .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove acentos
-        
+
         const like = `%${searchTerm}%`;
         query = query.or(
           `numero_os.ilike.${like},tipo.ilike.${like},status.ilike.${like},observacoes.ilike.${like}`
@@ -172,7 +172,7 @@ export class OrdensServicoService {
 
   async create(createOrdemServicoDto: CreateOrdemServicoDto, accessToken?: string) {
     try {
-      
+
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
       }
@@ -193,7 +193,7 @@ export class OrdensServicoService {
 
       // Gerar número automático da OS no formato OS-0001-2025
       const ano = new Date().getFullYear();
-      
+
       // Buscar a última OS da empresa no ano atual (usando service role)
       const { data: ultimaOS, error: ultimaOSError } = await this.supabaseService.client
         .from('ordens_servico')
@@ -220,7 +220,7 @@ export class OrdensServicoService {
 
       // Formatar número com 4 dígitos
       const numeroFormatado = `OS-${proximoNumero.toString().padStart(4, '0')}-${ano}`;
-      
+
 
       // Sobrescrever o numero_os com o valor gerado
       const ordemData = {
@@ -255,7 +255,7 @@ export class OrdensServicoService {
 
   async update(id: string, updateOrdemServicoDto: UpdateOrdemServicoDto, accessToken?: string) {
     try {
-      
+
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
       }
@@ -287,7 +287,7 @@ export class OrdensServicoService {
 
       // Remover numero_os se vier no payload (campo não é editável)
       const { numero_os, ...updateData } = updateOrdemServicoDto;
-      
+
       if (numero_os) {
         console.warn('[OrdensServicoService] Tentativa de editar numero_os ignorada. Campo é auto-gerado.');
       }
@@ -359,34 +359,52 @@ export class OrdensServicoService {
   }
 
   async finalize(
-    id: string, 
-    data: { 
-      assinatura_cliente: string; 
-      nome_cliente_assinatura: string; 
-      email_cliente_assinatura?: string 
-    }, 
+    id: string,
+    data: {
+      assinatura_cliente: string;
+      nome_cliente_assinatura: string;
+      email_cliente_assinatura?: string;
+      estado_equipamento?: string;
+    },
     accessToken?: string
   ) {
     try {
-      
+      console.log('[finalize] Iniciando processo de finalização');
+
       if (!accessToken) {
         throw new ForbiddenException('Token de autenticação não fornecido');
       }
 
       // Obter perfil do usuário
+      console.log('[finalize] Buscando perfil do usuário');
       const { profile } = await this.getUserProfile(accessToken);
       const empresaAtiva = this.getActiveEmpresaId(profile);
+      console.log('[finalize] Empresa ativa:', empresaAtiva);
 
       // Buscar OS usando service role (bypassa RLS)
+      console.log('[finalize] Buscando OS:', id);
       const { data: os, error: osError } = await this.supabaseService.client
         .from('ordens_servico')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (osError || !os) {
+      if (osError) {
+        console.error('[finalize] Erro ao buscar OS:', osError);
+        throw new NotFoundException(`Ordem de serviço não encontrada: ${osError.message}`);
+      }
+
+      if (!os) {
         throw new NotFoundException('Ordem de serviço não encontrada');
       }
+
+      console.log('[finalize] OS encontrada:', {
+        id: os.id,
+        status: os.status,
+        empresa_id: os.empresa_id,
+        tecnico_id: os.tecnico_id,
+        equipamento_id: os.equipamento_id
+      });
 
       // Validar que a OS pertence à empresa do usuário
       if (os.empresa_id !== empresaAtiva) {
@@ -406,27 +424,64 @@ export class OrdensServicoService {
         }
       }
 
+      // Atualizar status do equipamento se fornecido
+      if (data.estado_equipamento && os.equipamento_id) {
+        console.log('[finalize] Atualizando status do equipamento:', os.equipamento_id);
+        const ativo = data.estado_equipamento !== 'parado';
+
+        const { error: equipError } = await this.supabaseService.client
+          .from('equipamentos')
+          .update({
+            ativo,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', os.equipamento_id);
+
+        if (equipError) {
+          console.error('[finalize] Erro ao atualizar status do equipamento:', equipError);
+          // Não impedir finalização se falhar atualização do equipamento, mas logar erro
+        } else {
+          console.log('[finalize] Equipamento atualizado com sucesso');
+        }
+      }
+
       // Atualizar usando service role (bypassa RLS)
+      console.log('[finalize] Atualizando OS para status concluído');
+      
+      // Garantir que data_inicio esteja definido para satisfazer a constraint
+      const dataFim = new Date().toISOString();
+      const updateData: any = {
+        status: 'concluido',
+        data_fim: dataFim,
+        assinatura_cliente: data.assinatura_cliente,
+        nome_cliente_assinatura: data.nome_cliente_assinatura,
+        email_cliente_assinatura: data.email_cliente_assinatura || null,
+        updated_at: dataFim,
+      };
+
+      // Se data_inicio não estiver definido, definir agora
+      // (isso pode acontecer se a OS foi aceita mas nunca entrou em atendimento)
+      if (!os.data_inicio) {
+        console.log('[finalize] data_inicio não definido, definindo agora');
+        updateData.data_inicio = os.data_abertura || dataFim;
+      }
+
       const { data: updatedOS, error } = await this.supabaseService.client
         .from('ordens_servico')
-        .update({
-          status: 'concluido',
-          data_fim: new Date().toISOString(),
-          assinatura_cliente: data.assinatura_cliente,
-          nome_cliente_assinatura: data.nome_cliente_assinatura,
-          email_cliente_assinatura: data.email_cliente_assinatura || null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
       if (error) {
-        throw error;
+        console.error('[finalize] Erro ao finalizar OS no Supabase:', error);
+        throw new Error(`Erro ao atualizar OS: ${error.message}`);
       }
 
+      console.log('[finalize] OS finalizada com sucesso');
       return updatedOS;
     } catch (error) {
+      console.error('[finalize] Erro não tratado:', error);
       throw error;
     }
   }
