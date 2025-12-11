@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -91,7 +91,7 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
       }
 
       toast.success(result.message || 'Checkout realizado com sucesso!')
-      
+
       // Redirecionar após sucesso
       setTimeout(() => {
         window.location.href = '/dashboard'
@@ -125,18 +125,17 @@ export function OSProximosPassos({ osId, empresaId }: OSProximosPassosProps) {
             <SelectTrigger id="estado-elevador">
               <SelectValue placeholder="Selecione o estado do elevador" />
             </SelectTrigger>
-            <SelectContent position="popper" sideOffset={4}>
+            <SelectContent position="popper" sideOffset={4} className="z-[10000]">
               <SelectItem value="funcionando">Funcionando normal</SelectItem>
               <SelectItem value="dependendo_de_corretiva">Funcionando, dependendo de corretiva</SelectItem>
               <SelectItem value="parado">Parado</SelectItem>
             </SelectContent>
           </Select>
           {estadoFeedback && (
-            <p className={`text-sm mt-2 ${
-              estadoFeedback.variant === 'success' ? 'text-green-600' : 
-              estadoFeedback.variant === 'warning' ? 'text-yellow-600' : 
-              'text-red-600'
-            }`}>
+            <p className={`text-sm mt-2 ${estadoFeedback.variant === 'success' ? 'text-green-600' :
+                estadoFeedback.variant === 'warning' ? 'text-yellow-600' :
+                  'text-red-600'
+              }`}>
               {estadoFeedback.text}
             </p>
           )}
