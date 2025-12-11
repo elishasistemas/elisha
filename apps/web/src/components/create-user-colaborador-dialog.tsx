@@ -23,9 +23,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { UserPlus } from 'iconoir-react'
+import { UserPlus, Eye, EyeOff } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useZonas } from '@/hooks/use-supabase'
+import { PasswordStrength } from '@/components/password-strength'
 
 interface CreateUserColaboradorDialogProps {
   empresaId: string
@@ -35,6 +36,8 @@ interface CreateUserColaboradorDialogProps {
 export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: CreateUserColaboradorDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -337,35 +340,68 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">
-                      Senha <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => handleChange('password', e.target.value)}
-                      placeholder="Mínimo 8 caracteres"
-                      required
-                      disabled={loading}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password">
+                        Senha <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.password}
+                          onChange={(e) => handleChange('password', e.target.value)}
+                          placeholder="Mínimo 8 caracteres"
+                          required
+                          disabled={loading}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">
+                        Confirmar Senha <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={formData.confirmPassword}
+                          onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                          placeholder="Digite a senha novamente"
+                          required
+                          disabled={loading}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">
-                      Confirmar Senha <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                      placeholder="Digite a senha novamente"
-                      required
-                      disabled={loading}
-                    />
-                  </div>
+                  {/* Força da senha */}
+                  {formData.password && (
+                    <div className="space-y-2">
+                      <PasswordStrength 
+                        password={formData.password} 
+                        confirm={formData.confirmPassword}
+                        minLength={8}
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="role">

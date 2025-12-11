@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature } from 'lucide-react'
+import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature, Check } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -121,9 +121,6 @@ export default function OrdersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
-  const [ordemToDecline, setOrdemToDecline] = useState<OrdemServico | null>(null)
-  const [declineReason, setDeclineReason] = useState('')
   const [filtroTecnico, setFiltroTecnico] = useState<'todas' | 'sem_tecnico' | 'minhas'>('todas')
   
   const { user, session } = useAuth()
@@ -177,6 +174,13 @@ export default function OrdersPage() {
     return true // 'todas'
   })
   
+  // OS abertas para aceitar/recusar (apenas chamados sem técnico)
+  const ordensAbertas = ordens.filter(o => 
+    o.tipo === 'chamado' && 
+    (o.status === 'novo' || o.status === 'parado') &&
+    !o.tecnico_id
+  )
+  
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
   const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
@@ -220,32 +224,6 @@ export default function OrdersPage() {
     } catch (e) {
       console.error('[handleAccept] Erro:', e)
       toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
-    }
-  }
-
-  const openDecline = (ordem: OrdemServico) => {
-    setOrdemToDecline(ordem)
-    setDeclineReason('')
-    setDeclineDialogOpen(true)
-  }
-
-  const handleConfirmDecline = async () => {
-    if (!ordemToDecline) return
-    try {
-      const { data, error } = await supabase.rpc('os_decline', { p_os_id: ordemToDecline.id, p_reason: declineReason || null })
-      if (error) throw error
-      const result = data as { success: boolean; error?: string; message?: string }
-      if (!result?.success) {
-        toast.error(result?.message || result?.error || 'Erro ao recusar OS')
-        return
-      }
-      toast.success(result?.message || 'OS recusada com sucesso')
-      setDeclineDialogOpen(false)
-      setOrdemToDecline(null)
-      setDeclineReason('')
-      handleRefresh()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao recusar OS')
     }
   }
 
@@ -353,6 +331,84 @@ export default function OrdersPage() {
           />
         )}
       </div>
+
+      {/* Seção de Chamados (OS Abertas para aceitar/recusar) */}
+      {ordensAbertas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Chamados</CardTitle>
+                <CardDescription>Ordens disponíveis para aceitar ou recusar</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto -mx-2 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prioridade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ordensAbertas.slice(0, 10).map((ordem) => {
+                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                    return (
+                      <TableRow key={ordem.id}>
+                        <TableCell className="font-medium">
+                          {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
+                        </TableCell>
+                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                        <TableCell className="capitalize">{ordem.tipo}</TableCell>
+                        <TableCell>
+                          {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                          {ordem.prioridade === 'media' && <Badge variant="secondary" className="gap-1 capitalize"><ArrowRight className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                          {ordem.prioridade === 'baixa' && <Badge variant="outline" className="gap-1 capitalize"><ArrowDown className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={status.className}>
+                            {status.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            size="sm" 
+                            onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }} 
+                            disabled={!canAcceptOrDecline(ordem)} 
+                            variant="default"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Aceitar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -514,9 +570,6 @@ export default function OrdersPage() {
                               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAccept(ordem) }}>
                                 Aceitar
                               </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); openDecline(ordem) }}>
-                                Recusar
-                              </DropdownMenuItem>
                             </>
                           )}
                           {/* Opção de finalizar para técnicos com OS não finalizada */}
@@ -621,25 +674,6 @@ export default function OrdersPage() {
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Decline Dialog */}
-      <AlertDialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Recusar OS</AlertDialogTitle>
-            <AlertDialogDescription>
-              Informe um motivo (opcional) para a recusa da ordem <strong>{ordemToDecline?.numero_os || ordemToDecline?.id.slice(0, 8)}</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="mt-2">
-            <Input placeholder="Motivo (opcional)" value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setDeclineDialogOpen(false); setOrdemToDecline(null); setDeclineReason('') }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDecline} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Confirmar Recusa</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
