@@ -142,10 +142,10 @@ BEGIN
   )
   RETURNING id INTO v_assinatura_id;
 
-  -- 12. Atualizar OS para aguardando_assinatura (ou concluído se já tem tudo)
+  -- 12. Atualizar OS para concluído (assinatura já foi coletada)
   UPDATE ordens_servico
   SET 
-    status = 'aguardando_assinatura',
+    status = 'concluido',
     data_fim = now(),
     updated_at = now()
   WHERE id = p_os_id;
@@ -163,7 +163,7 @@ BEGIN
   ) VALUES (
     p_os_id,
     v_os.status::text,
-    'aguardando_assinatura',
+    'concluido',
     auth.uid(),
     now(),
     'checkout',
@@ -179,10 +179,10 @@ BEGIN
   -- 14. Retornar sucesso
   RETURN jsonb_build_object(
     'success', true,
-    'message', 'Checkout realizado com sucesso! OS finalizada.',
+    'message', 'Checkout realizado com sucesso! OS concluída.',
     'data', jsonb_build_object(
       'os_id', p_os_id,
-      'status', 'aguardando_assinatura',
+      'status', 'concluido',
       'assinatura_id', v_assinatura_id,
       'data_fim', now()
     )
