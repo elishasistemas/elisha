@@ -124,6 +124,7 @@ export default function OrdersPage() {
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
   const [ordemToDecline, setOrdemToDecline] = useState<OrdemServico | null>(null)
   const [declineReason, setDeclineReason] = useState('')
+  const [filtroTecnico, setFiltroTecnico] = useState<'todas' | 'sem_tecnico' | 'minhas'>('todas')
   
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -164,6 +165,18 @@ export default function OrdersPage() {
 
   const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
+  
+  // Filtrar ordens com base no filtro de técnico
+  const ordensFiltradas = ordens.filter((ordem) => {
+    if (filtroTecnico === 'sem_tecnico') {
+      return !ordem.tecnico_id
+    }
+    if (filtroTecnico === 'minhas' && canTecnico) {
+      return ordem.tecnico_id === profile?.tecnico_id
+    }
+    return true // 'todas'
+  })
+  
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
   const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
@@ -346,9 +359,26 @@ export default function OrdersPage() {
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <CardTitle>Lista de Ordens</CardTitle>
-              <CardDescription className="text-sm">{total} {search ? 'resultado(s)' : 'registros'}</CardDescription>
+              <CardDescription className="text-sm">
+                {ordensFiltradas.length} {search ? 'resultado(s)' : 'registros'}
+                {filtroTecnico === 'sem_tecnico' && ' sem técnico'}
+                {filtroTecnico === 'minhas' && ' atribuídas a você'}
+              </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Filtrar:</span>
+                <Select value={filtroTecnico} onValueChange={(v: 'todas' | 'sem_tecnico' | 'minhas') => setFiltroTecnico(v)}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Filtrar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas OSs</SelectItem>
+                    <SelectItem value="sem_tecnico">Sem Técnico</SelectItem>
+                    {canTecnico && <SelectItem value="minhas">Minhas OSs</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Ordenar:</span>
                 <Select value={ordenacao} onValueChange={setOrdenacao}>
@@ -386,8 +416,12 @@ export default function OrdersPage() {
             </div>
           ) : hasError ? (
             <div className="text-destructive">{hasError}</div>
-          ) : ordens.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">Nenhuma ordem encontrada</div>
+          ) : ordensFiltradas.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' : 
+               filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+               'Nenhuma ordem encontrada'}
+            </div>
           ) : (
             <div className="overflow-x-auto -mx-2 md:mx-0">
               <Table>
@@ -404,7 +438,7 @@ export default function OrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ordens.map((ordem) => {
+                {ordensFiltradas.map((ordem) => {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)

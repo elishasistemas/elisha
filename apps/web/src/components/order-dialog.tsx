@@ -79,10 +79,16 @@ export function OrderDialog({
   // Sincronizar formData quando ordem muda (importante para refletir dados atualizados)
   useEffect(() => {
     if (ordem) {
+      const tecnicoId = ordem.tecnico_id || ''
+      console.log('[OrderDialog] Sincronizando ordem:', { 
+        ordem_id: ordem.id, 
+        tecnico_id: ordem.tecnico_id,
+        tecnico_id_normalizado: tecnicoId
+      })
       setFormData({
         cliente_id: ordem.cliente_id || '',
         equipamento_id: ordem.equipamento_id || '',
-        tecnico_id: ordem.tecnico_id || '',
+        tecnico_id: tecnicoId,
         tipo: ordem.tipo || defaultTipo || 'preventiva',
         prioridade: ordem.prioridade || 'media',
         observacoes: ordem.observacoes || '',
@@ -188,7 +194,7 @@ export function OrderDialog({
         empresa_id: empresaId,
         cliente_id: formData.cliente_id,
         equipamento_id: formData.equipamento_id,
-        tecnico_id: formData.tecnico_id || null,
+        tecnico_id: formData.tecnico_id && formData.tecnico_id.trim() !== '' ? formData.tecnico_id : null,
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
         status: 'novo' as const,
@@ -197,6 +203,8 @@ export function OrderDialog({
         quem_solicitou: formData.quem_solicitou?.trim() || null,
         origem: 'painel' as const,
       }
+
+      console.log('[OrderDialog] Dados enviados:', ordemData)
 
       // Pegar token de autenticação
       const { data: { session } } = await supabase.auth.getSession()
@@ -210,6 +218,11 @@ export function OrderDialog({
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
       if (localMode === 'edit' && ordem) {
+        // Para edição, não enviar campos que não devem ser alterados
+        const { status, origem, ...editData } = ordemData
+        
+        console.log('[OrderDialog] Editando OS:', ordem.id, 'Dados:', editData)
+        
         // Atualizar ordem via backend
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}`, {
           method: 'PATCH',
@@ -217,7 +230,7 @@ export function OrderDialog({
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(ordemData)
+          body: JSON.stringify(editData)
         })
 
         if (!res.ok) {

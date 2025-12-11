@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createSupabaseBrowser } from "@/lib/supabase";
-import { InviteDialog } from "@/components/invite-dialog";
+import { CreateUserColaboradorDialog } from "@/components/create-user-colaborador-dialog";
 import {
   Card,
   CardContent,
@@ -314,9 +314,9 @@ export default function UsersPage() {
             Atualizar
           </Button>
           {canAdmin && empresaId && (
-            <InviteDialog
+            <CreateUserColaboradorDialog
               empresaId={empresaId}
-              onInviteCreated={loadData}
+              onUserCreated={loadData}
             />
           )}
         </div>

@@ -115,26 +115,26 @@ export async function POST(request: Request) {
     // 4. Criar/Atualizar profile
     let tecnico_id = null
 
-    // Se for técnico, criar registro na tabela tecnicos
-    if (role === 'tecnico') {
-      const { data: tecnicoData, error: tecnicoError } = await supabase
-        .from('tecnicos')
-        .insert({
-          empresa_id,
-          nome,
-          telefone: telefone || whatsapp,
-          whatsapp_numero: whatsapp,
-          funcao: funcao || 'Técnico'
-        })
-        .select('id')
-        .single()
+    // Criar registro na tabela colaboradores (para todos os roles)
+    const { data: colaboradorData, error: colaboradorError } = await supabase
+      .from('colaboradores')
+      .insert({
+        empresa_id,
+        user_id: authData.user.id,
+        nome,
+        telefone: telefone || whatsapp,
+        whatsapp_numero: whatsapp,
+        funcao: funcao || (role === 'admin' ? 'Administrador' : role === 'supervisor' ? 'Supervisor' : 'Técnico'),
+        ativo: true
+      })
+      .select('id')
+      .single()
 
-      if (tecnicoError) {
-        console.error('[users/create] Erro ao criar técnico:', tecnicoError)
-        // Não falhar, apenas log
-      } else {
-        tecnico_id = tecnicoData.id
-      }
+    if (colaboradorError) {
+      console.error('[users/create] Erro ao criar colaborador:', colaboradorError)
+      // Não falhar, apenas log
+    } else {
+      tecnico_id = colaboradorData.id
     }
 
     const { error: profileError } = await supabase
