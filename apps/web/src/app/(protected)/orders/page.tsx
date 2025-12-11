@@ -61,9 +61,9 @@ const statusConfig = {
     icon: CheckCircle,
     className: 'bg-indigo-500 text-white hover:bg-indigo-600'
   },
-  em_andamento: { 
-    label: 'Em Andamento', 
-    variant: 'secondary' as const, 
+  em_andamento: {
+    label: 'Em Andamento',
+    variant: 'secondary' as const,
     icon: Clock,
     className: 'bg-yellow-500 text-white hover:bg-yellow-600'
   },
@@ -79,15 +79,15 @@ const statusConfig = {
     icon: Clock,
     className: 'bg-orange-500 text-white hover:bg-orange-600'
   },
-  concluido: { 
-    label: 'Concluída', 
-    variant: 'secondary' as const, 
+  concluido: {
+    label: 'Concluída',
+    variant: 'secondary' as const,
     icon: CheckCircle,
     className: 'bg-green-500 text-white hover:bg-green-600'
   },
-  cancelado: { 
-    label: 'Cancelada', 
-    variant: 'outline' as const, 
+  cancelado: {
+    label: 'Cancelada',
+    variant: 'outline' as const,
     icon: AlertCircle,
     className: 'bg-red-500 text-white hover:bg-red-600'
   },
@@ -122,13 +122,13 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [filtroTecnico, setFiltroTecnico] = useState<'todas' | 'sem_tecnico' | 'minhas'>('todas')
-  
+
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
-  
+
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
-  
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -147,7 +147,7 @@ export default function OrdersPage() {
   const clienteId = clientes[0]?.id
   const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
   const orderBy = ordenacao === 'data' ? 'created_at' : (ordenacao === 'status' ? 'status' : 'prioridade')
-  
+
   // REGRA: Todos os técnicos da empresa veem TODAS as OSs
   // Após aceitar, a OS fica exclusiva do técnico que aceitou
   // Outros técnicos veem apenas o status (não podem editar/aceitar OSs atribuídas)
@@ -162,7 +162,7 @@ export default function OrdersPage() {
 
   const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
-  
+
   // Filtrar ordens com base no filtro de técnico
   const ordensFiltradas = ordens.filter((ordem) => {
     if (filtroTecnico === 'sem_tecnico') {
@@ -173,14 +173,14 @@ export default function OrdersPage() {
     }
     return true // 'todas'
   })
-  
+
   // OS abertas para aceitar/recusar (apenas chamados sem técnico)
-  const ordensAbertas = ordens.filter(o => 
-    o.tipo === 'chamado' && 
+  const ordensAbertas = ordens.filter(o =>
+    o.tipo === 'chamado' &&
     (o.status === 'novo' || o.status === 'parado') &&
     !o.tecnico_id
   )
-  
+
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
   const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
@@ -319,9 +319,9 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
           <p className="text-sm md:text-base text-muted-foreground">Crie, acompanhe e finalize ordens</p>
-        </div>  
+        </div>
         {empresaId && clientes.length > 0 && canAdmin && (
-          <OrderDialog 
+          <OrderDialog
             empresaId={empresaId}
             clientes={clientes}
             colaboradores={colaboradores}
@@ -390,10 +390,10 @@ export default function OrdersPage() {
                           })}
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button 
-                            size="sm" 
-                            onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }} 
-                            disabled={!canAcceptOrDecline(ordem)} 
+                          <Button
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }}
+                            disabled={!canAcceptOrDecline(ordem)}
                             variant="default"
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
@@ -474,152 +474,152 @@ export default function OrdersPage() {
             <div className="text-destructive">{hasError}</div>
           ) : ordensFiltradas.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' : 
-               filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
-               'Nenhuma ordem encontrada'}
+              {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
+                filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+                  'Nenhuma ordem encontrada'}
             </div>
           ) : (
             <div className="overflow-x-auto -mx-2 md:mx-0">
               <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número OS</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Técnico</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="w-[120px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordensFiltradas.map((ordem) => {
-                  const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
-                  const cliente = clientes.find(c => c.id === ordem.cliente_id)
-                  const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
-                  
-                  // Debug: Verificar inconsistências
-                  if (ordem.status === 'em_andamento' && !ordem.tecnico_id) {
-                    console.warn('[OrdersPage] OS com status em_andamento mas sem técnico:', {
-                      id: ordem.id,
-                      numero_os: ordem.numero_os,
-                      status: ordem.status,
-                      tecnico_id: ordem.tecnico_id
-                    })
-                  }
-                  
-                  return (
-                    <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
-                      <TableCell className="font-medium">
-                        {ordem.numero_os ? (
-                          ordem.numero_os
-                        ) : (
-                          <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
-                      <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {ordem.tipo === 'preventiva' ? 'Preventiva' : ordem.tipo === 'corretiva' ? 'Corretiva' : ordem.tipo === 'emergencial' ? 'Emergencial' : ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex align-middle items-center justify-center cursor-help">
-                                {ordem.prioridade === 'alta' ? (
-                                  <ArrowUp className="h-4 w-4 text-red-500" />
-                                ) : ordem.prioridade === 'media' ? (
-                                  <ArrowRight className="h-4 w-4 text-yellow-500" />
-                                ) : (
-                                  <ArrowDown className="h-4 w-4 text-green-500" />
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{ordem.prioridade === 'alta' ? 'Alta' : ordem.prioridade === 'media' ? 'Média' : 'Baixa'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {status.label}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Abrir menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
-                            Ver Detalhes
-                          </DropdownMenuItem>
-                          {(() => {
-                            return null
-                          })()}
-                          {(canAdmin || canTecnico) && canAcceptOrDecline(ordem) && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAccept(ordem) }}>
-                                Aceitar
-                              </DropdownMenuItem>
-                            </>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número OS</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Técnico</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prioridade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="w-[120px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ordensFiltradas.map((ordem) => {
+                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                    const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
+
+                    // Debug: Verificar inconsistências
+                    if (ordem.status === 'em_andamento' && !ordem.tecnico_id) {
+                      console.warn('[OrdersPage] OS com status em_andamento mas sem técnico:', {
+                        id: ordem.id,
+                        numero_os: ordem.numero_os,
+                        status: ordem.status,
+                        tecnico_id: ordem.tecnico_id
+                      })
+                    }
+
+                    return (
+                      <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
+                        <TableCell className="font-medium">
+                          {ordem.numero_os ? (
+                            ordem.numero_os
+                          ) : (
+                            <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
                           )}
-                          {/* Opção de finalizar para técnicos com OS não finalizada */}
-                          {canTecnico && ordem.tecnico_id === profile?.tecnico_id && !['concluido', 'cancelado'].includes(ordem.status) && (
-                            <>
+                        </TableCell>
+                        <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
+                        <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {ordem.tipo === 'preventiva' ? 'Preventiva' : ordem.tipo === 'corretiva' ? 'Corretiva' : ordem.tipo === 'emergencial' ? 'Emergencial' : ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex align-middle items-center justify-center cursor-help">
+                                  {ordem.prioridade === 'alta' ? (
+                                    <ArrowUp className="h-4 w-4 text-red-500" />
+                                  ) : ordem.prioridade === 'media' ? (
+                                    <ArrowRight className="h-4 w-4 text-yellow-500" />
+                                  ) : (
+                                    <ArrowDown className="h-4 w-4 text-green-500" />
+                                  )}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{ordem.prioridade === 'alta' ? 'Alta' : ordem.prioridade === 'media' ? 'Média' : 'Baixa'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {status.label}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Abrir menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push(`/os/${ordem.id}/full`) }}>
-                                <FileSignature className="mr-2 h-4 w-4" />
-                                {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Iniciar Atendimento' : 'Continuar Atendimento'}
+                              <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
+                                Ver Detalhes
                               </DropdownMenuItem>
-                            </>
-                          )}
-                          {canAdmin && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <OrderDialog
-                            empresaId={empresaId!}
-                            ordem={ordem}
-                            clientes={clientes}
-                              equipamentos={equipamentos}
-                              colaboradores={colaboradores}
-                              mode="edit"
-                              onSuccess={handleRefresh}
-                              trigger={
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Pencil className="mr-2 h-4 w-4" />
-                                  Editar
-                                </DropdownMenuItem>
-                              }
-                              />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onSelect={() => {
-                                  setOrdemToDelete(ordem)
-                                  setDeleteDialogOpen(true)
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                              {(() => {
+                                return null
+                              })()}
+                              {(canAdmin || canTecnico) && canAcceptOrDecline(ordem) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAccept(ordem) }}>
+                                    Aceitar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {/* Opção de finalizar para técnicos com OS não finalizada */}
+                              {canTecnico && ordem.tecnico_id === profile?.tecnico_id && !['concluido', 'cancelado'].includes(ordem.status) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push(`/os/${ordem.id}/full`) }}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Iniciar Atendimento' : 'Continuar Atendimento'}
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {canAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <OrderDialog
+                                    empresaId={empresaId!}
+                                    ordem={ordem}
+                                    clientes={clientes}
+                                    equipamentos={equipamentos}
+                                    colaboradores={colaboradores}
+                                    mode="edit"
+                                    onSuccess={handleRefresh}
+                                    trigger={
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                    }
+                                  />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onSelect={() => {
+                                      setOrdemToDelete(ordem)
+                                      setDeleteDialogOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
           {total > 0 && (
@@ -681,7 +681,9 @@ export default function OrdersPage() {
       {/* Dialog de Assinatura para Finalização */}
       <SignatureDialog
         open={signatureDialogOpen}
-        onClose={() => setSignatureDialogOpen(false)}
+        onOpenChange={setSignatureDialogOpen}
+        onSubmit={handleFinalizeWithSignature}
+        requireEmail
       />
     </div>
   )
