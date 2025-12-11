@@ -219,7 +219,7 @@ export const ui = {
       createdAt: 'Criada em',
     },
     status: {
-      novo: 'Nova',
+      novo: 'Aberta',
       emAndamento: 'Em Andamento',
       concluido: 'Concluída',
       cancelado: 'Cancelada',

@@ -44,7 +44,7 @@ const statusConfig = {
     className: 'bg-red-600 text-white hover:bg-red-700'
   },
   novo: {
-    label: 'Nova',
+    label: 'Aberta',
     variant: 'default' as const,
     icon: AlertCircle,
     className: 'bg-blue-500 text-white hover:bg-blue-600'
