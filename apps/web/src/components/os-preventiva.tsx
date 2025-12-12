@@ -81,37 +81,41 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Buscar checklist items
-        const { data: checklistData } = await supabase
-          .from('os_checklist_items')
-          .select('*')
-          .eq('os_id', osId)
-          .order('ordem', { ascending: true })
-
-        if (checklistData && checklistData.length > 0) {
-          setChecklistItems(checklistData)
-        } else {
-          // Carregar checklist padrão do equipamento/tipo
-          // Por enquanto, usar checklist fixo como exemplo
-          setChecklistItems([
-            { id: '1', descricao: 'Verificar condições de segurança do local', status: null, ordem: 1 },
-            { id: '2', descricao: 'Conferir identificação do equipamento', status: null, ordem: 2 },
-            { id: '3', descricao: 'Testar funcionamento antes da manutenção', status: null, ordem: 3 },
-            { id: '4', descricao: 'Utilizar EPIs adequados', status: null, ordem: 4 },
-            { id: '5', descricao: 'Documentar estado inicial com fotos', status: null, ordem: 5 },
-            { id: '6', descricao: 'Realizar manutenção conforme procedimento', status: null, ordem: 6 },
-            { id: '7', descricao: 'Testar funcionamento após manutenção', status: null, ordem: 7 },
-            { id: '8', descricao: 'Limpar área de trabalho', status: null, ordem: 8 },
-            { id: '9', descricao: 'Obter assinatura do cliente', status: null, ordem: 9 }
-          ])
-        }
-
-        // Buscar observações do laudo
+        // Obter token de autenticação
         const session = await supabase.auth.getSession()
         const token = session.data.session?.access_token
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+        // Buscar checklist items via backend
         if (token) {
-          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+          const checklistResponse = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/checklist`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+
+          if (checklistResponse.ok) {
+            const checklistData = await checklistResponse.json()
+            if (checklistData && checklistData.length > 0) {
+              setChecklistItems(checklistData)
+            } else {
+              // Carregar checklist padrão do equipamento/tipo
+              // Gerar UUIDs para cada item
+              setChecklistItems([
+                { id: crypto.randomUUID(), descricao: 'Verificar condições de segurança do local', status: null, ordem: 1 },
+                { id: crypto.randomUUID(), descricao: 'Conferir identificação do equipamento', status: null, ordem: 2 },
+                { id: crypto.randomUUID(), descricao: 'Testar funcionamento antes da manutenção', status: null, ordem: 3 },
+                { id: crypto.randomUUID(), descricao: 'Utilizar EPIs adequados', status: null, ordem: 4 },
+                { id: crypto.randomUUID(), descricao: 'Documentar estado inicial com fotos', status: null, ordem: 5 },
+                { id: crypto.randomUUID(), descricao: 'Realizar manutenção conforme procedimento', status: null, ordem: 6 },
+                { id: crypto.randomUUID(), descricao: 'Testar funcionamento após manutenção', status: null, ordem: 7 },
+                { id: crypto.randomUUID(), descricao: 'Limpar área de trabalho', status: null, ordem: 8 },
+                { id: crypto.randomUUID(), descricao: 'Obter assinatura do cliente', status: null, ordem: 9 }
+              ])
+            }
+          }
+        }
+
+        // Buscar observações do laudo usando mesmo token
+        if (token) {
           const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/laudo`, {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -264,25 +268,40 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
   // =====================================================
   const handleChecklistItemStatus = async (itemId: string, status: 'conforme' | 'nao_conforme' | 'na') => {
     try {
+      // Atualizar estado local imediatamente
       setChecklistItems(prev =>
         prev.map(item =>
           item.id === itemId ? { ...item, status } : item
         )
       )
 
-      // Salvar no banco
-      const { error } = await supabase
-        .from('os_checklist_items')
-        .upsert({
-          id: itemId,
-          os_id: osId,
-          empresa_id: empresaId,
-          descricao: checklistItems.find(i => i.id === itemId)?.descricao || '',
-          status,
-          ordem: checklistItems.find(i => i.id === itemId)?.ordem || 0
-        })
+      // Obter token de autenticação
+      const session = await supabase.auth.getSession()
+      const token = session.data.session?.access_token
 
-      if (error) throw error
+      if (!token) throw new Error('Não autenticado')
+
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const item = checklistItems.find(i => i.id === itemId)
+
+      // Chamar backend para salvar
+      const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osId}/checklist/${itemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          descricao: item?.descricao || '',
+          status,
+          ordem: item?.ordem || 0
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Erro ao salvar checklist')
+      }
     } catch (error) {
       console.error('[preventiva] Erro ao atualizar checklist:', error)
       toast.error('Erro ao atualizar checklist')

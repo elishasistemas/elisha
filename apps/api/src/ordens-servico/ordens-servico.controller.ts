@@ -116,29 +116,29 @@ export class OrdensServicoController {
   ) {
     try {
       const token = request.user?.access_token
-      
+
       if (!token) {
         throw new HttpException('Token de autenticação não fornecido', HttpStatus.UNAUTHORIZED);
       }
 
       console.log('[finalize] Iniciando finalização da OS:', id);
-      console.log('[finalize] Dados recebidos:', { 
+      console.log('[finalize] Dados recebidos:', {
         tem_assinatura: !!data.assinatura_cliente,
         nome: data.nome_cliente_assinatura,
-        estado_equipamento: data.estado_equipamento 
+        estado_equipamento: data.estado_equipamento
       });
 
       const result = await this.ordensServicoService.finalize(id, data, token);
-      
+
       console.log('[finalize] OS finalizada com sucesso');
       return result;
     } catch (error) {
       console.error('[finalize] Erro ao finalizar OS:', error);
-      
+
       if (error instanceof HttpException) {
         throw error;
       }
-      
+
       const message = error instanceof Error ? error.message : 'Erro desconhecido ao finalizar OS';
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -191,5 +191,53 @@ export class OrdensServicoController {
   async getHistory(@Param('id') id: string, @Req() request: any) {
     const token = request.user?.access_token
     return this.ordensServicoService.getHistory(id, token);
+  }
+
+  // =====================================================
+  // Endpoints para Checklist Items
+  // =====================================================
+
+  @Get(':id/checklist')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar itens do checklist da ordem de serviço' })
+  async getChecklistItems(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.getChecklistItems(id, token);
+  }
+
+  @Patch(':id/checklist/:itemId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar item do checklist' })
+  async updateChecklistItem(
+    @Param('id') osId: string,
+    @Param('itemId') itemId: string,
+    @Body() data: {
+      descricao?: string;
+      status?: 'conforme' | 'nao_conforme' | 'na';
+      ordem?: number;
+    },
+    @Req() request: any
+  ) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.updateChecklistItem(osId, itemId, data, token);
+  }
+
+  @Post(':id/checklist')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Criar item do checklist' })
+  async createChecklistItem(
+    @Param('id') osId: string,
+    @Body() data: {
+      descricao: string;
+      status?: 'conforme' | 'nao_conforme' | 'na';
+      ordem?: number;
+    },
+    @Req() request: any
+  ) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.createChecklistItem(osId, data, token);
   }
 }

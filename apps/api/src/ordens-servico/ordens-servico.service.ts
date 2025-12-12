@@ -662,4 +662,140 @@ export class OrdensServicoService {
       throw error;
     }
   }
+
+  // =====================================================
+  // Métodos para Checklist Items
+  // =====================================================
+
+  /**
+   * Buscar itens do checklist de uma OS
+   */
+  async getChecklistItems(osId: string, accessToken: string) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+
+      const { data, error } = await this.supabaseService.client
+        .from('os_checklist_items')
+        .select('*')
+        .eq('os_id', osId)
+        .order('ordem', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Criar item do checklist
+   */
+  async createChecklistItem(
+    osId: string,
+    data: { descricao: string; status?: 'conforme' | 'nao_conforme' | 'na'; ordem?: number },
+    accessToken: string
+  ) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaId = this.getActiveEmpresaId(profile);
+
+      const { data: newItem, error } = await this.supabaseService.client
+        .from('os_checklist_items')
+        .insert({
+          os_id: osId,
+          empresa_id: empresaId,
+          descricao: data.descricao,
+          status: data.status || null,
+          ordem: data.ordem || 0,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[createChecklistItem] Erro:', error);
+        throw error;
+      }
+
+      return newItem;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Atualizar item do checklist
+   */
+  async updateChecklistItem(
+    osId: string,
+    itemId: string,
+    data: { descricao?: string; status?: 'conforme' | 'nao_conforme' | 'na'; ordem?: number },
+    accessToken: string
+  ) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaId = this.getActiveEmpresaId(profile);
+
+      // Verificar se item existe
+      const { data: existingItem, error: findError } = await this.supabaseService.client
+        .from('os_checklist_items')
+        .select('id')
+        .eq('id', itemId)
+        .eq('os_id', osId)
+        .maybeSingle();
+
+      if (findError) {
+        console.error('[updateChecklistItem] Erro ao buscar item:', findError);
+        throw findError;
+      }
+
+      if (!existingItem) {
+        // Item não existe, criar novo
+        const { data: newItem, error: insertError } = await this.supabaseService.client
+          .from('os_checklist_items')
+          .insert({
+            id: itemId, // Usar ID fornecido
+            os_id: osId,
+            empresa_id: empresaId,
+            descricao: data.descricao || '',
+            status: data.status || null,
+            ordem: data.ordem || 0,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('[updateChecklistItem] Erro ao criar item:', insertError);
+          throw insertError;
+        }
+
+        return newItem;
+      }
+
+      // Item existe, atualizar
+      const updateData: any = {};
+      if (data.descricao !== undefined) updateData.descricao = data.descricao;
+      if (data.status !== undefined) updateData.status = data.status;
+      if (data.ordem !== undefined) updateData.ordem = data.ordem;
+
+      const { data: updatedItem, error: updateError } = await this.supabaseService.client
+        .from('os_checklist_items')
+        .update(updateData)
+        .eq('id', itemId)
+        .eq('os_id', osId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('[updateChecklistItem] Erro ao atualizar item:', updateError);
+        throw updateError;
+      }
+
+      return updatedItem;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
