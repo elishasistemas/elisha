@@ -23,61 +23,61 @@ const statusConfig = {
     label: 'Parado',
     variant: 'destructive' as const,
     icon: PauseCircle,
-    className: 'bg-red-600 text-white hover:bg-red-700'
+    className: 'bg-red-100 text-red-800 border-red-200'
   },
   novo: {
     label: 'Nova',
     variant: 'default' as const,
     icon: AlertCircle,
-    className: 'bg-blue-500 text-white hover:bg-blue-600'
+    className: 'bg-blue-100 text-blue-800 border-blue-200'
   },
   em_deslocamento: {
     label: 'Em Deslocamento',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-purple-500 text-white hover:bg-purple-600'
+    className: 'bg-purple-100 text-purple-800 border-purple-200'
   },
   checkin: {
     label: 'No Local',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-indigo-500 text-white hover:bg-indigo-600'
+    className: 'bg-indigo-100 text-indigo-800 border-indigo-200'
   },
   em_andamento: {
     label: 'Em Andamento',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-yellow-500 text-white hover:bg-yellow-600'
+    className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
   },
   checkout: {
     label: 'Finalizado',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-teal-500 text-white hover:bg-teal-600'
+    className: 'bg-teal-100 text-teal-800 border-teal-200'
   },
   aguardando_assinatura: {
     label: 'Aguardando Assinatura',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-orange-500 text-white hover:bg-orange-600'
+    className: 'bg-orange-100 text-orange-800 border-orange-200'
   },
   concluido: {
     label: 'Concluída',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-green-500 text-white hover:bg-green-600'
+    className: 'bg-green-100 text-green-800 border-green-200'
   },
   cancelado: {
     label: 'Cancelada',
     variant: 'outline' as const,
     icon: AlertCircle,
-    className: 'bg-red-500 text-white hover:bg-red-600'
+    className: 'bg-gray-100 text-gray-800 border-gray-200'
   },
   reaberta: {
     label: 'Reaberta',
     variant: 'secondary' as const,
     icon: RefreshCw,
-    className: 'bg-amber-500 text-white hover:bg-amber-600'
+    className: 'bg-amber-100 text-amber-800 border-amber-200'
   }
 }
 

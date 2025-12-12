@@ -41,61 +41,61 @@ const statusConfig = {
     label: 'Parado',
     variant: 'destructive' as const,
     icon: PauseCircle,
-    className: 'bg-red-600 text-white hover:bg-red-700'
+    className: 'bg-red-100 text-red-800 border-red-200'
   },
   novo: {
     label: 'Aberta',
     variant: 'default' as const,
     icon: AlertCircle,
-    className: 'bg-blue-500 text-white hover:bg-blue-600'
+    className: 'bg-blue-100 text-blue-800 border-blue-200'
   },
   em_deslocamento: {
     label: 'Em Deslocamento',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-purple-500 text-white hover:bg-purple-600'
+    className: 'bg-purple-100 text-purple-800 border-purple-200'
   },
   checkin: {
     label: 'Em Atendimento',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-indigo-500 text-white hover:bg-indigo-600'
+    className: 'bg-indigo-100 text-indigo-800 border-indigo-200'
   },
   em_andamento: {
     label: 'Em Andamento',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-yellow-500 text-white hover:bg-yellow-600'
+    className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
   },
   checkout: {
     label: 'Finalizado',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-teal-500 text-white hover:bg-teal-600'
+    className: 'bg-teal-100 text-teal-800 border-teal-200'
   },
   aguardando_assinatura: {
     label: 'Aguardando Assinatura',
     variant: 'secondary' as const,
     icon: Clock,
-    className: 'bg-orange-500 text-white hover:bg-orange-600'
+    className: 'bg-orange-100 text-orange-800 border-orange-200'
   },
   concluido: {
     label: 'Concluída',
     variant: 'secondary' as const,
     icon: CheckCircle,
-    className: 'bg-green-500 text-white hover:bg-green-600'
+    className: 'bg-green-100 text-green-800 border-green-200'
   },
   cancelado: {
     label: 'Cancelada',
     variant: 'outline' as const,
     icon: AlertCircle,
-    className: 'bg-red-500 text-white hover:bg-red-600'
+    className: 'bg-gray-100 text-gray-800 border-gray-200'
   },
   reaberta: {
     label: 'Reaberta',
     variant: 'secondary' as const,
     icon: RefreshCw,
-    className: 'bg-amber-500 text-white hover:bg-amber-600'
+    className: 'bg-amber-100 text-amber-800 border-amber-200'
   }
 }
 
@@ -204,14 +204,14 @@ export default function OrdersPage() {
 
   const supabase = createSupabaseBrowser()
 
+  // Apenas pode aceitar OS sem técnico atribuído
   const canAcceptOrDecline = (ordem: OrdemServico) => {
     const statusOk = ordem.status === 'novo' || ordem.status === 'parado'
     if (!statusOk) return false
+    // Só pode aceitar se NÃO tem técnico atribuído
+    if (ordem.tecnico_id) return false
     if (canAdmin) return true
-    if (canTecnico) {
-      // técnico pode aceitar se não tem técnico atribuído ou se é o próprio
-      return !ordem.tecnico_id || ordem.tecnico_id === (profile?.tecnico_id || '')
-    }
+    if (canTecnico) return true
     return false
   }
 
@@ -639,7 +639,6 @@ export default function OrdersPage() {
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead className="w-[120px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -692,78 +691,12 @@ export default function OrdersPage() {
                             </Tooltip>
                           </TooltipProvider>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {status.label}
+                        <TableCell>
+                          <Badge className={status.className}>
+                            {status.label}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Abrir menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
-                                Ver Detalhes
-                              </DropdownMenuItem>
-                              {(() => {
-                                return null
-                              })()}
-                              {(canAdmin || canTecnico) && canAcceptOrDecline(ordem) && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAccept(ordem) }}>
-                                    Aceitar
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {/* Opção de finalizar para técnicos com OS não finalizada */}
-                              {canTecnico && ordem.tecnico_id === profile?.tecnico_id && !['concluido', 'cancelado'].includes(ordem.status) && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push(`/os/${ordem.id}/full`) }}>
-                                    <FileSignature className="mr-2 h-4 w-4" />
-                                    {ordem.status === 'novo' ? 'Aceitar e Iniciar' : ordem.status === 'em_deslocamento' ? 'Iniciar Atendimento' : 'Continuar Atendimento'}
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {canAdmin && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <OrderDialog
-                                    empresaId={empresaId!}
-                                    ordem={ordem}
-                                    clientes={clientes}
-                                    equipamentos={equipamentos}
-                                    colaboradores={colaboradores}
-                                    mode="edit"
-                                    onSuccess={handleRefresh}
-                                    trigger={
-                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Editar
-                                      </DropdownMenuItem>
-                                    }
-                                  />
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onSelect={() => {
-                                      setOrdemToDelete(ordem)
-                                      setDeleteDialogOpen(true)
-                                    }}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Excluir
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
                       </TableRow>
                     )
                   })}
