@@ -43,9 +43,9 @@ const statusConfig = {
     icon: CheckCircle,
     className: 'bg-indigo-500 text-white hover:bg-indigo-600'
   },
-  em_andamento: { 
-    label: 'Em Andamento', 
-    variant: 'secondary' as const, 
+  em_andamento: {
+    label: 'Em Andamento',
+    variant: 'secondary' as const,
     icon: Clock,
     className: 'bg-yellow-500 text-white hover:bg-yellow-600'
   },
@@ -61,15 +61,15 @@ const statusConfig = {
     icon: Clock,
     className: 'bg-orange-500 text-white hover:bg-orange-600'
   },
-  concluido: { 
-    label: 'Concluída', 
-    variant: 'secondary' as const, 
+  concluido: {
+    label: 'Concluída',
+    variant: 'secondary' as const,
     icon: CheckCircle,
     className: 'bg-green-500 text-white hover:bg-green-600'
   },
-  cancelado: { 
-    label: 'Cancelada', 
-    variant: 'outline' as const, 
+  cancelado: {
+    label: 'Cancelada',
+    variant: 'outline' as const,
     icon: AlertCircle,
     className: 'bg-red-500 text-white hover:bg-red-600'
   },
@@ -98,13 +98,13 @@ export default function DashboardPage() {
   const [periodosChamados, setPeriodosChamados] = useState('7')
   const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
   const [refreshKey, setRefreshKey] = useState(0)
-  
+
   // Buscar perfil primeiro para determinar empresa correta
   const { profile } = useProfile(user?.id)
-  
+
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaAtiva = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
-  
+
   const { empresas, loading: empresasLoading } = useEmpresas()
   const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey })
   const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey })
@@ -114,26 +114,27 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const isAdmin = profile?.active_role === 'admin'
   const isImpersonating = !!profile?.is_elisha_admin && !!profile?.impersonating_empresa_id
-  
+
   // Detectar se é técnico
   const isTecnico = profile?.active_role === 'tecnico'
   const tecnicoId = profile?.tecnico_id
-  
-  // OS abertas para aceitar/recusar (apenas chamados)
+
+  // OS abertas para aceitar/recusar (sem técnico atribuído)
   const ordensAbertas = useMemo(() => {
-    const base = ordens.filter(o => 
-      o.tipo === 'chamado' && 
-      (o.status === 'novo' || o.status === 'parado')
+    const base = ordens.filter(o =>
+      (o.status === 'novo' || o.status === 'parado') && !o.tecnico_id
     )
-    
-    if (isAdmin || isImpersonating) {
-      return base.filter(o => !o.tecnico_id)
-    }
-    if (isTecnico && tecnicoId) {
-      return base.filter(o => !o.tecnico_id || o.tecnico_id === tecnicoId)
-    }
-    return []
-  }, [ordens, isAdmin, isImpersonating, isTecnico, tecnicoId])
+    return base
+  }, [ordens])
+
+  // Minhas OS (atribuídas ao técnico logado, não finalizadas)
+  const minhasOS = useMemo(() => {
+    if (!tecnicoId) return []
+    return ordens.filter(o =>
+      o.tecnico_id === tecnicoId &&
+      !['concluido', 'cancelado'].includes(o.status)
+    )
+  }, [ordens, tecnicoId])
 
   const canAcceptOrDecline = (o: OrdemServico) => {
     const ok = o.status === 'novo' || o.status === 'parado'
@@ -181,9 +182,9 @@ export default function DashboardPage() {
 
       const { data, error } = await supabase.rpc('os_accept', { p_os_id: o.id })
       if (error) throw error
-      
+
       const result = data as { success: boolean; error?: string; message?: string }
-      
+
       if (!result.success) {
         // Mostrar mensagem detalhada, não apenas o código do erro
         const errorMsg = result.message || result.error || 'Erro ao aceitar OS'
@@ -191,13 +192,10 @@ export default function DashboardPage() {
         toast.error(errorMsg)
         return
       }
-      
+
       toast.success(result.message || 'OS aceita com sucesso!')
-      
-      // Navegar para a tela full-screen da OS
-      setTimeout(() => {
-        router.push(`/os/${o.id}/full`)
-      }, 500)
+      // Refresh para atualizar lista
+      setTimeout(() => setRefreshKey(prev => prev + 1), 300)
     } catch (e) {
       console.error('[dashboard] accept error', e)
       toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
@@ -209,15 +207,15 @@ export default function DashboardPage() {
   const handleDecline = async (o: OrdemServico) => {
     const reason = typeof window !== 'undefined' ? window.prompt('Motivo da recusa (opcional):', '') : ''
     if (reason === null) return // Usuário cancelou
-    
+
     setActionLoading(true)
     const supabase = createSupabaseBrowser()
     try {
       const { data, error } = await supabase.rpc('os_decline', { p_os_id: o.id, p_reason: reason || null })
       if (error) throw error
-      
+
       const result = data as { success: boolean; error?: string; message?: string }
-      
+
       if (!result.success) {
         // Mostrar mensagem detalhada, não apenas o código do erro
         const errorMsg = result.message || result.error || 'Erro ao recusar OS'
@@ -225,7 +223,7 @@ export default function DashboardPage() {
         toast.error(errorMsg)
         return
       }
-      
+
       toast.success(result.message || 'OS recusada com sucesso')
       setTimeout(() => setRefreshKey(prev => prev + 1), 300)
     } catch (e) {
@@ -234,6 +232,106 @@ export default function DashboardPage() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  // Handler para iniciar deslocamento
+  const handleStartDeslocamento = async (o: OrdemServico) => {
+    setActionLoading(true)
+    const supabase = createSupabaseBrowser()
+    try {
+      const { data, error } = await supabase.rpc('os_start_deslocamento', { p_os_id: o.id })
+      if (error) throw error
+
+      const result = data as { success: boolean; error?: string; message?: string }
+
+      if (!result.success) {
+        const errorMsg = result.message || result.error || 'Erro ao iniciar deslocamento'
+        console.error('[dashboard] os_start_deslocamento failed:', result)
+        toast.error(errorMsg)
+        return
+      }
+
+      toast.success(result.message || 'Deslocamento iniciado!')
+      setTimeout(() => setRefreshKey(prev => prev + 1), 300)
+    } catch (e) {
+      console.error('[dashboard] start_deslocamento error', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar deslocamento')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Handler para iniciar atendimento (checkin)
+  const handleStartAtendimento = async (o: OrdemServico) => {
+    setActionLoading(true)
+    const supabase = createSupabaseBrowser()
+    try {
+      const { data, error } = await supabase.rpc('os_checkin', { p_os_id: o.id, p_location: null })
+      if (error) throw error
+
+      const result = data as { success: boolean; error?: string; message?: string }
+
+      if (!result.success) {
+        const errorMsg = result.message || result.error || 'Erro ao iniciar atendimento'
+        console.error('[dashboard] os_checkin failed:', result)
+        toast.error(errorMsg)
+        return
+      }
+
+      toast.success(result.message || 'Atendimento iniciado!')
+      // Navegar para tela full-screen para o formulário de atendimento
+      setTimeout(() => {
+        router.push(`/os/${o.id}/full`)
+      }, 500)
+    } catch (e) {
+      console.error('[dashboard] checkin error', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar atendimento')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Helper para determinar qual botão mostrar em Minhas OS
+  const getActionButton = (o: OrdemServico) => {
+    if (o.status === 'novo' || o.status === 'parado') {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleStartDeslocamento(o); }}
+          disabled={actionLoading}
+          variant="default"
+        >
+          Iniciar Deslocamento
+        </Button>
+      )
+    }
+    if (o.status === 'em_deslocamento') {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleStartAtendimento(o); }}
+          disabled={actionLoading}
+          variant="default"
+          className="bg-green-600 hover:bg-green-700"
+        >
+          Iniciar Atendimento
+        </Button>
+      )
+    }
+    if (['checkin', 'em_andamento'].includes(o.status)) {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); router.push(`/os/${o.id}/full`); }}
+          disabled={actionLoading}
+          variant="default"
+          className="bg-orange-600 hover:bg-orange-700"
+        >
+          Encerrar Atendimento
+        </Button>
+      )
+    }
+    return null
   }
 
   // Calcular data inicial baseada no período selecionado
@@ -252,7 +350,7 @@ export default function DashboardPage() {
       const dataOrdem = new Date(ordem.created_at)
       return dataOrdem >= dataInicial
     })
-    
+
     // Se for técnico, filtrar apenas suas OS (atribuídas a ele)
     if (isTecnico && tecnicoId) {
       filtradas = filtradas.filter(ordem => ordem.tecnico_id === tecnicoId)
@@ -263,7 +361,7 @@ export default function DashboardPage() {
     const getPrioridadePeso = (ordem: typeof ordens[0]) => {
       // OS paradas têm prioridade máxima
       if (ordem.status === 'parado') return 0
-      
+
       // Depois vem a prioridade da OS
       if (ordem.prioridade === 'alta') return 1
       if (ordem.prioridade === 'media') return 2
@@ -275,23 +373,23 @@ export default function DashboardPage() {
       if (ordenacao === 'prioridade') {
         const pesoA = getPrioridadePeso(a)
         const pesoB = getPrioridadePeso(b)
-        
+
         if (pesoA !== pesoB) return pesoA - pesoB
-        
+
         // Se tiverem o mesmo peso, ordenar por data (mais recente primeiro)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
-      
+
       if (ordenacao === 'data') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
-      
+
       if (ordenacao === 'status') {
         // Parado > Novo > Em andamento > Aguardando > Concluído > Cancelado
         const statusOrdem = ['parado', 'novo', 'em_andamento', 'aguardando_assinatura', 'concluido', 'cancelado']
         return statusOrdem.indexOf(a.status) - statusOrdem.indexOf(b.status)
       }
-      
+
       return 0
     })
   }, [ordens, dataInicial, ordenacao])
@@ -310,9 +408,9 @@ export default function DashboardPage() {
       const dia = new Date(hoje)
       dia.setDate(hoje.getDate() - i)
       dia.setHours(0, 0, 0, 0)
-      
+
       const diaStr = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      
+
       const ordensNoDia = ordensFiltradas.filter(ordem => {
         const dataOrdem = new Date(ordem.created_at)
         dataOrdem.setHours(0, 0, 0, 0)
@@ -364,19 +462,19 @@ export default function DashboardPage() {
       const dia = new Date(hoje)
       dia.setDate(hoje.getDate() - i)
       dia.setHours(0, 0, 0, 0)
-      
+
       const diaStr = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      
+
       const chamadosNoDia = chamadosFiltrados.filter(ordem => {
         const dataOrdem = new Date(ordem.created_at)
         dataOrdem.setHours(0, 0, 0, 0)
         return dataOrdem.getTime() === dia.getTime()
       })
 
-      const abertos = chamadosNoDia.filter(o => 
+      const abertos = chamadosNoDia.filter(o =>
         o.status === 'novo' || o.status === 'em_andamento' || o.status === 'parado'
       ).length
-      const fechados = chamadosNoDia.filter(o => 
+      const fechados = chamadosNoDia.filter(o =>
         o.status === 'concluido' || o.status === 'cancelado'
       ).length
 
@@ -393,27 +491,27 @@ export default function DashboardPage() {
   // Estatísticas dos indicadores
   const stats = useMemo(() => {
     // Indicador 1: Chamados Abertos vs Fechados
-    const chamadosAbertos = chamadosFiltrados.filter(o => 
+    const chamadosAbertos = chamadosFiltrados.filter(o =>
       o.status === 'novo' || o.status === 'em_andamento' || o.status === 'parado'
     ).length
-    const chamadosFechados = chamadosFiltrados.filter(o => 
+    const chamadosFechados = chamadosFiltrados.filter(o =>
       o.status === 'concluido' || o.status === 'cancelado'
     ).length
 
     // Indicador 2: Preventivas Programadas do Dia
     const hoje = new Date().toISOString().split('T')[0]
-    let preventivasHoje = ordens.filter(o => 
+    let preventivasHoje = ordens.filter(o =>
       o.tipo === 'preventiva' && o.data_programada === hoje
     )
-    
+
     // Se for técnico, filtrar apenas suas OS
     if (isTecnico && tecnicoId) {
       preventivasHoje = preventivasHoje.filter(o => o.tecnico_id === tecnicoId)
     }
     const preventivasProgramadas = preventivasHoje.length
     const preventivasConcluidas = preventivasHoje.filter(o => o.status === 'concluido').length
-    const percentualConcluidas = preventivasProgramadas > 0 
-      ? Math.round((preventivasConcluidas / preventivasProgramadas) * 100) 
+    const percentualConcluidas = preventivasProgramadas > 0
+      ? Math.round((preventivasConcluidas / preventivasProgramadas) * 100)
       : 0
 
     // Indicador 3: Elevadores Parados (Acumulativo)
@@ -457,7 +555,7 @@ export default function DashboardPage() {
     },
     fechados: {
       label: "Chamados Fechados",
-      color:"oklch(0.60 0.13 163)", // emerald-600
+      color: "oklch(0.60 0.13 163)", // emerald-600
     },
   }
 
@@ -473,8 +571,8 @@ export default function DashboardPage() {
           <h2 className='text-2xl font-medium'>Bem vindo de volta </h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             onClick={handleRefresh}
             disabled={isLoading}
@@ -633,8 +731,8 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Chamados</CardTitle>
-                <CardDescription>Ordens disponíveis para aceitar ou recusar</CardDescription>
+                <CardTitle>OS para Aceitar</CardTitle>
+                <CardDescription>Ordens de serviço disponíveis para você aceitar</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -659,10 +757,83 @@ export default function DashboardPage() {
                   {ordensAbertas.slice(0, 10).map((o) => {
                     const cliente = clientes.find(c => c.id === o.cliente_id)
                     return (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-medium">{o.numero_os || o.id.slice(0,8)}</TableCell>
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium">{o.numero_os || o.id.slice(0, 8)}</TableCell>
+                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                        <TableCell className="capitalize">{o.tipo}</TableCell>
+                        <TableCell>
+                          <Badge variant={o.prioridade === 'alta' ? 'destructive' : 'secondary'} className="capitalize">{o.prioridade}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={(statusConfig as any)[o.status]?.className}>
+                            {(statusConfig as any)[o.status]?.label || o.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(o.created_at)}</TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleAccept(o); }}
+                              disabled={actionLoading || !canAcceptOrDecline(o)}
+                              variant="default"
+                              className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Aceitar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { e.stopPropagation(); handleDecline(o); }}
+                              disabled={actionLoading || !canAcceptOrDecline(o)}
+                              className="border-red-300 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-1" /> Recusar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Seção Minhas OS (atribuídas ao técnico) */}
+      {isTecnico && minhasOS.length > 0 && (
+        <Card className="shadow-none">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Minhas OS</CardTitle>
+                <CardDescription>Ordens de serviço atribuídas a você</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Prioridade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {minhasOS.slice(0, 10).map((o) => {
+                  const cliente = clientes.find(c => c.id === o.cliente_id)
+                  return (
+                    <TableRow key={o.id} className="cursor-pointer" onClick={() => setViewOrder(o)}>
+                      <TableCell className="font-medium">{o.numero_os || o.id.slice(0, 8)}</TableCell>
                       <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">-</TableCell>
                       <TableCell className="capitalize">{o.tipo}</TableCell>
                       <TableCell>
                         <Badge variant={o.prioridade === 'alta' ? 'destructive' : 'secondary'} className="capitalize">{o.prioridade}</Badge>
@@ -674,38 +845,16 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(o.created_at)}</TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            onClick={(e) => { e.stopPropagation(); handleAccept(o); }} 
-                            disabled={actionLoading || !canAcceptOrDecline(o)} 
-                            variant="default"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                          >
-                            <Check className="h-4 w-4 mr-1" /> Aceitar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => { e.stopPropagation(); handleDecline(o); }} 
-                            disabled={actionLoading || !canAcceptOrDecline(o)}
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4 mr-1" /> Recusar
-                          </Button>
-                        </div>
+                        {getActionButton(o)}
                       </TableCell>
                     </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            )}
+                  )
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
-
-      {/* Tabela de Ordens de Serviço Recentes */}
       <Card className="shadow-none">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -754,11 +903,11 @@ export default function DashboardPage() {
                   const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                   const cliente = clientes.find(c => c.id === ordem.cliente_id)
                   const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
-                  
+
                   return (
-                    <TableRow 
-                      key={ordem.id} 
-                      className="cursor-pointer hover:bg-muted/50 transition-colors" 
+                    <TableRow
+                      key={ordem.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => {
                         // Se a OS está em status de atendimento, ir para página full-screen
                         const statusesComComponente = ['checkin', 'checkout', 'em_andamento', 'aguardando_assinatura']
@@ -775,10 +924,10 @@ export default function DashboardPage() {
                       <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
                       <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {ordem.tipo === 'preventiva' ? 'Preventiva' : 
-                         ordem.tipo === 'corretiva' ? 'Corretiva' : 
-                         ordem.tipo === 'emergencial' ? 'Emergencial' : 
-                         ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
+                        {ordem.tipo === 'preventiva' ? 'Preventiva' :
+                          ordem.tipo === 'corretiva' ? 'Corretiva' :
+                            ordem.tipo === 'emergencial' ? 'Emergencial' :
+                              ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
@@ -809,7 +958,7 @@ export default function DashboardPage() {
                           Ver Detalhes
                         </Button>
                       </TableCell>
-                  </TableRow>
+                    </TableRow>
                   )
                 })}
               </TableBody>
@@ -845,7 +994,7 @@ export default function DashboardPage() {
           defaultOpen
           defaultTipo="chamado"
           onOpenChange={(o) => { if (!o) setOpenCreateDialog(false) }}
-          onSuccess={() => { 
+          onSuccess={() => {
             setOpenCreateDialog(false)
             handleRefresh()
           }}

@@ -174,11 +174,16 @@ export default function OrdersPage() {
     return true // 'todas'
   })
 
-  // OS abertas para aceitar/recusar (apenas chamados sem técnico)
+  // OS abertas para aceitar/recusar (todos os tipos sem técnico)
   const ordensAbertas = ordens.filter(o =>
-    o.tipo === 'chamado' &&
     (o.status === 'novo' || o.status === 'parado') &&
     !o.tecnico_id
+  )
+
+  // Minhas OS (atribuídas ao técnico logado, não finalizadas)
+  const minhasOS = ordens.filter(o =>
+    o.tecnico_id === profile?.tecnico_id &&
+    !['concluido', 'cancelado'].includes(o.status)
   )
 
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
@@ -225,6 +230,82 @@ export default function OrdersPage() {
       console.error('[handleAccept] Erro:', e)
       toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
     }
+  }
+
+  // Handler para iniciar deslocamento
+  const handleStartDeslocamento = async (ordem: OrdemServico) => {
+    try {
+      const { data, error } = await supabase.rpc('os_start_deslocamento', { p_os_id: ordem.id })
+      if (error) throw error
+      const result = data as { success: boolean; error?: string; message?: string }
+      if (!result?.success) {
+        toast.error(result?.message || result?.error || 'Erro ao iniciar deslocamento')
+        return
+      }
+      toast.success(result?.message || 'Deslocamento iniciado!')
+      handleRefresh()
+    } catch (e) {
+      console.error('[handleStartDeslocamento] Erro:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar deslocamento')
+    }
+  }
+
+  // Handler para iniciar atendimento (checkin)
+  const handleStartAtendimento = async (ordem: OrdemServico) => {
+    try {
+      const { data, error } = await supabase.rpc('os_checkin', { p_os_id: ordem.id, p_location: null })
+      if (error) throw error
+      const result = data as { success: boolean; error?: string; message?: string }
+      if (!result?.success) {
+        toast.error(result?.message || result?.error || 'Erro ao iniciar atendimento')
+        return
+      }
+      toast.success(result?.message || 'Atendimento iniciado!')
+      router.push(`/os/${ordem.id}/full`)
+    } catch (e) {
+      console.error('[handleStartAtendimento] Erro:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao iniciar atendimento')
+    }
+  }
+
+  // Helper para determinar qual botão mostrar em Minhas OS
+  const getActionButton = (o: OrdemServico) => {
+    if (o.status === 'novo' || o.status === 'parado') {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleStartDeslocamento(o); }}
+          variant="default"
+        >
+          Iniciar Deslocamento
+        </Button>
+      )
+    }
+    if (o.status === 'em_deslocamento') {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleStartAtendimento(o); }}
+          variant="default"
+          className="bg-green-600 hover:bg-green-700"
+        >
+          Iniciar Atendimento
+        </Button>
+      )
+    }
+    if (['checkin', 'em_andamento'].includes(o.status)) {
+      return (
+        <Button
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); router.push(`/os/${o.id}/full`); }}
+          variant="default"
+          className="bg-orange-600 hover:bg-orange-700"
+        >
+          Encerrar Atendimento
+        </Button>
+      )
+    }
+    return null
   }
 
   const handleFinalizeWithSignature = async (signatureDataUrl: string, clientName: string, clientEmail?: string) => {
@@ -338,8 +419,8 @@ export default function OrdersPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Chamados</CardTitle>
-                <CardDescription>Ordens disponíveis para aceitar ou recusar</CardDescription>
+                <CardTitle>OS para Aceitar</CardTitle>
+                <CardDescription>Ordens de serviço disponíveis para você aceitar</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -399,6 +480,74 @@ export default function OrdersPage() {
                           >
                             <Check className="h-4 w-4 mr-1" /> Aceitar
                           </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Seção Minhas OS (atribuídas ao técnico) */}
+      {canTecnico && minhasOS.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Minhas OS</CardTitle>
+                <CardDescription>Ordens de serviço atribuídas a você</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto -mx-2 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prioridade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {minhasOS.slice(0, 10).map((ordem) => {
+                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                    return (
+                      <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
+                        <TableCell className="font-medium">
+                          {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
+                        </TableCell>
+                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                        <TableCell className="capitalize">{ordem.tipo}</TableCell>
+                        <TableCell>
+                          {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                          {ordem.prioridade === 'media' && <Badge variant="secondary" className="gap-1 capitalize"><ArrowRight className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                          {ordem.prioridade === 'baixa' && <Badge variant="outline" className="gap-1 capitalize"><ArrowDown className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={status.className}>
+                            {status.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          {getActionButton(ordem)}
                         </TableCell>
                       </TableRow>
                     )
