@@ -122,6 +122,10 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [filtroTecnico, setFiltroTecnico] = useState<'todas' | 'sem_tecnico' | 'minhas'>('todas')
+  // Estado para confirmação de alteração de status
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [ordemToChangeStatus, setOrdemToChangeStatus] = useState<OrdemServico | null>(null)
+  const [novoStatusPendente, setNovoStatusPendente] = useState<string | null>(null)
 
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -142,6 +146,8 @@ export default function OrdersPage() {
   const active = getActiveRole(session, profile)
   const canAdmin = isAdmin(session, profile)
   const canTecnico = isTecnico(session, profile)
+  const canGestor = active === 'supervisor'
+  const canManage = canAdmin || canGestor // Admin ou Gestor podem gerenciar OS
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
   const { colaboradores, loading: colLoading, error: colError } = useColaboradores(empresaId)
   const clienteId = clientes[0]?.id
@@ -265,6 +271,65 @@ export default function OrdersPage() {
     } catch (e) {
       console.error('[handleStartAtendimento] Erro:', e)
       toast.error(e instanceof Error ? e.message : 'Erro ao iniciar atendimento')
+    }
+  }
+
+  // Handler para abrir diálogo de confirmação de alteração de status
+  const handleChangeStatus = (ordem: OrdemServico, novoStatus: string) => {
+    setOrdemToChangeStatus(ordem)
+    setNovoStatusPendente(novoStatus)
+    setStatusDialogOpen(true)
+  }
+
+  // Função para formatar nome do status
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'novo': return 'Aberta'
+      case 'em_deslocamento': return 'Em Deslocamento'
+      case 'checkin': return 'Em Atendimento'
+      case 'em_andamento': return 'Em Andamento'
+      case 'concluido': return 'Concluída'
+      case 'cancelado': return 'Cancelada'
+      default: return status
+    }
+  }
+
+  // Handler para confirmar a alteração de status
+  const confirmChangeStatus = async () => {
+    if (!ordemToChangeStatus || !novoStatusPendente) return
+
+    try {
+      const session = await supabase.auth.getSession()
+      const token = session?.data?.session?.access_token
+      if (!token) {
+        toast.error('Sessão expirada. Faça login novamente.')
+        return
+      }
+
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordemToChangeStatus.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: novoStatusPendente })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Erro ao alterar status')
+      }
+
+      toast.success(`Status alterado para "${getStatusLabel(novoStatusPendente)}"`)
+      handleRefresh()
+    } catch (e) {
+      console.error('[confirmChangeStatus] Erro:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao alterar status')
+    } finally {
+      setStatusDialogOpen(false)
+      setOrdemToChangeStatus(null)
+      setNovoStatusPendente(null)
     }
   }
 
@@ -639,6 +704,7 @@ export default function OrdersPage() {
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
+                    {canManage && <TableHead className="w-[80px]">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -697,6 +763,79 @@ export default function OrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
+                        {canManage && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Abrir menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
+                                  Ver Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <OrderDialog
+                                  empresaId={empresaId!}
+                                  ordem={ordem}
+                                  clientes={clientes}
+                                  equipamentos={equipamentos}
+                                  colaboradores={colaboradores}
+                                  mode="edit"
+                                  onSuccess={handleRefresh}
+                                  trigger={
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                  }
+                                />
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs text-muted-foreground">Alterar Status</DropdownMenuLabel>
+                                {ordem.status !== 'novo' && (
+                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'novo')}>
+                                    Marcar como Aberta
+                                  </DropdownMenuItem>
+                                )}
+                                {ordem.status !== 'em_deslocamento' && ordem.tecnico_id && (
+                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'em_deslocamento')}>
+                                    Marcar como Em Deslocamento
+                                  </DropdownMenuItem>
+                                )}
+                                {ordem.status !== 'checkin' && ordem.tecnico_id && (
+                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'checkin')}>
+                                    Marcar como Em Atendimento
+                                  </DropdownMenuItem>
+                                )}
+                                {ordem.status !== 'concluido' && (
+                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'concluido')}>
+                                    Marcar como Concluída
+                                  </DropdownMenuItem>
+                                )}
+                                {ordem.status !== 'cancelado' && (
+                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'cancelado')}>
+                                    Marcar como Cancelada
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onSelect={() => {
+                                    setOrdemToDelete(ordem)
+                                    setDeleteDialogOpen(true)
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
                       </TableRow>
                     )
                   })}
@@ -755,6 +894,26 @@ export default function OrdersPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Status Change Confirmation Dialog */}
+      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Alteração de Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja alterar o status da OS <strong>{ordemToChangeStatus?.numero_os || ordemToChangeStatus?.id?.slice(0, 8)}</strong>
+              {' '}de <strong>{ordemToChangeStatus ? getStatusLabel(ordemToChangeStatus.status) : ''}</strong>
+              {' '}para <strong>{novoStatusPendente ? getStatusLabel(novoStatusPendente) : ''}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmChangeStatus}>
+              Confirmar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
