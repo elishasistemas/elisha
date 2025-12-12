@@ -170,7 +170,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
           : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/laudo`
 
         const response = await fetch(url, {
-          method: laudo.id ? 'PUT' : 'POST',
+          method: laudo.id ? 'PATCH' : 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

@@ -445,25 +445,36 @@ export class OrdensServicoService {
         }
       }
 
-      // Atualizar usando service role (bypassa RLS)
-      console.log('[finalize] Atualizando OS para status concluído');
-      
       // Garantir que data_inicio esteja definido para satisfazer a constraint
-      const dataFim = new Date().toISOString();
+      const agora = new Date();
+
+      // Se data_inicio não existir, definir com base em data_abertura ou agora
+      let dataInicio: Date;
+      if (os.data_inicio) {
+        dataInicio = new Date(os.data_inicio);
+      } else if (os.data_abertura) {
+        dataInicio = new Date(os.data_abertura);
+      } else {
+        dataInicio = agora;
+      }
+
+      // data_fim deve ser >= data_inicio (constraint ordens_servico_datas_logicas)
+      // Se agora for menor que data_inicio (por algum bug de timezone), usar data_inicio
+      const dataFim = agora >= dataInicio ? agora : dataInicio;
+
       const updateData: any = {
         status: 'concluido',
-        data_fim: dataFim,
+        data_fim: dataFim.toISOString(),
         assinatura_cliente: data.assinatura_cliente,
         nome_cliente_assinatura: data.nome_cliente_assinatura,
         email_cliente_assinatura: data.email_cliente_assinatura || null,
-        updated_at: dataFim,
+        updated_at: dataFim.toISOString(),
       };
 
       // Se data_inicio não estiver definido, definir agora
-      // (isso pode acontecer se a OS foi aceita mas nunca entrou em atendimento)
       if (!os.data_inicio) {
         console.log('[finalize] data_inicio não definido, definindo agora');
-        updateData.data_inicio = os.data_abertura || dataFim;
+        updateData.data_inicio = dataInicio.toISOString();
       }
 
       const { data: updatedOS, error } = await this.supabaseService.client
