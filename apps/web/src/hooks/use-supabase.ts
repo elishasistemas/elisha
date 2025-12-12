@@ -59,7 +59,7 @@ export function useProfile(userId?: string) {
     const fetchProfile = async () => {
       try {
         const cacheKey = `profile:${userId}`
-        
+
         // Usar dedupe para evitar requisições duplicadas
         const data = await dataCache.dedupe(cacheKey, async () => {
           // Buscar token do usuário autenticado
@@ -69,7 +69,7 @@ export function useProfile(userId?: string) {
           // Chamar backend em vez de Supabase direto
           return await apiClient.profiles.getByUserId(userId, token)
         })
-        
+
         if (mounted) {
           setProfile(data)
           setLoading(false)
@@ -112,7 +112,7 @@ export function useEmpresas() {
           // Chamar backend em vez de Supabase direto
           return await apiClient.empresas.list(token)
         })
-        
+
         if (mounted) {
           setEmpresas(data || [])
           setLoading(false)
@@ -140,10 +140,10 @@ export function useEmpresas() {
 
       const data = await apiClient.empresas.create(empresa, token)
       setEmpresas(prev => [data, ...prev])
-      
+
       // Invalidar cache
       dataCache.invalidate('empresas')
-      
+
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar empresa' }
@@ -165,10 +165,10 @@ export function useEmpresas() {
 
       if (error) throw error
       setEmpresas(prev => prev.map(e => e.id === id ? data : e))
-      
+
       // Invalidar cache
       dataCache.invalidate('empresas')
-      
+
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar empresa' }
@@ -220,7 +220,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar clientes')
         const result = await res.json()
         setClientes(result.data || result || [])
@@ -251,7 +251,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'clients', event: 'Client Created', icon: '🆕', tags: { cliente_id: data.id, empresa_id: data.empresa_id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar cliente' }
@@ -274,7 +274,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'clients', event: 'Client Updated', icon: '✏️', tags: { cliente_id: id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar cliente' }
@@ -295,7 +295,7 @@ export function useClientes(empresaId?: string, opts?: { page?: number; pageSize
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'clients', event: 'Client Deleted', icon: '🗑️', tags: { cliente_id: id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar cliente' }
@@ -346,7 +346,7 @@ export function useEquipamentos(clienteId?: string, opts?: { page?: number; page
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar equipamentos')
         const result = await res.json()
         setEquipamentos(result.data || result || [])
@@ -429,7 +429,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar colaboradores')
         const result = await res.json()
         setColaboradores(Array.isArray(result) ? result : [])
@@ -460,7 +460,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'technicians', event: 'Technician Created', icon: '👷', tags: { tecnico_id: data.id, empresa_id: data.empresa_id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar colaborador' }
@@ -483,7 +483,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'technicians', event: 'Technician Updated', icon: '✏️', tags: { tecnico_id: id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar colaborador' }
@@ -503,18 +503,18 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
 
         if (osError) {
           console.error('Erro ao verificar OSs:', osError)
-          return { 
-            data: null, 
+          return {
+            data: null,
             error: 'Erro ao verificar ordens de serviço do técnico.',
             hasActiveOS: false
           }
         }
-        
+
         if (osAtivas && osAtivas.length > 0) {
           const osNums = osAtivas.slice(0, 5).map((os: any) => os.numero_os || `#${os.id.slice(0, 8)}`).join(', ')
           const maisOs = osAtivas.length > 5 ? ` e mais ${osAtivas.length - 5}` : ''
-          return { 
-            data: null, 
+          return {
+            data: null,
             error: `Não é possível desativar o técnico. Existem ${osAtivas.length} ordem(ns) de serviço atribuída(s): ${osNums}${maisOs}`,
             hasActiveOS: true,
             activeOS: osAtivas,
@@ -531,16 +531,16 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         .single()
 
       if (error) throw error
-      
+
       // Atualizar o estado local imediatamente para feedback rápido
       setColaboradores(prev => prev.map(c => c.id === id ? { ...c, ativo } : c))
-      
+
       // Telemetry: technician toggled
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'technicians', event: ativo ? 'Technician Activated' : 'Technician Deactivated', icon: ativo ? '✅' : '⛔', tags: { tecnico_id: id, ativo } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar status' }
@@ -561,7 +561,7 @@ export function useColaboradores(empresaId?: string, opts?: { page?: number; pag
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'technicians', event: 'Technician Deleted', icon: '🗑️', tags: { tecnico_id: id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar colaborador' }
@@ -618,14 +618,14 @@ export function useZonas(empresaId?: string, opts?: { refreshKey?: number }) {
       })
 
       if (error) throw error
-      
+
       // Refetch to update list
       const { data: updatedZonas } = await supabase
         .from('zonas')
         .select('*')
         .eq('empresa_id', empresaId)
         .order('nome', { ascending: true })
-      
+
       if (updatedZonas) {
         setZonas(updatedZonas)
       }
@@ -680,6 +680,7 @@ export function useOrdensServico(
     orderBy?: keyof OrdemServico | 'created_at' | 'status' | 'prioridade'
     ascending?: boolean
     tecnicoId?: string
+    status?: string
     refreshKey?: number
   }
 ) {
@@ -712,13 +713,14 @@ export function useOrdensServico(
         const pageSize = opts?.pageSize ?? 10
         const search = (opts?.search || '').trim()
         const orderBy = opts?.orderBy || 'prioridade'
-        
+
         const params = new URLSearchParams({
           empresaId,
           page: String(page),
           pageSize: String(pageSize),
           ...(search ? { search } : {}),
           ...(opts?.tecnicoId ? { tecnicoId: opts.tecnicoId } : {}),
+          ...(opts?.status ? { status: opts.status } : {}),
           ...(orderBy ? { orderBy: String(orderBy) } : {}),
         })
 
@@ -729,7 +731,7 @@ export function useOrdensServico(
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar ordens de serviço')
         const result = await res.json()
         console.log('[useOrdensServico] Resultado do backend:', result)
@@ -745,7 +747,7 @@ export function useOrdensServico(
     }
 
     fetchOrdens()
-  }, [empresaId, opts?.page, opts?.pageSize, opts?.search, opts?.orderBy, opts?.ascending, opts?.tecnicoId, opts?.refreshKey])
+  }, [empresaId, opts?.page, opts?.pageSize, opts?.search, opts?.orderBy, opts?.ascending, opts?.tecnicoId, opts?.status, opts?.refreshKey])
 
   const createOrdem = async (ordem: Omit<OrdemServico, 'id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -768,7 +770,7 @@ export function useOrdensServico(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id, empresa_id: data.empresa_id, tecnico_id: data.tecnico_id || 'null' } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao criar ordem' }
@@ -797,7 +799,7 @@ export function useOrdensServico(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: id, status: updates?.status || 'updated' } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { data, error: null }
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Erro ao atualizar ordem' }
@@ -823,7 +825,7 @@ export function useOrdensServico(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'orders', event: 'Order Deleted', icon: '🗑️', tags: { os_id: id } }),
-      }).catch(() => {})
+      }).catch(() => { })
       return { error: null }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Erro ao deletar ordem' }
@@ -875,7 +877,7 @@ export function useChecklists(empresaId?: string, opts?: { page?: number; pageSi
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar checklists')
         const result = await res.json()
         console.log('[useChecklists] Resultado do backend:', result)

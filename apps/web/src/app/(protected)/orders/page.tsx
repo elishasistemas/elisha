@@ -126,6 +126,7 @@ export default function OrdersPage() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [ordemToChangeStatus, setOrdemToChangeStatus] = useState<OrdemServico | null>(null)
   const [novoStatusPendente, setNovoStatusPendente] = useState<string | null>(null)
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
 
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -162,7 +163,17 @@ export default function OrdersPage() {
     pageSize,
     search: debouncedSearch,
     orderBy: orderBy as any,
+    status: filtroStatus !== 'todos' ? filtroStatus : undefined,
     // NÃO filtra por tecnicoId - todos veem todas as OSs
+    refreshKey,
+  })
+
+  // Consulta separada para "Minhas OS" para garantir visibilidade
+  // Busca até 50 ordens ativas do técnico logado, independente da paginação principal
+  const { ordens: minhasOrdensRaw } = useOrdensServico(empresaId, {
+    page: 1,
+    pageSize: 50,
+    tecnicoId: profile?.tecnico_id || undefined,
     refreshKey,
   })
 
@@ -187,10 +198,11 @@ export default function OrdersPage() {
   )
 
   // Minhas OS (atribuídas ao técnico logado, não finalizadas)
-  const minhasOS = ordens.filter(o =>
-    o.tecnico_id === profile?.tecnico_id &&
-    !['concluido', 'cancelado'].includes(o.status)
-  )
+  // Minhas OS (atribuídas ao técnico logado, não finalizadas)
+  // Usar a lista dedicada 'minhasOrdensRaw' se disponível
+  const minhasOS = (canTecnico && profile?.tecnico_id)
+    ? minhasOrdensRaw.filter(o => !['concluido', 'cancelado'].includes(o.status))
+    : []
 
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
@@ -628,7 +640,7 @@ export default function OrdersPage() {
         <CardHeader>
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
-              <CardTitle>Lista de Ordens</CardTitle>
+              <CardTitle>Lista de OS</CardTitle>
               <CardDescription className="text-sm">
                 {ordensFiltradas.length} {search ? 'resultado(s)' : 'registros'}
                 {filtroTecnico === 'sem_tecnico' && ' sem técnico'}
@@ -636,6 +648,20 @@ export default function OrdersPage() {
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Status:</span>
+                <Select value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {Object.entries(statusConfig).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Filtrar:</span>
                 <Select value={filtroTecnico} onValueChange={(v: 'todas' | 'sem_tecnico' | 'minhas') => setFiltroTecnico(v)}>
