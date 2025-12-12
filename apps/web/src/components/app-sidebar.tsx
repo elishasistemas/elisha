@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield, Wrench } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield, Wrench, Calendar } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -33,6 +33,11 @@ const data = {
       url: "/orders",
       icon: ClipboardList,
     },
+    {
+      title: "Corretivas Programadas",
+      url: "/scheduled-corrective",
+      icon: Calendar,
+    },
     { title: "Checklists", url: "/checklists", icon: CheckSquare },
     { title: "Clientes", url: "/clients", icon: Building2 },
     { title: "Técnicos", url: "/technicians", icon: Users },
@@ -55,18 +60,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const filteredItems = ((): typeof data.navMain => {
     if (active === 'supervisor') {
       // Supervisor: Dashboard + Ordens de Serviço + Checklists
-      return data.navMain.filter((i) => 
+      return data.navMain.filter((i) =>
         i.url === '/dashboard' || i.url === '/orders' || i.url === '/checklists'
       )
     }
-    
+
     if (active === 'tecnico') {
-      // Técnico: Ordens de Serviço apenas (otimizado para campo/mobile)
-      return data.navMain.filter((i) => 
-        i.url === '/orders'
+      // Técnico: Ordens de Serviço + Corretivas Programadas (otimizado para campo/mobile)
+      return data.navMain.filter((i) =>
+        i.url === '/orders' || i.url === '/scheduled-corrective'
       )
     }
-    
+
     // Admin: menu completo (Dashboard, OS, Checklists, Clientes, Técnicos, Equipamentos)
     return data.navMain
   })()
