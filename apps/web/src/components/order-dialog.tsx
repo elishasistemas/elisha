@@ -14,6 +14,7 @@ import { createSupabaseBrowser } from '@/lib/supabase'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
 import { OSPreventiva } from './os-preventiva'
 import { OSChamadoCorretiva } from './os-chamado-corretiva'
+import { generateOSPDF } from '@/lib/generate-os-pdf'
 
 interface OrderDialogProps {
   empresaId: string
@@ -695,14 +696,98 @@ export function OrderDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    // Abrir página de impressão em nova aba
-                    window.open(`/os/print/${ordem?.id}`, '_blank')
+                  onClick={async () => {
+                    const osData = fullOrder || ordem
+                    if (!osData) {
+                      toast.error('Dados da OS não disponíveis')
+                      return
+                    }
+
+                    try {
+                      // Fetch additional data for PDF
+                      const supabase = createSupabaseBrowser()
+                      const { data: { session } } = await supabase.auth.getSession()
+                      if (!session?.access_token) {
+                        toast.error('Sessão expirada')
+                        return
+                      }
+
+                      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                      const headers = { 'Authorization': `Bearer ${session.access_token}` }
+
+                      // Fetch related data
+                      const [clienteRes, equipamentoRes, tecnicoRes, laudoRes, checklistRes, empresaRes] = await Promise.all([
+                        osData.cliente_id ? fetch(`${BACKEND_URL}/api/v1/clientes/${osData.cliente_id}`, { headers }) : null,
+                        osData.equipamento_id ? fetch(`${BACKEND_URL}/api/v1/equipamentos/${osData.equipamento_id}`, { headers }) : null,
+                        osData.tecnico_id ? fetch(`${BACKEND_URL}/api/v1/colaboradores/${osData.tecnico_id}`, { headers }) : null,
+                        fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/laudo`, { headers }),
+                        fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/checklist`, { headers }),
+                        supabase.from('empresas').select('nome, logo_url').eq('id', empresaId).single(),
+                      ])
+
+                      const cliente = clienteRes?.ok ? await clienteRes.json() : null
+                      const equipamento = equipamentoRes?.ok ? await equipamentoRes.json() : null
+                      const tecnico = tecnicoRes?.ok ? await tecnicoRes.json() : null
+
+                      // Fetch laudo - try API first, then direct Supabase
+                      let laudo = null
+                      if (laudoRes?.ok) {
+                        laudo = await laudoRes.json()
+                        console.log('[PDF] Laudo from API:', laudo)
+                      } else {
+                        console.log('[PDF] Laudo API returned:', laudoRes?.status, '- trying direct query')
+                        // Try direct Supabase query if API fails
+                        const { data: laudoData } = await supabase
+                          .from('os_laudos')
+                          .select('*')
+                          .eq('os_id', osData.id)
+                          .single()
+                        if (laudoData) {
+                          laudo = laudoData
+                          console.log('[PDF] Laudo from Supabase:', laudo)
+                        } else {
+                          console.log('[PDF] No laudo found in database')
+                        }
+                      }
+
+                      const checklist = checklistRes?.ok ? await checklistRes.json() : []
+
+                      await generateOSPDF({
+                        numero_os: osData.numero_os || '',
+                        tipo: osData.tipo,
+                        data_abertura: osData.data_abertura,
+                        data_fim: osData.data_fim,
+                        cliente_nome: cliente?.nome_local,
+                        cliente_endereco: cliente?.endereco_completo,
+                        cliente_telefone: cliente?.responsavel_telefone,
+                        quem_solicitou: osData.quem_solicitou,
+                        equipamento_tipo: equipamento?.tipo,
+                        equipamento_fabricante: equipamento?.fabricante,
+                        equipamento_modelo: equipamento?.modelo,
+                        equipamento_numero_serie: equipamento?.numero_serie,
+                        tecnico_nome: tecnico?.nome,
+                        descricao: osData.descricao,
+                        observacoes: osData.observacoes,
+                        laudo_o_que_foi_feito: laudo?.o_que_foi_feito,
+                        laudo_observacao: laudo?.observacao,
+                        estado_equipamento: osData.estado_equipamento,
+                        nome_cliente_assinatura: osData.nome_cliente_assinatura,
+                        assinatura_cliente: osData.assinatura_cliente,
+                        checklist: checklist || [],
+                        empresa_nome: empresaRes.data?.nome,
+                        empresa_logo_url: empresaRes.data?.logo_url,
+                      })
+
+                      toast.success('PDF gerado com sucesso!')
+                    } catch (error) {
+                      console.error('Erro ao gerar PDF:', error)
+                      toast.error('Erro ao gerar PDF')
+                    }
                   }}
                   className="gap-2"
                 >
                   <Printer className="w-4 h-4" />
-                  Imprimir
+                  Gerar PDF
                 </Button>
 
                 {/* Botões de ação para técnicos */}
