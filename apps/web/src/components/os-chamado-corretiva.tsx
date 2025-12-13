@@ -38,6 +38,7 @@ interface OSChamadoCorretivaProps {
   osId: string
   empresaId: string
   osData: any
+  readOnly?: boolean
 }
 
 interface Evidencia {
@@ -55,7 +56,7 @@ interface Laudo {
   observacao?: string
 }
 
-export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorretivaProps) {
+export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }: OSChamadoCorretivaProps) {
   const [laudo, setLaudo] = useState<Laudo>({})
   const [evidencias, setEvidencias] = useState<Evidencia[]>([])
   const [uploading, setUploading] = useState(false)
@@ -454,6 +455,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
               onChange={(e) => setLaudo(prev => ({ ...prev, o_que_foi_feito: e.target.value }))}
               rows={4}
               className="resize-none"
+              disabled={readOnly}
             />
           </div>
 
@@ -466,56 +468,59 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
               onChange={(e) => setLaudo(prev => ({ ...prev, observacao: e.target.value }))}
               rows={4}
               className="resize-none"
+              disabled={readOnly}
             />
           </div>
 
           <div>
             <Label>Evidências (Fotos, Áudios)</Label>
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-20 flex-col"
-                disabled={uploading}
-                onClick={() => document.getElementById('file-foto-corretiva')?.click()}
-              >
-                {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
-                <span className="text-xs">Foto</span>
-                <input
-                  id="file-foto-corretiva"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFileUpload(file, 'foto')
-                    e.target.value = ''
-                  }}
-                />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-20 flex-col"
-                disabled={uploading}
-                onClick={() => document.getElementById('file-audio-corretiva')?.click()}
-              >
-                {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
-                <span className="text-xs">Áudio</span>
-                <input
-                  id="file-audio-corretiva"
-                  type="file"
-                  accept="audio/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFileUpload(file, 'audio')
-                    e.target.value = ''
-                  }}
-                />
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-20 flex-col"
+                  disabled={uploading}
+                  onClick={() => document.getElementById('file-foto-corretiva')?.click()}
+                >
+                  {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
+                  <span className="text-xs">Foto</span>
+                  <input
+                    id="file-foto-corretiva"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file, 'foto')
+                      e.target.value = ''
+                    }}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-20 flex-col"
+                  disabled={uploading}
+                  onClick={() => document.getElementById('file-audio-corretiva')?.click()}
+                >
+                  {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
+                  <span className="text-xs">Áudio</span>
+                  <input
+                    id="file-audio-corretiva"
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file, 'audio')
+                      e.target.value = ''
+                    }}
+                  />
+                </Button>
+              </div>
+            )}
 
             {/* Lista de Evidências */}
             {evidencias.length > 0 ? (
@@ -557,19 +562,22 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
                           Abrir
                         </a>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          e.preventDefault()
-                          console.log('[DEBUG] Delete button clicked for:', evidencia.id)
-                          setEvidenciaParaDeletar(evidencia)
-                          setShowDeleteDialog(true)
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+
+                      {!readOnly && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            console.log('[DEBUG] Delete button clicked for:', evidencia.id)
+                            setEvidenciaParaDeletar(evidencia)
+                            setShowDeleteDialog(true)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -584,7 +592,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
       </Card>
 
       {/* Seção 3: Próximos Passos */}
-      <OSProximosPassos osId={osId} empresaId={empresaId} />
+      <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
 
       {/* Seção 4: Histórico do Equipamento */}
       <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
@@ -641,15 +649,17 @@ export function OSChamadoCorretiva({ osId, empresaId, osData }: OSChamadoCorreti
       </AlertDialog>
 
       {/* Botão Cancelar Atendimento (fixo no rodapé) */}
-      <div className="fixed bottom-4 left-4 z-50">
-        <Button
-          variant="outline"
-          onClick={() => setShowCancelDialog(true)}
-          className="shadow-lg"
-        >
-          Cancelar Atendimento
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <Button
+            variant="outline"
+            onClick={() => setShowCancelDialog(true)}
+            className="shadow-lg"
+          >
+            Cancelar Atendimento
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

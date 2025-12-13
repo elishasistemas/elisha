@@ -61,18 +61,6 @@ const statusConfig = {
     icon: CheckCircle,
     className: 'bg-indigo-100 text-indigo-800 border-indigo-200'
   },
-  em_andamento: {
-    label: 'Em Andamento',
-    variant: 'secondary' as const,
-    icon: Clock,
-    className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-  },
-  checkout: {
-    label: 'Finalizado',
-    variant: 'secondary' as const,
-    icon: CheckCircle,
-    className: 'bg-teal-100 text-teal-800 border-teal-200'
-  },
   aguardando_assinatura: {
     label: 'Aguardando Assinatura',
     variant: 'secondary' as const,
@@ -299,7 +287,6 @@ export default function OrdersPage() {
       case 'novo': return 'Aberta'
       case 'em_deslocamento': return 'Em Deslocamento'
       case 'checkin': return 'Em Atendimento'
-      case 'em_andamento': return 'Em Andamento'
       case 'concluido': return 'Concluída'
       case 'cancelado': return 'Cancelada'
       default: return status
@@ -370,7 +357,7 @@ export default function OrdersPage() {
         </Button>
       )
     }
-    if (['checkin', 'em_andamento'].includes(o.status)) {
+    if (o.status === 'checkin') {
       return (
         <Button
           size="sm"

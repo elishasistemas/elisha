@@ -52,6 +52,7 @@ export interface Equipamento {
   numero_serie: string | null
   ano_instalacao: number | null
   descricao: string | null
+  nome: string | null
   ativo: boolean
   created_at: string
   updated_at: string
@@ -102,13 +103,20 @@ export interface OrdemServico {
   origem: 'whatsapp' | 'painel'
   numero_os: string | null
   quem_solicitou: string | null
+  data_inicio_deslocamento: string | null
+  estado_equipamento: string | null
+  assinatura_cliente: string | null
+  nome_cliente_assinatura: string | null
+  descricao: string | null
+  solicitante_nome: string | null
+  solicitante_telefone: string | null
   created_at: string
   updated_at: string
 }
 
 function createSupabaseStub() {
   // Stub client para evitar quebra quando envs estão ausentes
-  const subscription = { unsubscribe() {} }
+  const subscription = { unsubscribe() { } }
   return {
     auth: {
       async getSession() {
@@ -208,6 +216,6 @@ export function createSupabaseBrowser() {
       },
     },
   })
-  
+
   return browserClient
 }

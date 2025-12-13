@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Pencil, Clock, Navigation, PlayCircle } from 'lucide-react'
+import { Plus, Pencil, Clock, Navigation, PlayCircle, Printer, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
+import { OSPreventiva } from './os-preventiva'
+import { OSChamadoCorretiva } from './os-chamado-corretiva'
 
 interface OrderDialogProps {
   empresaId: string
@@ -30,14 +32,14 @@ interface OrderDialogProps {
   canEdit?: boolean  // Permite edição (apenas admins)
 }
 
-export function OrderDialog({ 
-  empresaId, 
-  ordem, 
-  clientes, 
+export function OrderDialog({
+  empresaId,
+  ordem,
+  clientes,
   equipamentos: allEquipamentos,
-  colaboradores, 
-  onSuccess, 
-  trigger, 
+  colaboradores,
+  onSuccess,
+  trigger,
   mode = 'create',
   onRequestEdit,
   onOpenChange,
@@ -70,19 +72,19 @@ export function OrderDialog({
     tipo: ordem?.tipo || defaultTipo || 'preventiva',
     prioridade: ordem?.prioridade || 'media',
     observacoes: ordem?.observacoes || '',
-    data_abertura: new Date().toISOString().slice(0,16),
+    data_abertura: new Date().toISOString().slice(0, 16),
     quem_solicitou: ordem?.quem_solicitou || '',
   })
 
   // Filtrar equipamentos do cliente selecionado
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([])
-  
+
   // Sincronizar formData quando ordem muda (importante para refletir dados atualizados)
   useEffect(() => {
     if (ordem) {
       const tecnicoId = ordem.tecnico_id || ''
-      console.log('[OrderDialog] Sincronizando ordem:', { 
-        ordem_id: ordem.id, 
+      console.log('[OrderDialog] Sincronizando ordem:', {
+        ordem_id: ordem.id,
         tecnico_id: ordem.tecnico_id,
         tecnico_id_normalizado: tecnicoId
       })
@@ -93,30 +95,71 @@ export function OrderDialog({
         tipo: ordem.tipo || defaultTipo || 'preventiva',
         prioridade: ordem.prioridade || 'media',
         observacoes: ordem.observacoes || '',
-        data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0,16) : new Date().toISOString().slice(0,16),
+        data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         quem_solicitou: ordem.quem_solicitou || '',
       })
     }
   }, [ordem?.id, ordem?.tecnico_id, defaultTipo])
-  
+
   // Accordion com persistência (shadcn)
   const accKey = (s: string) => `order_dialog:${s}`
-  const [openSections, setOpenSections] = useState<string[]>(['cliente','detalhes','observacoes'])
+  const [openSections, setOpenSections] = useState<string[]>(['cliente', 'detalhes', 'observacoes'])
   useEffect(() => {
     if (!open) return
     // Em modo view, sempre abrir todas as seções
     if (isView) {
-      setOpenSections(['cliente','detalhes','observacoes'])
+      setOpenSections(['cliente', 'detalhes', 'execucao', 'observacoes'])
       return
     }
     try {
       const saved = localStorage.getItem(accKey('open'))
       if (saved) setOpenSections(JSON.parse(saved))
-    } catch {}
+    } catch { }
   }, [open, isView])
+
+  // Histórico de Status
+  const [statusHistory, setStatusHistory] = useState<any[]>([])
+
+  // Carregar histórico quando em modo view
+  // Carregar dados completos e histórico quando em modo view
+  const [fullOrder, setFullOrder] = useState<any>(null)
+
+  useEffect(() => {
+    if (isView && ordem?.id && open) {
+      const fetchData = async () => {
+        try {
+          const { createSupabaseBrowser } = await import('@/lib/supabase')
+          const supabase = createSupabaseBrowser()
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session?.access_token) return
+
+          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+          const headers = { 'Authorization': `Bearer ${session.access_token}` }
+
+          // Buscar ordem completa
+          const orderRes = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}`, { headers })
+          if (orderRes.ok) {
+            const orderData = await orderRes.json()
+            setFullOrder(orderData)
+          }
+
+          // Buscar histórico
+          const historyRes = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}/history`, { headers })
+          if (historyRes.ok) {
+            const historyData = await historyRes.json()
+            setStatusHistory(historyData || [])
+          }
+        } catch (err) {
+          console.error('Erro ao carregar dados:', err)
+        }
+      }
+      fetchData()
+    }
+  }, [isView, ordem?.id, open])
+
   const onAccordionChange = (v: string[]) => {
     setOpenSections(v)
-    try { localStorage.setItem(accKey('open'), JSON.stringify(v)) } catch {}
+    try { localStorage.setItem(accKey('open'), JSON.stringify(v)) } catch { }
   }
 
   useEffect(() => {
@@ -125,12 +168,12 @@ export function OrderDialog({
       try {
         const { createSupabaseBrowser } = await import('@/lib/supabase')
         const supabase = createSupabaseBrowser()
-        
+
         // Buscar equipamentos via backend
         const { data: { session } } = await supabase.auth.getSession()
         const token = session?.access_token
         if (!token) throw new Error('Não autenticado')
-        
+
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const res = await fetch(`${BACKEND_URL}/api/v1/equipamentos?clienteId=${formData.cliente_id}`, {
           headers: {
@@ -138,11 +181,11 @@ export function OrderDialog({
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (!res.ok) throw new Error('Erro ao buscar equipamentos')
         const result = await res.json()
         const list = (result.data || result || []) as Equipamento[]
-        
+
         setEquipamentosFiltrados(list)
         // Auto-selecionar equipamento ao escolher o cliente no fluxo de criação
         // 1) Se havia um equipamento selecionado que não pertence ao novo cliente, troca para o primeiro disponível
@@ -221,9 +264,9 @@ export function OrderDialog({
       if (localMode === 'edit' && ordem) {
         // Para edição, não enviar campos que não devem ser alterados
         const { status, origem, ...editData } = ordemData
-        
+
         console.log('[OrderDialog] Editando OS:', ordem.id, 'Dados:', editData)
-        
+
         // Atualizar ordem via backend
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}`, {
           method: 'PATCH',
@@ -249,7 +292,7 @@ export function OrderDialog({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: ordem.id } }),
-        }).catch(() => {})
+        }).catch(() => { })
       } else {
         // Criar nova ordem via backend
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico`, {
@@ -275,7 +318,7 @@ export function OrderDialog({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id } }),
-          }).catch(() => {})
+          }).catch(() => { })
         }
       }
 
@@ -290,7 +333,7 @@ export function OrderDialog({
         tipo: 'preventiva',
         prioridade: 'media',
         observacoes: '',
-        data_abertura: new Date().toISOString().slice(0,16),
+        data_abertura: new Date().toISOString().slice(0, 16),
         quem_solicitou: '',
       })
     } catch (error) {
@@ -356,7 +399,7 @@ export function OrderDialog({
     const agora = new Date()
     const diffMs = agora.getTime() - inicio.getTime()
     const diffMinutos = Math.floor(diffMs / 60000)
-    
+
     if (diffMinutos < 60) {
       return `${diffMinutos} min`
     } else {
@@ -392,8 +435,8 @@ export function OrderDialog({
           <div className="flex items-start justify-between gap-3">
             <div>
               <DialogTitle>
-                {isView 
-                  ? (ordem?.numero_os || 'Ordem de Serviço') 
+                {isView
+                  ? (ordem?.numero_os || 'Ordem de Serviço')
                   : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
                 }
               </DialogTitle>
@@ -461,67 +504,67 @@ export function OrderDialog({
               <AccordionTrigger>Detalhes da Ordem</AccordionTrigger>
               <AccordionContent>
                 <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tipo">Tipo</Label>
-                <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="preventiva">Preventiva</SelectItem>
-                    <SelectItem value="corretiva">Corretiva</SelectItem>
-                    <SelectItem value="emergencial">Emergencial</SelectItem>
-                    <SelectItem value="chamado">Chamado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo">Tipo</Label>
+                    <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
+                      <SelectTrigger disabled={isView}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="preventiva">Preventiva</SelectItem>
+                        <SelectItem value="corretiva">Corretiva</SelectItem>
+                        <SelectItem value="emergencial">Emergencial</SelectItem>
+                        <SelectItem value="chamado">Chamado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="prioridade">Prioridade</Label>
-                <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alta">Alta</SelectItem>
-                    <SelectItem value="media">Média</SelectItem>
-                    <SelectItem value="baixa">Baixa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prioridade">Prioridade</Label>
+                    <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
+                      <SelectTrigger disabled={isView}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Média</SelectItem>
+                        <SelectItem value="baixa">Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="tecnico_id">Técnico Responsável</Label>
-                <Select
-                  value={formData.tecnico_id || '__none__'}
-                  onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
-                >
-                  <SelectTrigger disabled={isView}>
-                    <SelectValue placeholder="Nenhum técnico atribuído" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {colaboradores.filter(c => c.ativo).map((tecnico) => (
-                      <SelectItem key={tecnico.id} value={tecnico.id}>
-                        {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tecnico_id">Técnico Responsável</Label>
+                    <Select
+                      value={formData.tecnico_id || '__none__'}
+                      onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
+                    >
+                      <SelectTrigger disabled={isView}>
+                        <SelectValue placeholder="Nenhum técnico atribuído" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {colaboradores.filter(c => c.ativo).map((tecnico) => (
+                          <SelectItem key={tecnico.id} value={tecnico.id}>
+                            {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
-                <Input
-                  id="data_abertura"
-                  type="datetime-local"
-                  value={formData.data_abertura}
-                  onChange={(e) => handleChange('data_abertura', e.target.value)}
-                  disabled={isView}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
+                    <Input
+                      id="data_abertura"
+                      type="datetime-local"
+                      value={formData.data_abertura}
+                      onChange={(e) => handleChange('data_abertura', e.target.value)}
+                      disabled={isView}
+                    />
+                  </div>
                 </div>
                 {ordem && (
                   <div className="space-y-2 mt-4">
@@ -532,42 +575,136 @@ export function OrderDialog({
                   </div>
                 )}
                 <div className="space-y-2 mt-2">
-              <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
-              <Input
-                id="quem_solicitou"
-                value={formData.quem_solicitou}
-                onChange={(e) => handleChange('quem_solicitou', e.target.value)}
-                placeholder="Nome de quem solicitou"
-                disabled={isView}
-              />
+                  <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
+                  <Input
+                    id="quem_solicitou"
+                    value={formData.quem_solicitou}
+                    onChange={(e) => handleChange('quem_solicitou', e.target.value)}
+                    placeholder="Nome de quem solicitou"
+                    disabled={isView}
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-          {/* Observações */}
-          <AccordionItem value="observacoes">
-            <AccordionTrigger>Observações</AccordionTrigger>
-            <AccordionContent>
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
-              <Textarea
-                id="observacoes"
-                value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
-                rows={4}
-                disabled={isView}
-              />
-            </div>
-            </AccordionContent>
-          </AccordionItem>
+            {/* Detalhes da Execução (Apenas visualização e se já tiver iniciado) */}
+            {isView && ordem && !['novo', 'parado'].includes(ordem.status) && (
+              <AccordionItem value="execucao">
+                <AccordionTrigger>Detalhes da Execução</AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2">
+                    {ordem.tipo === 'preventiva' ? (
+                      <OSPreventiva
+                        osId={ordem.id}
+                        empresaId={empresaId}
+                        osData={fullOrder || ordem}
+                        readOnly
+                      />
+                    ) : (
+                      <OSChamadoCorretiva
+                        osId={ordem.id}
+                        empresaId={empresaId}
+                        osData={fullOrder || ordem}
+                        readOnly
+                      />
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* Histórico da OS (Timeline) - Apenas View */}
+            {isView && statusHistory.length > 0 && (
+              <AccordionItem value="historico_timeline">
+                <AccordionTrigger>Histórico de Alterações</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3 pt-2">
+                    {(() => {
+                      // Status label mapping
+                      const getStatusLabel = (status: string) => {
+                        const labels: Record<string, string> = {
+                          novo: 'Novo',
+                          em_deslocamento: 'Em Deslocamento',
+                          checkin: 'Em Atendimento',
+                          em_atendimento: 'Em Atendimento',
+                          concluido: 'Concluído',
+                          cancelado: 'Cancelado',
+                          parado: 'Parado',
+                        }
+                        return labels[status] || status.replace(/_/g, ' ')
+                      }
+                      // Deduplicate by status_novo, keeping only the first (most recent) occurrence
+                      const seen = new Set<string>()
+                      return statusHistory
+                        .filter((history) => {
+                          if (seen.has(history.status_novo)) {
+                            return false
+                          }
+                          seen.add(history.status_novo)
+                          return true
+                        })
+                        .map((history) => (
+                          <div
+                            key={history.id}
+                            className="flex items-start gap-3 pb-3 border-b last:border-0"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm">{getStatusLabel(history.status_novo)}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(history.changed_at).toLocaleString('pt-BR')}
+                              </p>
+                              {history.reason && (
+                                <p className="text-sm mt-1">Motivo: {history.reason}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    })()}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* Observações */}
+            <AccordionItem value="observacoes">
+              <AccordionTrigger>Observações</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
+                  <Textarea
+                    id="observacoes"
+                    value={formData.observacoes}
+                    onChange={(e) => handleChange('observacoes', e.target.value)}
+                    placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
+                    rows={4}
+                    disabled={isView}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
 
           <DialogFooter>
             {isView ? (
               <>
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
-                
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    // Abrir página de impressão em nova aba
+                    window.open(`/os/print/${ordem?.id}`, '_blank')
+                  }}
+                  className="gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimir
+                </Button>
+
                 {/* Botões de ação para técnicos */}
                 {ordem && ordem.tecnico_id && (
                   <>
@@ -598,7 +735,7 @@ export function OrderDialog({
                     )}
                   </>
                 )}
-                
+
                 {canEdit && (
                   <Button
                     type="button"

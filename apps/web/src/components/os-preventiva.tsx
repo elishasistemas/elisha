@@ -37,6 +37,7 @@ interface OSPreventivaProps {
   osId: string
   empresaId: string
   osData: any
+  readOnly?: boolean
 }
 
 interface ChecklistItem {
@@ -54,7 +55,7 @@ interface Evidencia {
   created_at: string
 }
 
-export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
+export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPreventivaProps) {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])
   const [observacoes, setObservacoes] = useState('')
   const [evidencias, setEvidencias] = useState<Evidencia[]>([])
@@ -443,9 +444,11 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
                 Checklist de Atendimento
               </CardTitle>
             </div>
-            <Badge variant="outline">
-              {itemsRespondidos}/{totalItems} conforme
-            </Badge>
+            {!readOnly && (
+              <Badge variant="outline">
+                {itemsRespondidos}/{totalItems} conforme
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             Marque cada item conforme as normas e boas práticas da empresa
@@ -516,55 +519,60 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
               onChange={(e) => setObservacoes(e.target.value)}
               rows={4}
               className="resize-none"
+              disabled={readOnly}
             />
           </div>
 
           <div>
             <p className="text-sm font-medium mb-2">Evidências (Fotos, Áudios)</p>
             <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-20 flex-col"
-                disabled={loading}
-                onClick={() => document.getElementById('file-foto-preventiva')?.click()}
-              >
-                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
-                <span className="text-xs">Foto</span>
-                <input
-                  id="file-foto-preventiva"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFileUpload(file, 'foto')
-                    e.target.value = ''
-                  }}
-                />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-20 flex-col"
-                disabled={loading}
-                onClick={() => document.getElementById('file-audio-preventiva')?.click()}
-              >
-                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
-                <span className="text-xs">Áudio</span>
-                <input
-                  id="file-audio-preventiva"
-                  type="file"
-                  accept="audio/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFileUpload(file, 'audio')
-                    e.target.value = ''
-                  }}
-                />
-              </Button>
+              {!readOnly && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-20 flex-col"
+                    disabled={loading}
+                    onClick={() => document.getElementById('file-foto-preventiva')?.click()}
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
+                    <span className="text-xs">Foto</span>
+                    <input
+                      id="file-foto-preventiva"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'foto')
+                        e.target.value = ''
+                      }}
+                    />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-20 flex-col"
+                    disabled={loading}
+                    onClick={() => document.getElementById('file-audio-preventiva')?.click()}
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
+                    <span className="text-xs">Áudio</span>
+                    <input
+                      id="file-audio-preventiva"
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'audio')
+                        e.target.value = ''
+                      }}
+                    />
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Lista de Evidências */}
@@ -607,18 +615,20 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
                           Abrir
                         </a>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          e.preventDefault()
-                          setEvidenciaParaDeletar(evidencia)
-                          setShowDeleteDialog(true)
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {!readOnly && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            setEvidenciaParaDeletar(evidencia)
+                            setShowDeleteDialog(true)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -633,7 +643,7 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
       </Card>
 
       {/* Seção 3: Próximos Passos */}
-      <OSProximosPassos osId={osId} empresaId={empresaId} />
+      <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
 
       {/* Seção 4: Histórico do Equipamento */}
       <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
@@ -681,15 +691,17 @@ export function OSPreventiva({ osId, empresaId, osData }: OSPreventivaProps) {
       </AlertDialog>
 
       {/* Botão Cancelar Atendimento (fixo no rodapé) */}
-      <div className="fixed bottom-4 left-4 z-50">
-        <Button
-          variant="outline"
-          onClick={() => setShowCancelDialog(true)}
-          className="shadow-lg"
-        >
-          Cancelar Atendimento
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <Button
+            variant="outline"
+            onClick={() => setShowCancelDialog(true)}
+            className="shadow-lg"
+          >
+            Cancelar Atendimento
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
