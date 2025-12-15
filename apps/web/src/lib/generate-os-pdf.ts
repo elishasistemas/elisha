@@ -295,8 +295,7 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
     doc.text(`Documento gerado em ${new Date().toLocaleString('pt-BR')}`, margin, footerY)
     doc.text(data.empresa_nome || '', pageWidth - margin, footerY, { align: 'right' })
 
-    // Open PDF in new tab
-    const pdfBlob = doc.output('blob')
-    const pdfUrl = URL.createObjectURL(pdfBlob)
-    window.open(pdfUrl, '_blank')
+    // Download PDF (works in PWAs and browsers)
+    const fileName = `OS_${data.numero_os || 'documento'}_${new Date().toISOString().split('T')[0]}.pdf`
+    doc.save(fileName)
 }

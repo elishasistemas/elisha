@@ -15,6 +15,7 @@ import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supa
 import { OSPreventiva } from './os-preventiva'
 import { OSChamadoCorretiva } from './os-chamado-corretiva'
 import { generateOSPDF } from '@/lib/generate-os-pdf'
+import { useAuth } from '@/contexts/auth-context'
 
 interface OrderDialogProps {
   empresaId: string
@@ -55,6 +56,10 @@ export function OrderDialog({
   const [localMode, setLocalMode] = useState<'create' | 'edit' | 'view'>(mode)
   const isView = localMode === 'view'
   const supabase = createSupabaseBrowser()
+  const { profile } = useAuth()
+
+  // Verificar se o usuário logado é o técnico atribuído à OS
+  const isAssignedTechnician = ordem?.tecnico_id && profile?.tecnico_id && ordem.tecnico_id === profile.tecnico_id
   // Abre o diálogo quando defaultOpen for true e também quando a ordem mudar
   useEffect(() => { if (defaultOpen) setOpen(true) }, [defaultOpen])
   useEffect(() => {
@@ -790,8 +795,8 @@ export function OrderDialog({
                   Gerar PDF
                 </Button>
 
-                {/* Botões de ação para técnicos */}
-                {ordem && ordem.tecnico_id && (
+                {/* Botões de ação para técnicos - apenas se for o técnico atribuído */}
+                {ordem && isAssignedTechnician && (
                   <>
                     {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
                     {['novo', 'parado', 'checkin'].includes(ordem.status) && (
