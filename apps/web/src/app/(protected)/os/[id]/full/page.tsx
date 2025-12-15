@@ -24,7 +24,7 @@ import type { OrdemServico } from '@/lib/supabase'
 import { OSChamadoCorretiva } from '@/components/os-chamado-corretiva'
 import { OSPreventiva } from '@/components/os-preventiva'
 import { OSHistoricoEquipamento } from '@/components/os-historico-equipamento'
-import { OSHistoricoEquipamento } from '@/components/os-historico-equipamento'
+
 
 interface StatusHistory {
   id: string
