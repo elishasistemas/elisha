@@ -33,6 +33,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
 import { OrderDialog } from '@/components/order-dialog'
 import { SignatureDialog } from '@/components/signature-dialog'
+import { OSListMobile } from '@/components/os-list-mobile'
 import { toast } from 'sonner'
 import type { OrdemServico } from '@/lib/supabase'
 
@@ -692,13 +693,13 @@ export default function OrdersPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground">
               Carregando...
             </div>
           ) : hasError ? (
-            <div className="text-destructive">{hasError}</div>
+            <div className="text-destructive p-4">{hasError}</div>
           ) : ordensFiltradas.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
@@ -706,7 +707,28 @@ export default function OrdersPage() {
                   'Nenhuma ordem encontrada'}
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 md:mx-0">
+            <>
+              {/* Versão Mobile - Cards */}
+              <div className="block sm:hidden">
+                <OSListMobile
+                  ordens={ordensFiltradas}
+                  clientes={clientes}
+                  colaboradores={colaboradores}
+                  onViewOrder={setViewOrder}
+                  onAcceptOrder={canTecnico ? handleAccept : undefined}
+                  onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}
+                  canAccept={canTecnico}
+                  isLoading={isLoading}
+                  emptyMessage={
+                    filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
+                    filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+                    'Nenhuma ordem encontrada'
+                  }
+                />
+              </div>
+
+              {/* Versão Desktop - Tabela */}
+              <div className="hidden sm:block overflow-x-auto -mx-2 md:mx-0">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -854,7 +876,8 @@ export default function OrdersPage() {
                   })}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
           {total > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 text-sm text-muted-foreground">

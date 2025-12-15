@@ -534,7 +534,7 @@ export function OrderDialog({
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="tecnico_id">Técnico Responsável</Label>
                     <Select
