@@ -721,161 +721,161 @@ export default function OrdersPage() {
                   isLoading={isLoading}
                   emptyMessage={
                     filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
-                    filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
-                    'Nenhuma ordem encontrada'
+                      filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+                        'Nenhuma ordem encontrada'
                   }
                 />
               </div>
 
               {/* Versão Desktop - Tabela */}
               <div className="hidden sm:block overflow-x-auto -mx-2 md:mx-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número OS</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Técnico</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    {canManage && <TableHead className="w-[80px]">Ações</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ordensFiltradas.map((ordem) => {
-                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
-                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
-                    const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número OS</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Técnico</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Prioridade</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead>
+                      {canManage && <TableHead className="w-[80px]">Ações</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ordensFiltradas.map((ordem) => {
+                      const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                      const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                      const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
 
-                    // Debug: Verificar inconsistências
-                    if (ordem.status === 'em_andamento' && !ordem.tecnico_id) {
-                      console.warn('[OrdersPage] OS com status em_andamento mas sem técnico:', {
-                        id: ordem.id,
-                        numero_os: ordem.numero_os,
-                        status: ordem.status,
-                        tecnico_id: ordem.tecnico_id
-                      })
-                    }
+                      // Debug: Verificar inconsistências
+                      if (ordem.status === 'em_andamento' && !ordem.tecnico_id) {
+                        console.warn('[OrdersPage] OS com status em_andamento mas sem técnico:', {
+                          id: ordem.id,
+                          numero_os: ordem.numero_os,
+                          status: ordem.status,
+                          tecnico_id: ordem.tecnico_id
+                        })
+                      }
 
-                    return (
-                      <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
-                        <TableCell className="font-medium">
-                          {ordem.numero_os ? (
-                            ordem.numero_os
-                          ) : (
-                            <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
-                        <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {ordem.tipo === 'preventiva' ? 'Preventiva' : ordem.tipo === 'corretiva' ? 'Corretiva' : ordem.tipo === 'emergencial' ? 'Emergencial' : ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex align-middle items-center justify-center cursor-help">
-                                  {ordem.prioridade === 'alta' ? (
-                                    <ArrowUp className="h-4 w-4 text-red-500" />
-                                  ) : ordem.prioridade === 'media' ? (
-                                    <ArrowRight className="h-4 w-4 text-yellow-500" />
-                                  ) : (
-                                    <ArrowDown className="h-4 w-4 text-green-500" />
-                                  )}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{ordem.prioridade === 'alta' ? 'Alta' : ordem.prioridade === 'media' ? 'Média' : 'Baixa'}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
-                        {canManage && (
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Abrir menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
-                                  Ver Detalhes
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <OrderDialog
-                                  empresaId={empresaId!}
-                                  ordem={ordem}
-                                  clientes={clientes}
-                                  equipamentos={equipamentos}
-                                  colaboradores={colaboradores}
-                                  mode="edit"
-                                  onSuccess={handleRefresh}
-                                  trigger={
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Editar
-                                    </DropdownMenuItem>
-                                  }
-                                />
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel className="text-xs text-muted-foreground">Alterar Status</DropdownMenuLabel>
-                                {ordem.status !== 'novo' && (
-                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'novo')}>
-                                    Marcar como Aberta
-                                  </DropdownMenuItem>
-                                )}
-                                {ordem.status !== 'em_deslocamento' && ordem.tecnico_id && (
-                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'em_deslocamento')}>
-                                    Marcar como Em Deslocamento
-                                  </DropdownMenuItem>
-                                )}
-                                {ordem.status !== 'checkin' && ordem.tecnico_id && (
-                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'checkin')}>
-                                    Marcar como Em Atendimento
-                                  </DropdownMenuItem>
-                                )}
-                                {ordem.status !== 'concluido' && (
-                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'concluido')}>
-                                    Marcar como Concluída
-                                  </DropdownMenuItem>
-                                )}
-                                {ordem.status !== 'cancelado' && (
-                                  <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'cancelado')}>
-                                    Marcar como Cancelada
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onSelect={() => {
-                                    setOrdemToDelete(ordem)
-                                    setDeleteDialogOpen(true)
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                      return (
+                        <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
+                          <TableCell className="font-medium">
+                            {ordem.numero_os ? (
+                              ordem.numero_os
+                            ) : (
+                              <span className="text-muted-foreground text-xs font-mono">{ordem.id.slice(0, 8)}</span>
+                            )}
                           </TableCell>
-                        )}
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+                          <TableCell>{cliente?.nome_local || 'Cliente não encontrado'}</TableCell>
+                          <TableCell>{tecnico?.nome || 'Não atribuído'}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {ordem.tipo === 'preventiva' ? 'Preventiva' : ordem.tipo === 'corretiva' ? 'Corretiva' : ordem.tipo === 'emergencial' ? 'Emergencial' : ordem.tipo === 'chamado' ? 'Chamado' : ordem.tipo === 'corretiva_programada' ? 'Corretiva Programada' : ordem.tipo}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex align-middle items-center justify-center cursor-help">
+                                    {ordem.prioridade === 'alta' ? (
+                                      <ArrowUp className="h-4 w-4 text-red-500" />
+                                    ) : ordem.prioridade === 'media' ? (
+                                      <ArrowRight className="h-4 w-4 text-yellow-500" />
+                                    ) : (
+                                      <ArrowDown className="h-4 w-4 text-green-500" />
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{ordem.prioridade === 'alta' ? 'Alta' : ordem.prioridade === 'media' ? 'Média' : 'Baixa'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={status.className}>
+                              {status.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(ordem.created_at)}</TableCell>
+                          {canManage && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Abrir menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onSelect={() => setViewOrder(ordem)}>
+                                    Ver Detalhes
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <OrderDialog
+                                    empresaId={empresaId!}
+                                    ordem={ordem}
+                                    clientes={clientes}
+                                    equipamentos={equipamentos}
+                                    colaboradores={colaboradores}
+                                    mode="edit"
+                                    onSuccess={handleRefresh}
+                                    trigger={
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                    }
+                                  />
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel className="text-xs text-muted-foreground">Alterar Status</DropdownMenuLabel>
+                                  {ordem.status !== 'novo' && (
+                                    <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'novo')}>
+                                      Marcar como Aberta
+                                    </DropdownMenuItem>
+                                  )}
+                                  {ordem.status !== 'em_deslocamento' && ordem.tecnico_id && (
+                                    <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'em_deslocamento')}>
+                                      Marcar como Em Deslocamento
+                                    </DropdownMenuItem>
+                                  )}
+                                  {ordem.status !== 'checkin' && ordem.tecnico_id && (
+                                    <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'checkin')}>
+                                      Marcar como Em Atendimento
+                                    </DropdownMenuItem>
+                                  )}
+                                  {ordem.status !== 'concluido' && (
+                                    <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'concluido')}>
+                                      Marcar como Concluída
+                                    </DropdownMenuItem>
+                                  )}
+                                  {ordem.status !== 'cancelado' && (
+                                    <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'cancelado')}>
+                                      Marcar como Cancelada
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onSelect={() => {
+                                      setOrdemToDelete(ordem)
+                                      setDeleteDialogOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </>
           )}
