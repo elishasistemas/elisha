@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import PWAInstall from "@/components/pwa-install";
 import { AuthProvider } from "@/contexts/auth-context";
+import { OfflineDetector } from "@/components/offline-detector";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,8 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  viewportFit: "cover", // Para suportar notch de iPhones
+  interactiveWidget: "resizes-content", // Teclado não sobrepõe conteúdo
 };
 
 export default function RootLayout({
@@ -74,6 +77,8 @@ export default function RootLayout({
           <SpeedInsights />
           {/* PWA: registro do SW e onboarding de instalação */}
           <PWAInstall />
+          {/* Detector de conexão offline */}
+          <OfflineDetector />
         </AuthProvider>
       </body>
     </html>

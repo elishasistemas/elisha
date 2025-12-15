@@ -157,3 +157,116 @@
     resize: none !important;
   }
 }
+
+/* ========================================
+   OTIMIZAÇÕES MOBILE/PWA
+   ======================================== */
+
+/* Garantir que tap highlights sejam consistentes */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Melhorar scrolling em iOS */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+/* Aumentar área de toque para botões em mobile */
+@media (max-width: 768px) {
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px; /* Tamanho recomendado Apple HIG */
+    min-width: 44px;
+  }
+  
+  /* Botões maiores e mais espaçados */
+  .touch-target {
+    padding: 12px 24px !important;
+    margin: 8px 0 !important;
+  }
+  
+  /* Input fields otimizados para touch */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Previne zoom automático no iOS */
+    min-height: 44px;
+  }
+  
+  /* Cards com melhor espaçamento */
+  .mobile-card {
+    padding: 16px !important;
+    margin: 12px 0 !important;
+  }
+}
+
+/* Suporte para notch de iPhones (safe areas) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  /* Header fixo respeitando safe area */
+  header {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+}
+
+/* Otimização para telas pequenas */
+@media (max-width: 640px) {
+  /* Reduzir padding global */
+  .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  /* Texto mais legível em mobile */
+  h1 { font-size: 24px !important; }
+  h2 { font-size: 20px !important; }
+  h3 { font-size: 18px !important; }
+  
+  /* Melhorar modais/dialogs em mobile */
+  [role="dialog"],
+  [role="alertdialog"] {
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+}
+
+/* Prevenir zoom em input focus (iOS Safari) */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select:focus,
+  textarea:focus,
+  input:focus {
+    font-size: 16px;
+  }
+}
+
+/* Melhorar performance de animações em mobile */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Indicador de conexão offline */
+body.offline::before {
+  content: "📡 Você está offline";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f59e0b;
+  color: white;
+  text-align: center;
+  padding: 8px;
+  font-weight: 600;
+  z-index: 9999;
+  font-size: 14px;
+}
