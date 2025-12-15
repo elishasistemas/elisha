@@ -491,6 +491,62 @@ export class OrdensServicoService {
 
       console.log('[finalize] OS finalizada com sucesso');
 
+      // Se o equipamento está "parado", criar OS Corretiva URGENTE automaticamente
+      if (data.estado_equipamento === 'parado') {
+        console.log('[finalize] Equipamento PARADO - criando OS Corretiva URGENTE');
+
+        try {
+          // Gerar número automático da OS no formato OS-0001-2025
+          const ano = new Date().getFullYear();
+          const { data: ultimaOS } = await this.supabaseService.client
+            .from('ordens_servico')
+            .select('numero_os')
+            .eq('empresa_id', os.empresa_id)
+            .like('numero_os', `OS-%-${ano}`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          let proximoNumero = 1;
+          if (ultimaOS?.numero_os) {
+            const match = ultimaOS.numero_os.match(/OS-(\d{4})-\d{4}/);
+            if (match) {
+              proximoNumero = parseInt(match[1], 10) + 1;
+            }
+          }
+          const numeroFormatado = `OS-${proximoNumero.toString().padStart(4, '0')}-${ano}`;
+
+          // Criar nova OS do tipo corretiva com prioridade URGENTE
+          const { data: novaOS, error: novaOSError } = await this.supabaseService.client
+            .from('ordens_servico')
+            .insert({
+              numero_os: numeroFormatado,
+              empresa_id: os.empresa_id,
+              cliente_id: os.cliente_id,
+              equipamento_id: os.equipamento_id,
+              tipo: 'corretiva',
+              status: 'novo',
+              prioridade: 'urgente',
+              solicitante: 'Elisha',
+              telefone_solicitante: '(11) 0000-0000',
+              observacoes: `🚨 OS URGENTE gerada automaticamente a partir da OS ${os.numero_os || os.id.slice(0, 8)}. Equipamento PARADO - necessita intervenção imediata.`,
+              data_abertura: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (novaOSError) {
+            console.error('[finalize] Erro ao criar OS Corretiva Urgente:', novaOSError);
+            // Não falhar a finalização original, apenas logar o erro
+          } else {
+            console.log('[finalize] 🚨 OS Corretiva URGENTE criada:', novaOS.id, novaOS.numero_os);
+          }
+        } catch (cpError) {
+          console.error('[finalize] Erro ao criar OS Corretiva Urgente:', cpError);
+          // Não falhar a finalização original
+        }
+      }
+
       // Se o equipamento está "dependendo de corretiva", criar OS Corretiva Programada automaticamente
       if (data.estado_equipamento === 'dependendo_de_corretiva') {
         console.log('[finalize] Equipamento dependendo de corretiva - criando OS Corretiva Programada');
@@ -527,6 +583,8 @@ export class OrdensServicoService {
               tipo: 'corretiva_programada',
               status: 'novo',
               prioridade: 'media',
+              solicitante: 'Elisha',
+              telefone_solicitante: '(11) 0000-0000',
               observacoes: `Corretiva programada gerada automaticamente a partir da OS ${os.numero_os || os.id.slice(0, 8)}. Equipamento estava funcionando mas com pendência de manutenção corretiva.`,
               data_abertura: new Date().toISOString(),
             })
@@ -794,6 +852,32 @@ export class OrdensServicoService {
       }
 
       return updatedItem;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar evidências da ordem de serviço
+   */
+  async getEvidencias(osId: string, accessToken: string) {
+    try {
+      const { profile } = await this.getUserProfile(accessToken);
+      const empresaId = this.getActiveEmpresaId(profile);
+
+      const { data, error } = await this.supabaseService.client
+        .from('os_evidencias')
+        .select('*')
+        .eq('os_id', osId)
+        .eq('empresa_id', empresaId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[getEvidencias] Erro:', error);
+        throw error;
+      }
+
+      return data || [];
     } catch (error) {
       throw error;
     }

@@ -126,15 +126,23 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           console.error('[chamado-corretiva] Erro ao buscar laudo:', err)
         }
 
-        // Buscar evidências
-        const { data: evidenciasData } = await supabase
-          .from('os_evidencias')
-          .select('*')
-          .eq('os_id', osId)
-          .order('created_at', { ascending: false })
-
-        if (evidenciasData) {
-          setEvidencias(evidenciasData)
+        // Buscar evidências via API
+        try {
+          const session = await supabase.auth.getSession()
+          const token = session.data.session?.access_token
+          if (token) {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/evidencias`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (response.ok) {
+              const evidenciasData = await response.json()
+              setEvidencias(evidenciasData || [])
+            } else if (response.status !== 404) {
+              console.error('[chamado-corretiva] Erro ao buscar evidências:', response.status)
+            }
+          }
+        } catch (err) {
+          console.error('[chamado-corretiva] Erro ao buscar evidências:', err)
         }
       } catch (error) {
         console.error('[chamado-corretiva] Erro ao carregar dados:', error)

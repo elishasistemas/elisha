@@ -24,6 +24,7 @@ import type { OrdemServico } from '@/lib/supabase'
 import { OSChamadoCorretiva } from '@/components/os-chamado-corretiva'
 import { OSPreventiva } from '@/components/os-preventiva'
 import { OSHistoricoEquipamento } from '@/components/os-historico-equipamento'
+import { OSHistoricoEquipamento } from '@/components/os-historico-equipamento'
 
 interface StatusHistory {
   id: string
@@ -43,18 +44,47 @@ interface OSEnriched extends OrdemServico {
   tecnico_nome?: string
 }
 
+// Função para traduzir status para português
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    'novo': 'Aberta',
+    'em_deslocamento': 'Em Deslocamento',
+    'checkin': 'No Local',
+    'em_andamento': 'Em Andamento',
+    'checkout': 'Finalizado',
+    'aguardando_assinatura': 'Aguardando Assinatura',
+    'concluido': 'Concluída',
+    'cancelado': 'Cancelada',
+    'parado': 'Parado',
+    'reaberta': 'Reaberta'
+  }
+  return labels[status] || status
+}
+
+// Função para traduzir tipo de OS para português
+const getTipoLabel = (tipo: string): string => {
+  const labels: Record<string, string> = {
+    'preventiva': 'Preventiva',
+    'corretiva': 'Corretiva',
+    'chamado': 'Chamado',
+    'emergencial': 'Emergencial',
+    'corretiva_programada': 'Corretiva Programada'
+  }
+  return labels[tipo] || tipo
+}
+
 export default function OSFullScreenPage() {
   const router = useRouter()
   const params = useParams()
-  const osId = params.id as string
+  const osId = (params?.id as string) || ''
 
   const [os, setOs] = useState<OSEnriched | null>(null)
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([])
   const [loading, setLoading] = useState(true)
   const [isMinimized, setIsMinimized] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [historyExpanded, setHistoryExpanded] = useState(true)
-  const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false)
+  const [historyExpanded, setHistoryExpanded] = useState(true) // Histórico de alterações expandido por padrão
+  const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false) // Histórico de equipamento retraído por padrão
 
   const supabase = createSupabaseBrowser()
 
@@ -263,6 +293,21 @@ export default function OSFullScreenPage() {
     }
   }, [isMinimized, os, emDeslocamentoTimestamp, router])
 
+  // Helper para formatar labels de status
+  const getStatusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+      'checkin': 'Em Atendimento',
+      'em_deslocamento': 'Em Deslocamento',
+      'em_andamento': 'Em Andamento',
+      'concluida': 'Concluída',
+      'cancelada': 'Cancelada',
+      'pendente': 'Pendente',
+      'agendada': 'Agendada',
+      'corretiva_prograama': 'Corretiva Programada'
+    }
+    return labels[status] || status
+  }
+
   // Handler para Check-in
   const handleCheckin = async () => {
     if (!os) return
@@ -395,13 +440,11 @@ export default function OSFullScreenPage() {
                   os.tipo === 'corretiva' ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' :
                     os.tipo === 'preventiva' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' :
                       os.tipo === 'chamado' ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' :
-                        'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200'
+                        os.tipo === 'corretiva_programada' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200' :
+                          'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200'
                 }
               >
-                {os.tipo === 'preventiva' ? 'Preventiva' :
-                  os.tipo === 'corretiva' ? 'Corretiva' :
-                    os.tipo === 'chamado' ? 'Chamado' :
-                      os.tipo}
+                {getTipoLabel(os.tipo || '')}
               </Badge>
               <Badge
                 variant="secondary"
@@ -518,11 +561,10 @@ export default function OSFullScreenPage() {
                 <div className="space-y-3">
                   {statusHistory
                     .filter((history, index, self) =>
-                      // Remover duplicados
+                      // Remover duplicados baseado em status e timestamp (ignorar action_type)
                       index === self.findIndex(h =>
                         h.status_novo === history.status_novo &&
-                        h.action_type === history.action_type &&
-                        Math.abs(new Date(h.changed_at).getTime() - new Date(history.changed_at).getTime()) < 1000
+                        h.changed_at === history.changed_at
                       )
                     )
                     .map((history) => (
@@ -533,12 +575,7 @@ export default function OSFullScreenPage() {
                         <div className="w-2 h-2 rounded-full bg-primary mt-2" />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline">{history.status_novo}</Badge>
-                            {history.action_type && (
-                              <span className="text-xs text-muted-foreground">
-                                ({history.action_type})
-                              </span>
-                            )}
+                            <Badge variant="outline">{getStatusLabel(history.status_novo)}</Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
                             {new Date(history.changed_at).toLocaleString('pt-BR')}
@@ -558,19 +595,13 @@ export default function OSFullScreenPage() {
         {/* Histórico do Equipamento */}
         {os.equipamento_id && (
           <Card>
-            <CardHeader>
+            <CardHeader className="cursor-pointer" onClick={() => setEquipmentHistoryExpanded(!equipmentHistoryExpanded)}>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Histórico do Equipamento</CardTitle>
-                  <CardDescription>Consultar manutenções anteriores</CardDescription>
+                  <CardDescription>Manutenções anteriores deste equipamento</CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEquipmentHistoryExpanded(!equipmentHistoryExpanded)}
-                >
-                  {equipmentHistoryExpanded ? 'Ocultar' : 'Consultar'}
-                </Button>
+                {equipmentHistoryExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </div>
             </CardHeader>
             {equipmentHistoryExpanded && (

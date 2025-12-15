@@ -57,7 +57,7 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
           }) : '',
           tecnico: os.tecnico_nome || 'N/A',
           titulo: getTipoLabel(os.tipo),
-          descricao: os.o_que_foi_feito || os.observacao || 'Sem descrição'
+          descricao: os.o_que_foi_feito || os.observacao || os.observacoes_os || 'Sem descrição'
         }))
 
         setHistorico(historicoFormatado)
@@ -76,7 +76,8 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
       preventiva: 'Manutenção preventiva realizada',
       corretiva: 'Correção realizada',
       chamado: 'Atendimento de chamado',
-      emergencial: 'Atendimento emergencial'
+      emergencial: 'Atendimento emergencial',
+      corretiva_programada: 'Corretiva Programada'
     }
     return labels[tipo] || tipo
   }

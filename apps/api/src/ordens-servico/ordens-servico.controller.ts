@@ -240,4 +240,17 @@ export class OrdensServicoController {
     const token = request.user?.access_token
     return this.ordensServicoService.createChecklistItem(osId, data, token);
   }
+
+  // =====================================================
+  // Endpoints para Evidências
+  // =====================================================
+
+  @Get(':id/evidencias')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar evidências da ordem de serviço' })
+  async getEvidencias(@Param('id') id: string, @Req() request: any) {
+    const token = request.user?.access_token
+    return this.ordensServicoService.getEvidencias(id, token);
+  }
 }

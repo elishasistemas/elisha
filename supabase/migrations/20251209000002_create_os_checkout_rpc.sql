@@ -179,7 +179,7 @@ BEGIN
   -- 14. Retornar sucesso
   RETURN jsonb_build_object(
     'success', true,
-    'message', 'Checkout realizado com sucesso! OS concluída.',
+    'message', 'OS finalizada com sucesso!',
     'data', jsonb_build_object(
       'os_id', p_os_id,
       'status', 'concluido',

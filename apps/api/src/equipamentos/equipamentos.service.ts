@@ -140,6 +140,7 @@ export class EquipamentosService {
           numero_os,
           tipo,
           data_fim,
+          observacoes,
           tecnico_id,
           colaboradores!tecnico_id (
             nome
@@ -164,7 +165,8 @@ export class EquipamentosService {
         data_fim: os.data_fim,
         tecnico_nome: os.colaboradores?.nome || null,
         o_que_foi_feito: os.os_laudos?.[0]?.o_que_foi_feito || null,
-        observacao: os.os_laudos?.[0]?.observacao || null
+        observacao: os.os_laudos?.[0]?.observacao || null,
+        observacoes_os: os.observacoes || null
       }));
 
       return historico;

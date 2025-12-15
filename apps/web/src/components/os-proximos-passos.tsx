@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 import { toast } from 'sonner'
 import { AlertCircle } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
@@ -30,6 +40,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
   const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(null)
   const [showSignatureDialog, setShowSignatureDialog] = useState(false)
   const [realizandoCheckout, setRealizandoCheckout] = useState(false)
+  const [showPdfDialog, setShowPdfDialog] = useState(false)
 
   const supabase = createSupabaseBrowser()
 
@@ -93,12 +104,10 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         }, token)
       )
 
-      toast.success('Checkout realizado com sucesso!')
+      toast.success('OS finalizada com sucesso!')
 
-      // Redirecionar após sucesso
-      setTimeout(() => {
-        window.location.href = '/dashboard'
-      }, 1500)
+      // Mostrar diálogo customizado para pergunta do PDF
+      setShowPdfDialog(true)
 
     } catch (error) {
       console.error('[proximos-passos] Erro ao realizar checkout:', error)
@@ -108,16 +117,81 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
     }
   }
 
+  const handleGerarPdf = async () => {
+    setShowPdfDialog(false)
+
+    try {
+      toast.info('Gerando PDF...')
+
+      // Obter token de autenticação
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      if (!token) {
+        throw new Error('Usuário não autenticado')
+      }
+
+      // Gerar PDF
+      const pdfResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!pdfResponse.ok) {
+        throw new Error('Erro ao gerar PDF')
+      }
+
+      // Baixar PDF
+      const blob = await pdfResponse.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `OS-${osData?.numero_os || osId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('PDF gerado com sucesso!')
+
+      // Redirecionar após sucesso
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 1500)
+
+    } catch (pdfError) {
+      console.error('[proximos-passos] Erro ao gerar PDF:', pdfError)
+      toast.error('Erro ao gerar PDF. Você pode gerar depois visualizando a OS.')
+
+      // Redirecionar mesmo com erro
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 1500)
+    }
+  }
+
+  const handlePularPdf = () => {
+    setShowPdfDialog(false)
+
+    // Redirecionar
+    setTimeout(() => {
+      window.location.href = '/dashboard'
+    }, 500)
+  }
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-            3
-          </div>
+          {!readOnly && (
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+              3
+            </div>
+          )}
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
-            Próximos Passos
+            {readOnly ? 'Informações de Encerramento' : 'Próximos Passos'}
           </CardTitle>
         </div>
       </CardHeader>
@@ -217,6 +291,25 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         showNameField={false}
         initialName={nomeResponsavel}
       />
+
+      <AlertDialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gerar PDF da OS?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja gerar o PDF da Ordem de Serviço agora? Você também pode gerar depois visualizando a OS.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handlePularPdf}>
+              Não, gerar depois
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleGerarPdf}>
+              Sim, gerar agora
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
