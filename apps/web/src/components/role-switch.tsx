@@ -92,34 +92,18 @@ export function RoleSwitch() {
   const tecnicoEnabled = roles.includes('tecnico')
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 pr-1">
       <Button
-        variant={active === 'admin' ? 'default' : 'outline'}
-        size="sm"
-        onClick={() => toggle('admin')}
-        disabled={!adminEnabled || pending}
-        title="Ctrl+A"
-      >
-        <LayoutDashboard className="h-4 w-4 mr-1" /> Admin
-      </Button>
-      <Button
-        variant={active === 'supervisor' ? 'default' : 'outline'}
-        size="sm"
-        onClick={() => toggle('supervisor')}
-        disabled={!supervisorEnabled || pending}
-        title="Ctrl+S"
-      >
-        <UserCog className="h-4 w-4 mr-1" /> Supervisor
-      </Button>
-      <Button
-        variant={active === 'tecnico' ? 'default' : 'outline'}
+        variant="outline"
         size="sm"
         onClick={() => toggle('tecnico')}
         disabled={!tecnicoEnabled || pending}
         title="Ctrl+T"
+        className="flex-shrink-0"
       >
         <Wrench className="h-4 w-4 mr-1" /> Técnico
       </Button>
     </div>
   )
 }
+

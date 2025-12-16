@@ -18,8 +18,9 @@ import type { OrdemServico } from '@/lib/supabase'
 
 interface OSListMobileProps {
   ordens: OrdemServico[]
-  clientes: Array<{ id: string; nome_local: string }>
+  clientes: Array<{ id: string; nome_local: string; zona_id?: string | null }>
   colaboradores: Array<{ id: string; nome: string }>
+  zonas?: Array<{ id: string; nome: string }>
   onViewOrder: (ordem: OrdemServico) => void
   onAcceptOrder?: (ordem: OrdemServico) => void
   onStartOrder?: (ordem: OrdemServico) => void
@@ -98,6 +99,7 @@ export function OSListMobile({
   ordens,
   clientes,
   colaboradores,
+  zonas = [],
   onViewOrder,
   onAcceptOrder,
   onStartOrder,
@@ -136,6 +138,7 @@ export function OSListMobile({
     <div className="space-y-3 p-4">
       {ordens.map((ordem) => {
         const cliente = clientes.find(c => c.id === ordem.cliente_id)
+        const zona = zonas.find(z => z.id === cliente?.zona_id)
         const tecnico = colaboradores.find(t => t.id === ordem.tecnico_id)
         const status = statusConfig[ordem.status] || statusConfig.novo
         const prioridade = prioridadeConfig[ordem.prioridade || 'media']
@@ -172,9 +175,17 @@ export function OSListMobile({
                 {/* Cliente */}
                 <div className="flex items-start gap-2">
                   <Building2 className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm font-medium line-clamp-1">
-                    {cliente?.nome_local || 'Cliente não encontrado'}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium line-clamp-1 block">
+                      {cliente?.nome_local || 'Cliente não encontrado'}
+                    </span>
+                    {zona && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {zona.nome}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Técnico */}

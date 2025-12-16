@@ -22,6 +22,7 @@ interface OSPDFData {
     nome_cliente_assinatura?: string
     assinatura_cliente?: string
     checklist?: Array<{ descricao: string; status: string | null }>
+    evidencias?: Array<{ tipo: string; url: string; created_at: string }>
     empresa_nome?: string
     empresa_logo_url?: string
 }
@@ -165,7 +166,7 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...primaryColor)
-    doc.text(data.data_fim ? formatDate(data.data_fim) : '-', margin + halfWidth + 10, y + 10)
+    doc.text(data.data_fim ? formatDate(data.data_fim) : 'Em andamento', margin + halfWidth + 10, y + 10)
 
     y += 22
 
@@ -274,6 +275,46 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
       : data.nome_cliente_assinatura || '-'
     addFieldInline('Responsável no Local: ', nomeResponsavel, margin)
     y += 10
+
+    // === EVIDÊNCIAS (FOTOS) ===
+    if (data.evidencias && data.evidencias.length > 0) {
+        checkPageBreak(40)
+        addSectionTitle('Evidências Fotográficas')
+
+        const fotos = data.evidencias.filter(e => e.tipo === 'foto')
+        
+        if (fotos.length > 0) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(...grayColor)
+            doc.text(`${fotos.length} foto(s) anexada(s)`, margin, y)
+            y += 6
+
+            for (const foto of fotos) {
+                checkPageBreak(60)
+                
+                try {
+                    // Adicionar imagem
+                    const imgWidth = 80
+                    const imgHeight = 60
+                    doc.addImage(foto.url, 'JPEG', margin, y, imgWidth, imgHeight)
+                    y += imgHeight + 3
+                    
+                    // Adicionar data da foto
+                    doc.setFontSize(8)
+                    doc.setTextColor(...grayColor)
+                    doc.text(`Anexado em: ${formatDate(foto.created_at)}`, margin, y)
+                    y += 8
+                } catch (e) {
+                    console.error('Erro ao adicionar foto ao PDF:', e)
+                    doc.setFontSize(9)
+                    doc.setTextColor(...grayColor)
+                    doc.text('[Foto não pôde ser carregada]', margin, y)
+                    y += 6
+                }
+            }
+        }
+    }
 
     // === ASSINATURA ===
     if (data.assinatura_cliente && data.nome_cliente_assinatura !== 'Responsável não encontrado') {

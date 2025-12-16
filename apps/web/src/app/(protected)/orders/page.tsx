@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature, Check } from 'lucide-react'
-import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile } from '@/hooks/use-supabase'
+import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile, useZonas } from '@/hooks/use-supabase'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { getActiveRole, isAdmin, isTecnico } from '@/utils/auth'
@@ -139,6 +139,7 @@ export default function OrdersPage() {
   const canGestor = active === 'supervisor'
   const canManage = canAdmin || canGestor // Admin ou Gestor podem gerenciar OS
   const { clientes, loading: clientesLoading, error: clientesError } = useClientes(empresaId)
+  const { zonas, loading: zonasLoading } = useZonas(empresaId, { refreshKey })
   const { colaboradores, loading: colLoading, error: colError } = useColaboradores(empresaId)
   const clienteId = clientes[0]?.id
   const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
@@ -478,18 +479,27 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Seção de Chamados (OS Abertas para aceitar/recusar) */}
-      {ordensAbertas.length > 0 && (
+      {/* Seção de Chamados (OS Abertas para aceitar/recusar) - Sempre visível para técnicos */}
+      {canTecnico && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>OS para Aceitar</CardTitle>
-                <CardDescription>Ordens de serviço disponíveis para você aceitar</CardDescription>
+                <CardDescription>
+                  {ordensAbertas.length > 0 
+                    ? 'Ordens de serviço disponíveis para você aceitar' 
+                    : 'Nenhuma OS disponível para aceitar no momento'}
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            {ordensAbertas.length === 0 ? (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                <p>Não existem ordens de serviço disponíveis para aceitar no momento.</p>
+              </div>
+            ) : (
             <div className="overflow-x-auto max-w-full">
               <Table>
                 <TableHeader>
@@ -552,6 +562,7 @@ export default function OrdersPage() {
                 </TableBody>
               </Table>
             </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -714,6 +725,7 @@ export default function OrdersPage() {
                   ordens={ordensFiltradas}
                   clientes={clientes}
                   colaboradores={colaboradores}
+                  zonas={zonas}
                   onViewOrder={setViewOrder}
                   onAcceptOrder={canTecnico ? handleAccept : undefined}
                   onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}

@@ -794,6 +794,27 @@ export function OrderDialog({
 
                       const checklist = checklistRes?.ok ? await checklistRes.json() : []
 
+                      // Buscar evidências (fotos)
+                      const { data: evidencias } = await supabase
+                        .from('os_evidencias')
+                        .select('*')
+                        .eq('os_id', osData.id)
+                        .eq('tipo', 'foto')
+                        .order('created_at', { ascending: true })
+
+                      // Converter storage_path para URL pública
+                      const evidenciasComUrl = evidencias?.map(ev => {
+                        if (!ev.storage_path) return null
+                        const { data } = supabase.storage
+                          .from('evidencias')
+                          .getPublicUrl(ev.storage_path)
+                        return {
+                          tipo: ev.tipo,
+                          url: data.publicUrl,
+                          created_at: ev.created_at
+                        }
+                      }).filter(Boolean) || []
+
                       await generateOSPDF({
                         numero_os: osData.numero_os || '',
                         tipo: osData.tipo,
@@ -816,6 +837,7 @@ export function OrderDialog({
                         nome_cliente_assinatura: osData.nome_cliente_assinatura,
                         assinatura_cliente: osData.assinatura_cliente,
                         checklist: checklist || [],
+                        evidencias: evidenciasComUrl as any,
                         empresa_nome: empresaRes.data?.nome,
                         empresa_logo_url: empresaRes.data?.logo_url,
                       })

@@ -160,6 +160,27 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         .eq('os_id', osId)
         .order('ordem', { ascending: true })
 
+      // Buscar evidências (fotos)
+      const { data: evidencias } = await supabase
+        .from('os_evidencias')
+        .select('*')
+        .eq('os_id', osId)
+        .eq('tipo', 'foto')
+        .order('created_at', { ascending: true })
+
+      // Converter storage_path para URL pública
+      const evidenciasComUrl = evidencias?.map(ev => {
+        if (!ev.storage_path) return null
+        const { data } = supabase.storage
+          .from('evidencias')
+          .getPublicUrl(ev.storage_path)
+        return {
+          tipo: ev.tipo,
+          url: data.publicUrl,
+          created_at: ev.created_at
+        }
+      }).filter(Boolean) || []
+
       // Gerar PDF usando a função do frontend
       await generateOSPDF({
         numero_os: osCompleta.numero_os || '',
@@ -183,6 +204,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         nome_cliente_assinatura: osCompleta.nome_cliente_assinatura,
         assinatura_cliente: osCompleta.assinatura_cliente,
         checklist: checklist || [],
+        evidencias: evidenciasComUrl as any,
         empresa_nome: osCompleta.empresas?.nome,
         empresa_logo_url: osCompleta.empresas?.logo_url,
       })
