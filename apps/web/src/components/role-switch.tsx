@@ -90,18 +90,33 @@ export function RoleSwitch() {
   const adminEnabled = roles.includes('admin')
   const supervisorEnabled = roles.includes('supervisor')
   const tecnicoEnabled = roles.includes('tecnico')
+  
+  // Determinar label e ícone baseado no papel ativo
+  const getActiveRoleDisplay = () => {
+    switch (active) {
+      case 'admin':
+        return { icon: LayoutDashboard, label: 'Administrador' }
+      case 'supervisor':
+        return { icon: UserCog, label: 'Supervisor' }
+      case 'tecnico':
+        return { icon: Wrench, label: 'Técnico' }
+      default:
+        return { icon: Wrench, label: 'Técnico' }
+    }
+  }
+  
+  const { icon: ActiveIcon, label: activeLabel } = getActiveRoleDisplay()
 
   return (
     <div className="flex items-center gap-1.5 pr-1">
       <Button
         variant="outline"
         size="sm"
-        onClick={() => toggle('tecnico')}
-        disabled={!tecnicoEnabled || pending}
-        title="Ctrl+T"
-        className="flex-shrink-0"
+        disabled={pending}
+        title={`Modo atual: ${activeLabel}`}
+        className="flex-shrink-0 cursor-default"
       >
-        <Wrench className="h-4 w-4 mr-1" /> Técnico
+        <ActiveIcon className="h-4 w-4 mr-1" /> {activeLabel}
       </Button>
     </div>
   )
