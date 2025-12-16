@@ -37,7 +37,11 @@ export function useAuth() {
     user,
     session,
     loading,
-    signOut: () => supabase.auth.signOut(),
+    signOut: async () => {
+      await supabase.auth.signOut()
+      // Hard reload para evitar problemas de chunks após logout
+      window.location.href = '/login'
+    },
   }
 }
 

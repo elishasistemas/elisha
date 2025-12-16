@@ -22,12 +22,14 @@ interface AuthContextData {
   user: User | null
   profile: Profile | null
   loading: boolean
+  signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextData>({
   user: null,
   profile: null,
-  loading: true
+  loading: true,
+  signOut: async () => {}
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -92,8 +94,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase])
 
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    dataCache.invalidateAll()
+    // Hard reload para evitar problemas de chunks após logout
+    window.location.href = '/login'
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )

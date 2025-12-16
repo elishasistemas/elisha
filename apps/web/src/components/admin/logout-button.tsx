@@ -21,12 +21,11 @@ export function LogoutButton() {
       if (error) throw error
       
       toast.success('Logout realizado com sucesso')
-      router.push('/login')
-      router.refresh()
+      // Hard reload para evitar problemas de chunks
+      window.location.href = '/login'
     } catch (error: any) {
       console.error('[logout] Erro:', error)
       toast.error(`Erro ao fazer logout: ${error.message}`)
-    } finally {
       setLoading(false)
     }
   }
