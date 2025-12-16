@@ -238,7 +238,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
 
   return (
     <div className="flex gap-4">
-      <div className="flex flex-col items-center">
+      <div className="hidden md:flex flex-col items-center">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
           3
         </div>

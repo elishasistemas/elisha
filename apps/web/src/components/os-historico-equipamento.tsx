@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createSupabaseBrowser } from '@/lib/supabase'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { History } from 'lucide-react'
 
 interface OSHistoricoEquipamentoProps {
   equipamentoId?: string
@@ -84,22 +86,33 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
 
   if (loading) {
     return (
-      <div className="py-8 text-center text-muted-foreground">
-        Carregando histórico...
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          Carregando histórico...
+        </CardContent>
+      </Card>
     )
   }
 
   if (historico.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-4">
-        Nenhum histórico disponível para este equipamento
-      </p>
+      <Card>
+        <CardContent className="text-sm text-muted-foreground text-center py-4">
+          Nenhum histórico disponível para este equipamento
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <History className="w-5 h-5" />
+          Histórico do Equipamento
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
       {historico.map((item) => (
         <div key={item.id} className="space-y-1">
           <p className="text-sm font-medium">{item.data}</p>
@@ -108,6 +121,7 @@ export function OSHistoricoEquipamento({ equipamentoId }: OSHistoricoEquipamento
           <p className="text-sm text-muted-foreground">{item.descricao}</p>
         </div>
       ))}
-    </div>
+      </CardContent>
+    </Card>
   )
 }

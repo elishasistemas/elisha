@@ -392,15 +392,16 @@ export default function OSFullScreenPage() {
     <div className="fixed inset-0 z-[9999] bg-background overflow-auto">
       {/* Header fixo no topo com fundo branco */}
       <div className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
+          <div className="flex items-center justify-between mb-3">
             <Button
               onClick={() => router.back()}
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="h-8 px-2 md:px-3"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
             </Button>
           </div>
 
@@ -517,29 +518,6 @@ export default function OSFullScreenPage() {
               />
             )}
           </>
-        )}
-
-        {/* Histórico do Equipamento - Disponível para todos, retraído por padrão */}
-        {os.equipamento_id && (
-          <Card>
-            <CardHeader className="cursor-pointer" onClick={() => setEquipmentHistoryExpanded(!equipmentHistoryExpanded)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wrench className="h-5 w-5" />
-                    Histórico do Equipamento
-                  </CardTitle>
-                  <CardDescription>Clique para consultar manutenções anteriores</CardDescription>
-                </div>
-                {equipmentHistoryExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </div>
-            </CardHeader>
-            {equipmentHistoryExpanded && (
-              <CardContent>
-                <OSHistoricoEquipamento equipamentoId={os.equipamento_id} />
-              </CardContent>
-            )}
-          </Card>
         )}
       </div>
     </div>

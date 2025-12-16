@@ -383,7 +383,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
   // Step 1: Descrição do Cliente
   const step1 = (
     <div className="flex gap-4">
-      <div className="flex flex-col items-center hidden md:flex">
+      <div className="hidden md:flex flex-col items-center">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
           1
         </div>
@@ -436,7 +436,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
   // Step 2: Laudo Técnico
   const step2 = (
     <div className="flex gap-4">
-      <div className="flex flex-col items-center hidden md:flex">
+      <div className="hidden md:flex flex-col items-center">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
           2
         </div>

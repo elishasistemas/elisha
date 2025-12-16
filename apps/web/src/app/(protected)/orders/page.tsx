@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature, Check } from 'lucide-react'
+import { Clock, CheckCircle, AlertCircle, ArrowUp, ArrowRight, ArrowDown, PauseCircle, MoreHorizontal, Pencil, Trash2, RefreshCw, FileSignature, Check, ChevronDown } from 'lucide-react'
 import { useEmpresas, useClientes, useOrdensServico, useColaboradores, useEquipamentos, useAuth, useProfile, useZonas } from '@/hooks/use-supabase'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -479,28 +480,33 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Seção de Chamados (OS Abertas para aceitar/recusar) - Sempre visível para técnicos */}
+      {/* Seção de Chamados (OS Abertas para aceitar/recusar) - Colapsável */}
       {canTecnico && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>OS para Aceitar</CardTitle>
-                <CardDescription>
-                  {ordensAbertas.length > 0 
-                    ? 'Ordens de serviço disponíveis para você aceitar' 
-                    : 'Nenhuma OS disponível para aceitar no momento'}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {ordensAbertas.length === 0 ? (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                <p>Não existem ordens de serviço disponíveis para aceitar no momento.</p>
-              </div>
-            ) : (
-            <div className="overflow-x-auto max-w-full">
+        <Collapsible defaultOpen={ordensAbertas.length > 0}>
+          <Card>
+            <CollapsibleTrigger className="w-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <CardTitle>OS para Aceitar</CardTitle>
+                    <CardDescription>
+                      {ordensAbertas.length > 0 
+                        ? `${ordensAbertas.length} ${ordensAbertas.length === 1 ? 'ordem disponível' : 'ordens disponíveis'} para aceitar` 
+                        : 'Nenhuma OS disponível para aceitar no momento'}
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className="h-5 w-5 transition-transform duration-200 data-[state=open]:rotate-180 shrink-0" />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                {ordensAbertas.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    <p>Não existem ordens de serviço disponíveis para aceitar no momento.</p>
+                  </div>
+                ) : (
+                <div className="overflow-x-auto max-w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -562,9 +568,11 @@ export default function OrdersPage() {
                 </TableBody>
               </Table>
             </div>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
 
       {/* Seção Minhas OS (atribuídas ao técnico) */}
@@ -693,14 +701,6 @@ export default function OrdersPage() {
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                 className="flex-1 sm:w-[200px] md:w-[280px]"
               />
-              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="w-full sm:w-[100px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10/pág</SelectItem>
-                  <SelectItem value="20">20/pág</SelectItem>
-                  <SelectItem value="50">50/pág</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardHeader>

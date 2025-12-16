@@ -28,22 +28,22 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
     return (
       <Tabs defaultValue="descricao" className="w-full">
         <TabsList className={`grid w-full ${step4 ? 'grid-cols-4' : 'grid-cols-3'} sticky top-0 z-10 bg-background`}>
-          <TabsTrigger value="descricao" className="flex flex-col items-center gap-1 text-xs">
+          <TabsTrigger value="descricao">
             <FileText className="w-4 h-4" />
-            <span>Descrição</span>
+            Descrição
           </TabsTrigger>
-          <TabsTrigger value="laudo" className="flex flex-col items-center gap-1 text-xs">
+          <TabsTrigger value="laudo">
             <Wrench className="w-4 h-4" />
-            <span>Laudo</span>
+            Laudo
           </TabsTrigger>
-          <TabsTrigger value="concluir" className="flex flex-col items-center gap-1 text-xs">
+          <TabsTrigger value="concluir">
             <CheckCircle className="w-4 h-4" />
-            <span>Concluir</span>
+            Concluir
           </TabsTrigger>
           {step4 && (
-            <TabsTrigger value="historico" className="flex flex-col items-center gap-1 text-xs">
+            <TabsTrigger value="historico">
               <History className="w-4 h-4" />
-              <span>Histórico</span>
+              Histórico
             </TabsTrigger>
           )}
         </TabsList>
