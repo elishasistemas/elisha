@@ -34,7 +34,7 @@ export default function ProtectedLayout({
           try {
             // Verificar se é super admin SEM estar impersonando via backend
             const profile = await apiClient.profiles.getByUserId(session.user.id, session.access_token)
-            
+
             // Se é super admin MAS NÃO está impersonando, redireciona para /admin/companies
             if (profile?.is_elisha_admin && !profile.impersonating_empresa_id) {
               router.replace('/admin/companies')
@@ -43,7 +43,7 @@ export default function ProtectedLayout({
           } catch (error) {
             console.error('Erro ao buscar profile:', error)
           }
-          
+
           setHasSession(true)
         }
       } finally {
@@ -102,12 +102,12 @@ export default function ProtectedLayout({
               </div>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-3 md:gap-4 p-2 md:p-4 pt-0">
+          <div className="flex flex-1 flex-col gap-3 md:gap-4 p-2 md:p-4 pt-0 overflow-x-hidden">
             {children}
           </div>
         </SidebarInset>
       </SidebarProvider>
-      
+
       {/* Dock global que aparece em todas as páginas */}
       <OSDock />
     </>

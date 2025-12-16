@@ -460,7 +460,7 @@ export default function OrdersPage() {
   const endIdx = Math.min(page * pageSize, total)
 
   return (
-    <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto w-full py-2 md:py-4 px-2 md:px-4">
+    <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto w-full py-2 md:py-4 px-2 md:px-4 min-w-0">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
@@ -490,7 +490,7 @@ export default function OrdersPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto -mx-2 md:mx-0">
+            <div className="overflow-x-auto max-w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -568,7 +568,7 @@ export default function OrdersPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto -mx-2 md:mx-0">
+            <div className="overflow-x-auto max-w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -728,7 +728,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Versão Desktop - Tabela */}
-              <div className="hidden sm:block overflow-x-auto -mx-2 md:mx-0">
+              <div className="hidden sm:block overflow-x-auto max-w-full">
                 <Table>
                   <TableHeader>
                     <TableRow>
