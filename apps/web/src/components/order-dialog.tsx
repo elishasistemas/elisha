@@ -539,26 +539,24 @@ export function OrderDialog({
                     </Select>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tecnico_id">Técnico Responsável</Label>
-                    <Select
-                      value={formData.tecnico_id || '__none__'}
-                      onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
-                    >
-                      <SelectTrigger disabled={isView}>
-                        <SelectValue placeholder="Nenhum técnico atribuído" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nenhum</SelectItem>
-                        {colaboradores.filter(c => c.ativo).map((tecnico) => (
-                          <SelectItem key={tecnico.id} value={tecnico.id}>
-                            {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2 mt-4">
+                  <Label htmlFor="tecnico_id">Técnico Responsável</Label>
+                  <Select
+                    value={formData.tecnico_id || '__none__'}
+                    onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
+                  >
+                    <SelectTrigger disabled={isView}>
+                      <SelectValue placeholder="Nenhum técnico atribuído" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      {colaboradores.filter(c => c.ativo).map((tecnico) => (
+                        <SelectItem key={tecnico.id} value={tecnico.id}>
+                          {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2 mt-4">
                   <div className="space-y-2">

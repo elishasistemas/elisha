@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { generateOSPDF } from '@/lib/generate-os-pdf'
 import {
   Select,
   SelectContent,
@@ -123,35 +124,63 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
     try {
       toast.info('Gerando PDF...')
 
-      // Obter token de autenticação
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
+      // Buscar dados completos da OS
+      const { data: osCompleta } = await supabase
+        .from('ordens_servico')
+        .select(`
+          *,
+          empresas (nome, logo_url),
+          clientes (nome_local, endereco_completo, responsavel_telefone),
+          equipamentos (tipo, fabricante, modelo, numero_serie),
+          tecnicos (nome)
+        `)
+        .eq('id', osId)
+        .single()
 
-      if (!token) {
-        throw new Error('Usuário não autenticado')
+      if (!osCompleta) {
+        throw new Error('OS não encontrada')
       }
 
-      // Gerar PDF
-      const pdfResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      // Buscar laudo
+      const { data: laudo } = await supabase
+        .from('laudos_tecnicos')
+        .select('*')
+        .eq('os_id', osId)
+        .single()
+
+      // Buscar checklist
+      const { data: checklist } = await supabase
+        .from('checklist_items')
+        .select('*')
+        .eq('os_id', osId)
+        .order('ordem', { ascending: true })
+
+      // Gerar PDF usando a função do frontend
+      await generateOSPDF({
+        numero_os: osCompleta.numero_os || '',
+        tipo: osCompleta.tipo,
+        data_abertura: osCompleta.data_abertura,
+        data_fim: osCompleta.data_fim,
+        cliente_nome: osCompleta.clientes?.nome_local,
+        cliente_endereco: osCompleta.clientes?.endereco_completo,
+        cliente_telefone: osCompleta.clientes?.responsavel_telefone,
+        quem_solicitou: osCompleta.quem_solicitou,
+        equipamento_tipo: osCompleta.equipamentos?.tipo,
+        equipamento_fabricante: osCompleta.equipamentos?.fabricante,
+        equipamento_modelo: osCompleta.equipamentos?.modelo,
+        equipamento_numero_serie: osCompleta.equipamentos?.numero_serie,
+        tecnico_nome: osCompleta.tecnicos?.nome,
+        descricao: osCompleta.descricao,
+        observacoes: osCompleta.observacoes,
+        laudo_o_que_foi_feito: laudo?.o_que_foi_feito,
+        laudo_observacao: laudo?.observacao,
+        estado_equipamento: osCompleta.estado_equipamento,
+        nome_cliente_assinatura: osCompleta.nome_cliente_assinatura,
+        assinatura_cliente: osCompleta.assinatura_cliente,
+        checklist: checklist || [],
+        empresa_nome: osCompleta.empresas?.nome,
+        empresa_logo_url: osCompleta.empresas?.logo_url,
       })
-
-      if (!pdfResponse.ok) {
-        throw new Error('Erro ao gerar PDF')
-      }
-
-      // Baixar PDF
-      const blob = await pdfResponse.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `OS-${osData?.numero_os || osId}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
 
       toast.success('PDF gerado com sucesso!')
 
@@ -181,21 +210,20 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          {!readOnly && (
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              3
-            </div>
-          )}
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+          3
+        </div>
+      </div>
+      <Card className="flex-1">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
             {readOnly ? 'Informações de Encerramento' : 'Próximos Passos'}
           </CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </CardHeader>
+        <CardContent className="space-y-4">
         {readOnly ? (
           <div className="space-y-4">
             <div className="p-3 bg-muted rounded-md border">
@@ -311,5 +339,6 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+    </div>
   )
 }

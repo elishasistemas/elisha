@@ -28,7 +28,17 @@ interface OSPDFData {
 
 const formatDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleString('pt-BR')
+    // O Supabase retorna datas em UTC, então precisamos formatar considerando o timezone local
+    // Usando toLocaleString com timezone local para evitar adicionar dias incorretamente
+    const date = new Date(dateStr)
+    return date.toLocaleString('pt-BR', { 
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
 }
 
 const getTipoLabel = (tipo: string): string => {

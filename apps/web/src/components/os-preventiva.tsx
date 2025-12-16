@@ -432,29 +432,31 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
   return (
     <div className="space-y-6">
       {/* Seção 1: Checklist de Atendimento */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                1
-              </div>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+            1
+          </div>
+          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+        </div>
+        <Card className="flex-1">
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5" />
                 Checklist de Atendimento
               </CardTitle>
+              {!readOnly && (
+                <Badge variant="outline">
+                  {itemsRespondidos}/{totalItems} conforme
+                </Badge>
+              )}
             </div>
-            {!readOnly && (
-              <Badge variant="outline">
-                {itemsRespondidos}/{totalItems} conforme
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Marque cada item conforme as normas e boas práticas da empresa
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Marque cada item conforme as normas e boas práticas da empresa
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
           {checklistItems.map((item) => (
             <div
               key={item.id}
@@ -497,21 +499,24 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
           ))}
         </CardContent>
       </Card>
+      </div>
 
       {/* Seção 2: Observações e Evidências */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              2
-            </div>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+            2
+          </div>
+          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+        </div>
+        <Card className="flex-1">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
               Observações
             </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div>
             <Textarea
               placeholder="Observações sobre a manutenção preventiva..."
@@ -641,6 +646,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Seção 3: Próximos Passos */}
       <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />

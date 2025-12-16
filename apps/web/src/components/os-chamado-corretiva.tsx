@@ -381,19 +381,21 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
   return (
     <div className="space-y-6">
       {/* Seção 1: Descrição do Cliente */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              1
-            </div>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+            1
+          </div>
+          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+        </div>
+        <Card className="flex-1">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
               Descrição do Cliente
             </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div>
             <Label className="text-muted-foreground mb-2 block">Problema relatado pelo cliente</Label>
             <div className="p-4 bg-muted rounded-md">
@@ -427,24 +429,27 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Seção 2: Laudo Técnico */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              2
-            </div>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+            2
+          </div>
+          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+        </div>
+        <Card className="flex-1">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
               Laudo Técnico
             </CardTitle>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Documente o que foi feito e adicione evidências
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Documente o que foi feito e adicione evidências
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div>
             <Label htmlFor="o_que_foi_feito">O que foi feito</Label>
             <Textarea
@@ -589,6 +594,7 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Seção 3: Próximos Passos */}
       <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />

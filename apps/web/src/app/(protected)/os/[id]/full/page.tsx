@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
-  Minimize2,
   MapPin,
   Clock,
   CheckCircle,
@@ -82,7 +81,6 @@ export default function OSFullScreenPage() {
   const [os, setOs] = useState<OSEnriched | null>(null)
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([])
   const [loading, setLoading] = useState(true)
-  const [isMinimized, setIsMinimized] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [historyExpanded, setHistoryExpanded] = useState(true) // Histórico de alterações expandido por padrão
   const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false) // Histórico de equipamento retraído por padrão
@@ -281,25 +279,6 @@ export default function OSFullScreenPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Modo minimizado (salvar no localStorage e voltar para dashboard)
-  useEffect(() => {
-    if (isMinimized && os && emDeslocamentoTimestamp) {
-      // Salvar estado no localStorage
-      localStorage.setItem('os_dock', JSON.stringify({
-        os_id: os.id,
-        numero_os: os.numero_os,
-        tempo_inicio: emDeslocamentoTimestamp.toISOString(),
-        minimized_at: new Date().toISOString()
-      }))
-
-      // Disparar evento customizado para atualizar o dock global
-      window.dispatchEvent(new CustomEvent('os-dock-updated'))
-
-      // Voltar para o dashboard
-      router.push('/dashboard')
-    }
-  }, [isMinimized, os, emDeslocamentoTimestamp, router])
-
   // Helper para formatar labels de status
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
@@ -416,24 +395,13 @@ export default function OSFullScreenPage() {
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
             <Button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.back()}
               variant="outline"
               size="sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
-
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setIsMinimized(true)}
-                variant="outline"
-                size="sm"
-              >
-                <Minimize2 className="w-4 h-4 mr-2" />
-                Minimizar
-              </Button>
-            </div>
           </div>
 
           {/* Informações da OS no header */}
