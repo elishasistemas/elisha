@@ -551,54 +551,6 @@ export default function OSFullScreenPage() {
           </>
         )}
 
-        {/* Histórico da OS - Apenas para admin/gestor/supervisor */}
-        {statusHistory.length > 0 && profile?.role !== 'tecnico' && profile?.active_role !== 'tecnico' && (
-          <Card>
-            <CardHeader className="cursor-pointer" onClick={() => setHistoryExpanded(!historyExpanded)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Histórico da OS</CardTitle>
-                  <CardDescription>Timeline de mudanças da OS</CardDescription>
-                </div>
-                {historyExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </div>
-            </CardHeader>
-            {historyExpanded && (
-              <CardContent>
-                <div className="space-y-3">
-                  {statusHistory
-                    .filter((history, index, self) =>
-                      // Remover duplicados baseado em status e timestamp (ignorar action_type)
-                      index === self.findIndex(h =>
-                        h.status_novo === history.status_novo &&
-                        h.changed_at === history.changed_at
-                      )
-                    )
-                    .map((history) => (
-                      <div
-                        key={history.id}
-                        className="flex items-start gap-3 pb-3 border-b last:border-0"
-                      >
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline">{getStatusLabel(history.status_novo)}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {new Date(history.changed_at).toLocaleString('pt-BR')}
-                          </p>
-                          {history.reason && (
-                            <p className="text-sm mt-1">Motivo: {history.reason}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
-
         {/* Histórico do Equipamento - Disponível para todos, retraído por padrão */}
         {os.equipamento_id && (
           <Card>

@@ -619,43 +619,6 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* AlertDialog de confirmação de cancelamento */}
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar atendimento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {newUploadIds.current.length > 0
-                ? `Você tem ${newUploadIds.current.length} evidência(s) enviada(s) nesta sessão. Elas serão removidas permanentemente.`
-                : 'Tem certeza que deseja sair?'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Continuar atendimento</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelAtendimento}
-              disabled={cancelling}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelling ? 'Cancelando...' : 'Cancelar e sair'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Botão Cancelar Atendimento (fixo no rodapé) */}
-      {!readOnly && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <Button
-            variant="outline"
-            onClick={() => setShowCancelDialog(true)}
-            className="shadow-lg"
-          >
-            Cancelar Atendimento
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
