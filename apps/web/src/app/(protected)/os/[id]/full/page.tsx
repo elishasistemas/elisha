@@ -93,6 +93,8 @@ export default function OSFullScreenPage() {
   // Verificar se o usuário logado é o técnico atribuído à OS
   const isAssignedTechnician = os?.tecnico_id && profile?.tecnico_id && os.tecnico_id === profile.tecnico_id
 
+
+
   // Encontrar o timestamp do evento "em_deslocamento"
   const emDeslocamentoTimestamp = useMemo(() => {
     const event = statusHistory.find(
@@ -484,8 +486,8 @@ export default function OSFullScreenPage() {
       {/* Conteúdo principal com padding */}
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-        {/* Cronômetro e Ações lado a lado (apenas durante deslocamento e se for o técnico atribuído) */}
-        {os.status === 'em_deslocamento' && tempoDecorrido && isAssignedTechnician && (
+        {/* Cronômetro e Ações lado a lado (apenas durante deslocamento) */}
+        {os.status === 'em_deslocamento' && tempoDecorrido && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Cronômetro */}
             <Card className="border-2 border-primary">
@@ -530,8 +532,8 @@ export default function OSFullScreenPage() {
           </div>
         )}
 
-        {/* Checklist + Laudo + Evidências (aparece após check-in ou em_andamento, apenas para o técnico atribuído) */}
-        {['checkin', 'em_andamento'].includes(os.status) && os.empresa_id && isAssignedTechnician && (
+        {/* Checklist + Laudo + Evidências (aparece após check-in ou em_andamento) */}
+        {['checkin', 'em_andamento'].includes(os.status) && os.empresa_id && (
           <>
             {os.tipo === 'preventiva' ? (
               <OSPreventiva
@@ -549,8 +551,8 @@ export default function OSFullScreenPage() {
           </>
         )}
 
-        {/* Histórico da OS */}
-        {statusHistory.length > 0 && (
+        {/* Histórico da OS - Apenas para admin/gestor/supervisor */}
+        {statusHistory.length > 0 && profile?.role !== 'tecnico' && profile?.active_role !== 'tecnico' && (
           <Card>
             <CardHeader className="cursor-pointer" onClick={() => setHistoryExpanded(!historyExpanded)}>
               <div className="flex items-center justify-between">
@@ -597,14 +599,17 @@ export default function OSFullScreenPage() {
           </Card>
         )}
 
-        {/* Histórico do Equipamento */}
+        {/* Histórico do Equipamento - Disponível para todos, retraído por padrão */}
         {os.equipamento_id && (
           <Card>
             <CardHeader className="cursor-pointer" onClick={() => setEquipmentHistoryExpanded(!equipmentHistoryExpanded)}>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Histórico do Equipamento</CardTitle>
-                  <CardDescription>Manutenções anteriores deste equipamento</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    Histórico do Equipamento
+                  </CardTitle>
+                  <CardDescription>Clique para consultar manutenções anteriores</CardDescription>
                 </div>
                 {equipmentHistoryExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </div>

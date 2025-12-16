@@ -32,7 +32,6 @@ import {
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useDebounce } from '@/hooks/use-debounce'
 import { OSProximosPassos } from './os-proximos-passos'
-import { OSHistoricoEquipamento } from './os-historico-equipamento'
 
 interface OSChamadoCorretivaProps {
   osId: string
@@ -126,23 +125,15 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           console.error('[chamado-corretiva] Erro ao buscar laudo:', err)
         }
 
-        // Buscar evidências via API
-        try {
-          const session = await supabase.auth.getSession()
-          const token = session.data.session?.access_token
-          if (token) {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/ordens-servico/${osId}/evidencias`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            })
-            if (response.ok) {
-              const evidenciasData = await response.json()
-              setEvidencias(evidenciasData || [])
-            } else if (response.status !== 404) {
-              console.error('[chamado-corretiva] Erro ao buscar evidências:', response.status)
-            }
-          }
-        } catch (err) {
-          console.error('[chamado-corretiva] Erro ao buscar evidências:', err)
+        // Buscar evidências
+        const { data: evidenciasData } = await supabase
+          .from('os_evidencias')
+          .select('*')
+          .eq('os_id', osId)
+          .order('created_at', { ascending: false })
+
+        if (evidenciasData) {
+          setEvidencias(evidenciasData)
         }
       } catch (error) {
         console.error('[chamado-corretiva] Erro ao carregar dados:', error)
@@ -601,9 +592,6 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
 
       {/* Seção 3: Próximos Passos */}
       <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
-
-      {/* Seção 4: Histórico do Equipamento */}
-      <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
 
       {/* AlertDialog de confirmação de exclusão */}
       <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
