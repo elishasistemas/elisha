@@ -102,7 +102,7 @@ export default function OrdersPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const newParam = searchParams?.get('new')
-  const [ordenacao, setOrdenacao] = useState('prioridade') // prioridade, data, status
+  const [ordenacao, setOrdenacao] = useState('data') // prioridade, data, status
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [ordemToDelete, setOrdemToDelete] = useState<OrdemServico | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)

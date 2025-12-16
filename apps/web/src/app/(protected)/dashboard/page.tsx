@@ -113,7 +113,7 @@ export default function DashboardPage() {
 
   // Otimização: Carregar apenas dados essenciais com paginação reduzida
   const { clientes, loading: clientesLoading } = useClientes(empresaAtiva, { refreshKey, pageSize: 100 })
-  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey, pageSize: 20, orderBy: 'prioridade' })
+  const { ordens, loading: ordensLoading } = useOrdensServico(empresaAtiva, { refreshKey, pageSize: 20, orderBy: 'created_at' })
   const { colaboradores, loading: colaboradoresLoading } = useColaboradores(empresaAtiva, { refreshKey, pageSize: 50 })
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [actionLoading, setActionLoading] = useState(false)

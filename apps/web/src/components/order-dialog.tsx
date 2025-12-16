@@ -70,6 +70,30 @@ export function OrderDialog({
     setLocalMode(mode)
   }, [defaultOpen, ordem?.id, mode])
 
+  // Helper para converter data UTC para datetime-local considerando timezone
+  const formatDateTimeLocal = (dateString: string | null | undefined): string => {
+    if (!dateString) {
+      // Retornar data/hora atual no formato datetime-local (sem conversão UTC)
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    }
+    
+    // Criar data a partir da string UTC
+    const date = new Date(dateString)
+    
+    // Ajustar para timezone local (São Paulo = UTC-3)
+    const timezoneOffset = date.getTimezoneOffset() * 60000
+    const localDate = new Date(date.getTime() - timezoneOffset)
+    
+    // Formatar para datetime-local (YYYY-MM-DDTHH:mm)
+    return localDate.toISOString().slice(0, 16)
+  }
+
   // Form state
   const [formData, setFormData] = useState({
     cliente_id: ordem?.cliente_id || '',
@@ -78,7 +102,7 @@ export function OrderDialog({
     tipo: ordem?.tipo || defaultTipo || 'preventiva',
     prioridade: ordem?.prioridade || 'media',
     observacoes: ordem?.observacoes || '',
-    data_abertura: new Date().toISOString().slice(0, 16),
+    data_abertura: formatDateTimeLocal(null),
     quem_solicitou: ordem?.quem_solicitou || '',
   })
 
@@ -101,7 +125,7 @@ export function OrderDialog({
         tipo: ordem.tipo || defaultTipo || 'preventiva',
         prioridade: ordem.prioridade || 'media',
         observacoes: ordem.observacoes || '',
-        data_abertura: ordem.data_abertura ? new Date(ordem.data_abertura).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+        data_abertura: formatDateTimeLocal(ordem.data_abertura),
         quem_solicitou: ordem.quem_solicitou || '',
       })
     }
@@ -240,6 +264,21 @@ export function OrderDialog({
       }
 
       // Preparar dados (numero_os será gerado automaticamente no backend)
+      // Converter data_abertura do datetime-local para timestamp UTC corretamente
+      let dataAberturaISO: string
+      if (formData.data_abertura) {
+        // formData.data_abertura está em formato "2025-12-15T23:26" (horário local)
+        // Criar Date assumindo que é horário local
+        const localDate = new Date(formData.data_abertura)
+        // Obter o offset do timezone em minutos e converter para milissegundos
+        const timezoneOffset = localDate.getTimezoneOffset() * 60000
+        // Criar nova data ajustando pelo offset (invertendo a conversão que toISOString faz)
+        const adjustedDate = new Date(localDate.getTime() + timezoneOffset)
+        dataAberturaISO = adjustedDate.toISOString()
+      } else {
+        dataAberturaISO = new Date().toISOString()
+      }
+
       const ordemData = {
         empresa_id: empresaId,
         cliente_id: formData.cliente_id,
@@ -248,7 +287,7 @@ export function OrderDialog({
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
         status: 'novo' as const,
-        data_abertura: formData.data_abertura ? new Date(formData.data_abertura).toISOString() : new Date().toISOString(),
+        data_abertura: dataAberturaISO,
         observacoes: formData.observacoes?.trim() || null,
         quem_solicitou: formData.quem_solicitou?.trim() || null,
         origem: 'painel' as const,
@@ -339,7 +378,7 @@ export function OrderDialog({
         tipo: 'preventiva',
         prioridade: 'media',
         observacoes: '',
-        data_abertura: new Date().toISOString().slice(0, 16),
+        data_abertura: formatDateTimeLocal(null),
         quem_solicitou: '',
       })
     } catch (error) {

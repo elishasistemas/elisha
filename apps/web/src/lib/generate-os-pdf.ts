@@ -269,11 +269,14 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
     addSectionTitle('Encerramento')
     addFieldInline('Estado do Equipamento: ', getEstadoEquipamentoLabel(data.estado_equipamento), margin)
     y += 6
-    addFieldInline('Responsável no Local: ', data.nome_cliente_assinatura || '-', margin)
+    const nomeResponsavel = data.nome_cliente_assinatura === 'Responsável não encontrado' 
+      ? 'Responsável não encontrado no local' 
+      : data.nome_cliente_assinatura || '-'
+    addFieldInline('Responsável no Local: ', nomeResponsavel, margin)
     y += 10
 
     // === ASSINATURA ===
-    if (data.assinatura_cliente) {
+    if (data.assinatura_cliente && data.nome_cliente_assinatura !== 'Responsável não encontrado') {
         checkPageBreak(40)
         addSectionTitle('Assinatura do Cliente')
 
@@ -291,6 +294,14 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
         doc.setTextColor(...grayColor)
         doc.text(data.nome_cliente_assinatura || '', margin, y)
         y += 6
+    } else if (data.nome_cliente_assinatura === 'Responsável não encontrado') {
+        checkPageBreak(20)
+        addSectionTitle('Assinatura do Cliente')
+        
+        doc.setFontSize(10)
+        doc.setTextColor(...grayColor)
+        doc.text('Responsável não encontrado no local', margin, y)
+        y += 8
     }
 
     // === FOOTER ===

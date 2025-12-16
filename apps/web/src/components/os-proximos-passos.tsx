@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Checkbox } from './ui/checkbox'
 import { generateOSPDF } from '@/lib/generate-os-pdf'
 import {
   Select,
@@ -42,6 +43,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
   const [showSignatureDialog, setShowSignatureDialog] = useState(false)
   const [realizandoCheckout, setRealizandoCheckout] = useState(false)
   const [showPdfDialog, setShowPdfDialog] = useState(false)
+  const [semResponsavel, setSemResponsavel] = useState(false)
 
   const supabase = createSupabaseBrowser()
 
@@ -75,13 +77,13 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
       return
     }
 
-    if (!nomeResponsavel.trim()) {
-      toast.error('Informe o nome do responsável no local')
+    if (!semResponsavel && !nomeResponsavel.trim()) {
+      toast.error('Informe o nome do responsável no local ou marque "Sem responsável no local"')
       return
     }
 
-    if (!assinaturaUrl) {
-      toast.error('Capture a assinatura do responsável')
+    if (!semResponsavel && !assinaturaUrl) {
+      toast.error('Capture a assinatura do responsável ou marque "Sem responsável no local"')
       return
     }
 
@@ -96,12 +98,15 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         throw new Error('Usuário não autenticado')
       }
 
+      const nomeParaEnviar = semResponsavel ? 'Responsável não encontrado' : nomeResponsavel
+      const assinaturaParaEnviar = semResponsavel ? '' : (assinaturaUrl || '')
+
       // Chamar API Backend para checkout
       await import('@/lib/api-client').then(({ default: apiClient }) =>
         apiClient.ordensServico.finalize(osId, {
           estado_equipamento: estadoElevador,
-          nome_cliente_assinatura: nomeResponsavel,
-          assinatura_cliente: assinaturaUrl
+          nome_cliente_assinatura: nomeParaEnviar,
+          assinatura_cliente: assinaturaParaEnviar
         }, token)
       )
 
@@ -239,14 +244,22 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-muted rounded-md border">
                 <p className="text-sm font-medium text-muted-foreground mb-1">Responsável no Local</p>
-                <p className="text-base font-medium">{osData?.nome_cliente_assinatura || 'N/A'}</p>
+                <p className="text-base font-medium">
+                  {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? (
+                    <span className="text-orange-600">Responsável não encontrado</span>
+                  ) : (
+                    osData?.nome_cliente_assinatura || 'N/A'
+                  )}
+                </p>
               </div>
               <div className="p-3 bg-muted rounded-md border flex flex-col items-center justify-center">
                 <p className="text-sm font-medium text-muted-foreground mb-2 w-full text-left">Assinatura</p>
                 {osData?.assinatura_cliente ? (
                   <img src={osData.assinatura_cliente} alt="Assinatura" className="max-h-20 max-w-full" />
                 ) : (
-                  <span className="text-sm text-muted-foreground">Não assinado</span>
+                  <span className="text-sm text-muted-foreground">
+                    {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? 'Sem assinatura' : 'Não assinado'}
+                  </span>
                 )}
               </div>
             </div>
@@ -275,29 +288,65 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
               )}
             </div>
 
-            <div>
-              <Label htmlFor="nome-responsavel">Responsável no local</Label>
-              <Input
-                id="nome-responsavel"
-                placeholder="Nome completo do responsável"
-                value={nomeResponsavel}
-                onChange={(e) => setNomeResponsavel(e.target.value)}
-              />
-            </div>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                <Checkbox
+                  id="sem-responsavel"
+                  checked={semResponsavel}
+                  onCheckedChange={(checked) => {
+                    setSemResponsavel(checked === true)
+                    if (checked) {
+                      setNomeResponsavel('')
+                      setAssinaturaUrl(null)
+                    }
+                  }}
+                  className="data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
+                />
+                <Label htmlFor="sem-responsavel" className="cursor-pointer font-normal text-sm">
+                  Responsável não encontrado no local
+                </Label>
+              </div>
 
-            <div>
-              <Label>Assinatura do Responsável</Label>
-              <button
-                type="button"
-                onClick={() => setShowSignatureDialog(true)}
-                className="w-full h-32 border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-              >
-                {assinaturaUrl ? (
-                  <img src={assinaturaUrl} alt="Assinatura" className="max-h-28" />
-                ) : (
-                  'Clique para coletar assinatura'
-                )}
-              </button>
+              {!semResponsavel && (
+                <>
+                  <div>
+                    <Label htmlFor="nome-responsavel" className="font-medium">Responsável no local *</Label>
+                    <Input
+                      id="nome-responsavel"
+                      placeholder="Nome completo do responsável"
+                      value={nomeResponsavel}
+                      onChange={(e) => setNomeResponsavel(e.target.value)}
+                      className="mt-1.5 bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Preencha o nome antes de coletar a assinatura
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="font-medium">Assinatura do Responsável *</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!nomeResponsavel.trim()) {
+                          toast.error('Preencha o nome do responsável antes de coletar a assinatura')
+                          return
+                        }
+                        setShowSignatureDialog(true)
+                      }}
+                      className="w-full h-32 border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                    >
+                      {assinaturaUrl ? (
+                        <img src={assinaturaUrl} alt="Assinatura" className="max-h-28" />
+                      ) : (
+                        <span className="text-center">
+                          {nomeResponsavel.trim() ? 'Clique para coletar assinatura' : 'Preencha o nome do responsável primeiro'}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             <Button
