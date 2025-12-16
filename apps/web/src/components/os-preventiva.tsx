@@ -32,6 +32,7 @@ import { createSupabaseBrowser } from '@/lib/supabase'
 import { useDebounce } from '@/hooks/use-debounce'
 import { OSProximosPassos } from './os-proximos-passos'
 import { OSHistoricoEquipamento } from './os-historico-equipamento'
+import { OSStepsWrapper } from './os-steps-wrapper'
 
 interface OSPreventivaProps {
   osId: string
@@ -429,230 +430,224 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
     return <div className="text-center py-8 text-muted-foreground">Carregando...</div>
   }
 
+  // STEP 1: Checklist de Atendimento
+  const step1 = (
+    <Card className="flex-1">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5" />
+            Checklist de Atendimento
+          </CardTitle>
+          {!readOnly && (
+            <Badge variant="outline">
+              {itemsRespondidos}/{totalItems} conforme
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Marque cada item conforme as normas e boas práticas da empresa
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+      {checklistItems.map((item) => (
+        <div
+          key={item.id}
+          className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
+        >
+          <span className="text-sm flex-1">{item.descricao}</span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={item.status === 'conforme' ? 'default' : 'outline'}
+              onClick={() => handleChecklistItemStatus(item.id, 'conforme')}
+              className="gap-1"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Conforme
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={item.status === 'nao_conforme' ? 'destructive' : 'outline'}
+              onClick={() => handleChecklistItemStatus(item.id, 'nao_conforme')}
+              className="gap-1"
+            >
+              <XCircle className="w-4 h-4" />
+              Não Conforme
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={item.status === 'na' ? 'secondary' : 'outline'}
+              onClick={() => handleChecklistItemStatus(item.id, 'na')}
+              className="gap-1"
+            >
+              <MinusCircle className="w-4 h-4" />
+              N/A
+            </Button>
+          </div>
+        </div>
+      ))}
+    </CardContent>
+  </Card>
+  )
+
+  // STEP 2: Observações e Evidências
+  const step2 = (
+    <Card className="flex-1">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="w-5 h-5" />
+          Observações
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+      <div>
+        <Textarea
+          placeholder="Observações sobre a manutenção preventiva..."
+          value={observacoes}
+          onChange={(e) => setObservacoes(e.target.value)}
+          rows={4}
+          className="resize-none"
+          disabled={readOnly}
+        />
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-2">Evidências (Fotos, Áudios)</p>
+        <div className="grid grid-cols-2 gap-3">
+          {!readOnly && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-20 flex-col"
+                disabled={loading}
+                onClick={() => document.getElementById('file-foto-preventiva')?.click()}
+              >
+                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
+                <span className="text-xs">Foto</span>
+                <input
+                  id="file-foto-preventiva"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file, 'foto')
+                    e.target.value = ''
+                  }}
+                />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-20 flex-col"
+                disabled={loading}
+                onClick={() => document.getElementById('file-audio-preventiva')?.click()}
+              >
+                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
+                <span className="text-xs">Áudio</span>
+                <input
+                  id="file-audio-preventiva"
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file, 'audio')
+                    e.target.value = ''
+                  }}
+                />
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Lista de Evidências */}
+        {evidencias.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm font-medium">{evidencias.length} evidência(s)</p>
+            {evidencias.map(evidencia => (
+              <div
+                key={evidencia.id}
+                className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {evidencia.tipo === 'foto' && (
+                    <img
+                      src={getEvidenciaUrl(evidencia) || ''}
+                      alt="Foto"
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                  {evidencia.tipo === 'audio' && (
+                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                      <Play className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{evidencia.tipo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(evidencia.created_at).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {evidencia.storage_path && (
+                    <a
+                      href={getEvidenciaUrl(evidencia) || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Abrir
+                    </a>
+                  )}
+                  {!readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        setEvidenciaParaDeletar(evidencia)
+                        setShowDeleteDialog(true)
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Nenhuma evidência adicionada ainda
+          </p>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+  )
+
+  // STEP 3: Próximos Passos
+  const step3 = (
+    <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
+  )
+
+  // STEP 4: Histórico do Equipamento
+  const step4 = (
+    <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
+  )
+
   return (
     <div className="space-y-6">
-      {/* Seção 1: Checklist de Atendimento */}
-      <div className="flex gap-4">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
-            1
-          </div>
-          <div className="w-0.5 flex-1 bg-border mt-2"></div>
-        </div>
-        <Card className="flex-1">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
-                Checklist de Atendimento
-              </CardTitle>
-              {!readOnly && (
-                <Badge variant="outline">
-                  {itemsRespondidos}/{totalItems} conforme
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Marque cada item conforme as normas e boas práticas da empresa
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-          {checklistItems.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
-            >
-              <span className="text-sm flex-1">{item.descricao}</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={item.status === 'conforme' ? 'default' : 'outline'}
-                  onClick={() => handleChecklistItemStatus(item.id, 'conforme')}
-                  className="gap-1"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Conforme
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={item.status === 'nao_conforme' ? 'destructive' : 'outline'}
-                  onClick={() => handleChecklistItemStatus(item.id, 'nao_conforme')}
-                  className="gap-1"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Não Conforme
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={item.status === 'na' ? 'secondary' : 'outline'}
-                  onClick={() => handleChecklistItemStatus(item.id, 'na')}
-                  className="gap-1"
-                >
-                  <MinusCircle className="w-4 h-4" />
-                  N/A
-                </Button>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      </div>
-
-      {/* Seção 2: Observações e Evidências */}
-      <div className="flex gap-4">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
-            2
-          </div>
-          <div className="w-0.5 flex-1 bg-border mt-2"></div>
-        </div>
-        <Card className="flex-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Observações
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-          <div>
-            <Textarea
-              placeholder="Observações sobre a manutenção preventiva..."
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={4}
-              className="resize-none"
-              disabled={readOnly}
-            />
-          </div>
-
-          <div>
-            <p className="text-sm font-medium mb-2">Evidências (Fotos, Áudios)</p>
-            <div className="grid grid-cols-2 gap-3">
-              {!readOnly && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-20 flex-col"
-                    disabled={loading}
-                    onClick={() => document.getElementById('file-foto-preventiva')?.click()}
-                  >
-                    {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
-                    <span className="text-xs">Foto</span>
-                    <input
-                      id="file-foto-preventiva"
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) handleFileUpload(file, 'foto')
-                        e.target.value = ''
-                      }}
-                    />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-20 flex-col"
-                    disabled={loading}
-                    onClick={() => document.getElementById('file-audio-preventiva')?.click()}
-                  >
-                    {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
-                    <span className="text-xs">Áudio</span>
-                    <input
-                      id="file-audio-preventiva"
-                      type="file"
-                      accept="audio/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) handleFileUpload(file, 'audio')
-                        e.target.value = ''
-                      }}
-                    />
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {/* Lista de Evidências */}
-            {evidencias.length > 0 ? (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm font-medium">{evidencias.length} evidência(s)</p>
-                {evidencias.map(evidencia => (
-                  <div
-                    key={evidencia.id}
-                    className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {evidencia.tipo === 'foto' && (
-                        <img
-                          src={getEvidenciaUrl(evidencia) || ''}
-                          alt="Foto"
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      )}
-                      {evidencia.tipo === 'audio' && (
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                          <Play className="w-5 h-5" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{evidencia.tipo}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(evidencia.created_at).toLocaleString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {evidencia.storage_path && (
-                        <a
-                          href={getEvidenciaUrl(evidencia) || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline"
-                        >
-                          Abrir
-                        </a>
-                      )}
-                      {!readOnly && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            setEvidenciaParaDeletar(evidencia)
-                            setShowDeleteDialog(true)
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                Nenhuma evidência adicionada ainda
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      </div>
-
-      {/* Seção 3: Próximos Passos */}
-      <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
-
-      {/* Seção 4: Histórico do Equipamento */}
-      <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
+      <OSStepsWrapper step1={step1} step2={step2} step3={step3} step4={step4} />
 
       {/* AlertDialog de confirmação de exclusão */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -32,6 +32,8 @@ import {
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { useDebounce } from '@/hooks/use-debounce'
 import { OSProximosPassos } from './os-proximos-passos'
+import { OSHistoricoEquipamento } from './os-historico-equipamento'
+import { OSStepsWrapper } from './os-steps-wrapper'
 
 interface OSChamadoCorretivaProps {
   osId: string
@@ -378,17 +380,16 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
     return <div className="text-center py-8 text-muted-foreground">Carregando...</div>
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Seção 1: Descrição do Cliente */}
-      <div className="flex gap-4">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
-            1
-          </div>
-          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+  // Step 1: Descrição do Cliente
+  const step1 = (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center hidden md:flex">
+        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+          1
         </div>
-        <Card className="flex-1">
+        <div className="w-0.5 flex-1 bg-border mt-2"></div>
+      </div>
+      <Card className="flex-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
@@ -429,17 +430,19 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </div>
         </CardContent>
       </Card>
-      </div>
+    </div>
+  )
 
-      {/* Seção 2: Laudo Técnico */}
-      <div className="flex gap-4">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
-            2
-          </div>
-          <div className="w-0.5 flex-1 bg-border mt-2"></div>
+  // Step 2: Laudo Técnico
+  const step2 = (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center hidden md:flex">
+        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
+          2
         </div>
-        <Card className="flex-1">
+        <div className="w-0.5 flex-1 bg-border mt-2"></div>
+      </div>
+      <Card className="flex-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
@@ -594,10 +597,18 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </div>
         </CardContent>
       </Card>
-      </div>
+    </div>
+  )
 
-      {/* Seção 3: Próximos Passos */}
-      <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
+  // Step 3: Próximos Passos
+  const step3 = <OSProximosPassos osId={osId} empresaId={empresaId} readOnly={readOnly} osData={osData} />
+
+  // Step 4: Histórico do Equipamento
+  const step4 = <OSHistoricoEquipamento equipamentoId={osData?.equipamento_id} />
+
+  return (
+    <>
+      <OSStepsWrapper step1={step1} step2={step2} step3={step3} step4={step4} />
 
       {/* AlertDialog de confirmação de exclusão */}
       <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
@@ -625,6 +636,6 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
