@@ -200,6 +200,7 @@ export default function OrdersPage() {
   const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
 
   const [openCreate, setOpenCreate] = useState(false)
+  
   // Abre automaticamente o diálogo de criação quando new=true
   useEffect(() => {
     if (newParam === 'true' && empresaId && clientes.length > 0 && canAdmin) {
@@ -482,7 +483,7 @@ export default function OrdersPage() {
 
       {/* Seção de Chamados (OS Abertas para aceitar/recusar) - Colapsável */}
       {canTecnico && (
-        <Collapsible defaultOpen={ordensAbertas.length > 0}>
+        <Collapsible defaultOpen={ordensAbertas.length > 0} key={`os-aceitar-${ordensAbertas.length}`}>
           <Card>
             <CollapsibleTrigger className="w-full">
               <CardHeader>
