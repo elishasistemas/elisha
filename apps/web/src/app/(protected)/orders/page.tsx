@@ -699,7 +699,7 @@ export default function OrdersPage() {
                 placeholder="Buscar OS..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="flex-1 sm:w-[200px] md:w-[280px]"
+                className="w-full sm:w-[240px] md:w-[320px]"
               />
             </div>
           </div>

@@ -13,8 +13,10 @@ interface OSStepsWrapperProps {
 
 export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -22,6 +24,18 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Evita hydration mismatch renderizando versão desktop no servidor
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        {step1}
+        {step2}
+        {step3}
+        {step4}
+      </div>
+    )
+  }
 
   // Mobile: renderizar com tabs
   if (isMobile) {
