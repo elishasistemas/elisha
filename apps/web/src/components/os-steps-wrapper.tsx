@@ -14,6 +14,7 @@ interface OSStepsWrapperProps {
 export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState('descricao')
 
   useEffect(() => {
     setMounted(true)
@@ -40,7 +41,7 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
   // Mobile: renderizar com tabs
   if (isMobile) {
     return (
-      <Tabs defaultValue="descricao" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${step4 ? 'grid-cols-4' : 'grid-cols-3'} sticky top-0 z-10 bg-background`}>
           <TabsTrigger value="descricao">
             <FileText className="w-4 h-4" />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
@@ -61,11 +61,10 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
   const [observacoes, setObservacoes] = useState('')
   const [evidencias, setEvidencias] = useState<Evidencia[]>([])
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
   const [savingObservacoes, setSavingObservacoes] = useState(false)
   const [evidenciaParaDeletar, setEvidenciaParaDeletar] = useState<Evidencia | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
 
   // Rastrear uploads feitos nesta sessão (para limpeza se desistir)
   const newUploadIds = useRef<string[]>([])
@@ -219,53 +218,6 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
   }, [])
 
   // =====================================================
-  // Cancelar atendimento (limpa uploads)
-  // =====================================================
-  const handleCancelAtendimento = useCallback(async () => {
-    if (newUploadIds.current.length === 0) {
-      router.push('/dashboard')
-      return
-    }
-
-    setCancelling(true)
-
-    try {
-      // Buscar evidências para pegar storage_paths
-      const evidenciasParaDeletar = evidencias.filter(e =>
-        newUploadIds.current.includes(e.id)
-      )
-
-      // Deletar arquivos do storage
-      const storagePaths = evidenciasParaDeletar
-        .filter(e => e.storage_path)
-        .map(e => e.storage_path!)
-
-      if (storagePaths.length > 0) {
-        await supabase.storage
-          .from('evidencias')
-          .remove(storagePaths)
-      }
-
-      // Deletar registros do banco
-      if (newUploadIds.current.length > 0) {
-        await supabase
-          .from('os_evidencias')
-          .delete()
-          .in('id', newUploadIds.current)
-      }
-
-      toast.success('Atendimento cancelado. Evidências removidas.')
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('[preventiva] Erro ao cancelar:', error)
-      toast.error('Erro ao cancelar atendimento')
-    } finally {
-      setCancelling(false)
-      setShowCancelDialog(false)
-    }
-  }, [evidencias, router, supabase])
-
-  // =====================================================
   // Atualizar status do checklist item
   // =====================================================
   const handleChecklistItemStatus = async (itemId: string, status: 'conforme' | 'nao_conforme' | 'na') => {
@@ -314,7 +266,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
   // Upload de evidências (foto/audio)
   // =====================================================
   const handleFileUpload = async (file: File, tipo: 'foto' | 'audio') => {
-    setLoading(true)
+    setUploading(true)
 
     try {
       // Validar tipo de arquivo
@@ -371,7 +323,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
       console.error('[preventiva] Erro ao fazer upload:', error)
       toast.error('Erro ao enviar arquivo')
     } finally {
-      setLoading(false)
+      setUploading(false)
     }
   }
 
@@ -433,36 +385,34 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
   // STEP 1: Checklist de Atendimento
   const step1 = (
     <Card className="flex-1">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
             <CheckCircle2 className="w-5 h-5" />
             Checklist de Atendimento
           </CardTitle>
-          {!readOnly && (
-            <Badge variant="outline">
-              {itemsRespondidos}/{totalItems} conforme
-            </Badge>
-          )}
+          <Badge variant="outline" className="font-normal">
+            {itemsRespondidos}/{totalItems}
+          </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Marque cada item conforme as normas e boas práticas da empresa
+          Marque cada item conforme as normas e boas práticas
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
       {checklistItems.map((item) => (
         <div
           key={item.id}
-          className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
+          className="flex flex-col p-4 border rounded-lg bg-background gap-3"
         >
-          <span className="text-sm flex-1">{item.descricao}</span>
-          <div className="flex items-center gap-2">
+          <span className="text-sm">{item.descricao}</span>
+          <div className="flex gap-2">
             <Button
               type="button"
               size="sm"
               variant={item.status === 'conforme' ? 'default' : 'outline'}
               onClick={() => handleChecklistItemStatus(item.id, 'conforme')}
-              className="gap-1"
+              className={`flex-1 gap-1.5 ${item.status === 'conforme' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
             >
               <CheckCircle2 className="w-4 h-4" />
               Conforme
@@ -472,19 +422,18 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
               size="sm"
               variant={item.status === 'nao_conforme' ? 'destructive' : 'outline'}
               onClick={() => handleChecklistItemStatus(item.id, 'nao_conforme')}
-              className="gap-1"
+              className="flex-1 gap-1.5"
             >
               <XCircle className="w-4 h-4" />
-              Não Conforme
+              Não Conf.
             </Button>
             <Button
               type="button"
               size="sm"
-              variant={item.status === 'na' ? 'secondary' : 'outline'}
+              variant={item.status === 'na' ? 'default' : 'outline'}
               onClick={() => handleChecklistItemStatus(item.id, 'na')}
-              className="gap-1"
+              className={`gap-1.5 ${item.status === 'na' ? 'bg-gray-800 hover:bg-gray-900 text-white' : ''}`}
             >
-              <MinusCircle className="w-4 h-4" />
               N/A
             </Button>
           </div>
@@ -524,10 +473,10 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
                 type="button"
                 variant="outline"
                 className="h-20 flex-col"
-                disabled={loading}
+                disabled={uploading}
                 onClick={() => document.getElementById('file-foto-preventiva')?.click()}
               >
-                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
+                {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Camera className="w-5 h-5 mb-1" />}
                 <span className="text-xs">Foto</span>
                 <input
                   id="file-foto-preventiva"
@@ -546,10 +495,10 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
                 type="button"
                 variant="outline"
                 className="h-20 flex-col"
-                disabled={loading}
+                disabled={uploading}
                 onClick={() => document.getElementById('file-audio-preventiva')?.click()}
               >
-                {loading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
+                {uploading ? <Loader2 className="w-5 h-5 mb-1 animate-spin" /> : <Mic className="w-5 h-5 mb-1" />}
                 <span className="text-xs">Áudio</span>
                 <input
                   id="file-audio-preventiva"
@@ -667,42 +616,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AlertDialog de confirmação de cancelamento */}
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar atendimento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {newUploadIds.current.length > 0
-                ? `Você tem ${newUploadIds.current.length} evidência(s) enviada(s) nesta sessão. Elas serão removidas permanentemente.`
-                : 'Tem certeza que deseja sair?'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Continuar atendimento</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelAtendimento}
-              disabled={cancelling}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelling ? 'Cancelando...' : 'Cancelar e sair'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
-      {/* Botão Cancelar Atendimento (fixo no rodapé) */}
-      {!readOnly && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <Button
-            variant="outline"
-            onClick={() => setShowCancelDialog(true)}
-            className="shadow-lg"
-          >
-            Cancelar Atendimento
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
@@ -66,8 +66,6 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
   const [clienteData, setClienteData] = useState<any>(null)
   const [evidenciaParaDeletar, setEvidenciaParaDeletar] = useState<Evidencia | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
 
   // Rastrear uploads feitos nesta sessão (para limpeza se desistir)
   const newUploadIds = useRef<string[]>([])
@@ -217,53 +215,6 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
-
-  // =====================================================
-  // Cancelar atendimento (limpa uploads)
-  // =====================================================
-  const handleCancelAtendimento = useCallback(async () => {
-    if (newUploadIds.current.length === 0) {
-      router.push('/dashboard')
-      return
-    }
-
-    setCancelling(true)
-
-    try {
-      // Buscar evidências para pegar storage_paths
-      const evidenciasParaDeletar = evidencias.filter(e =>
-        newUploadIds.current.includes(e.id)
-      )
-
-      // Deletar arquivos do storage
-      const storagePaths = evidenciasParaDeletar
-        .filter(e => e.storage_path)
-        .map(e => e.storage_path!)
-
-      if (storagePaths.length > 0) {
-        await supabase.storage
-          .from('evidencias')
-          .remove(storagePaths)
-      }
-
-      // Deletar registros do banco
-      if (newUploadIds.current.length > 0) {
-        await supabase
-          .from('os_evidencias')
-          .delete()
-          .in('id', newUploadIds.current)
-      }
-
-      toast.success('Atendimento cancelado. Evidências removidas.')
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('[chamado-corretiva] Erro ao cancelar:', error)
-      toast.error('Erro ao cancelar atendimento')
-    } finally {
-      setCancelling(false)
-      setShowCancelDialog(false)
-    }
-  }, [evidencias, router, supabase])
 
   // =====================================================
   // Upload de evidências (foto/audio)
