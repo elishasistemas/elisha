@@ -56,10 +56,10 @@ export class ClientesService {
       ? this.supabaseService.createUserClient(accessToken)
       : this.supabaseService.client
 
-    // Primeiro verificar se o cliente existe e o usuário tem acesso
-    const { data: existing, error: findError } = await client
+    // Primeiro verificar se o cliente existe (usando service_role para bypass RLS)
+    const { data: existing, error: findError } = await this.supabaseService.client
       .from('clientes')
-      .select('id')
+      .select('id, empresa_id')
       .eq('id', id)
       .maybeSingle();
     
@@ -69,9 +69,10 @@ export class ClientesService {
     }
     
     if (!existing) {
-      throw new NotFoundException('Cliente não encontrado ou sem permissão de acesso');
+      throw new NotFoundException('Cliente não encontrado');
     }
 
+    // Tentar o update com o token do usuário (respeitando RLS)
     const { data, error } = await client
       .from('clientes')
       .update(dto)
@@ -84,7 +85,8 @@ export class ClientesService {
     }
     
     if (!data || data.length === 0) {
-      throw new NotFoundException('Erro ao atualizar: nenhum registro afetado');
+      // Se o cliente existe mas o update não afetou, é problema de permissão
+      throw new NotFoundException('Sem permissão para atualizar este cliente. Apenas administradores podem editar clientes.');
     }
     
     return data[0];

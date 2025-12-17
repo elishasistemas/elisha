@@ -341,7 +341,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+              <div className="flex items-start space-x-3 p-3 border rounded-md bg-muted/30">
                 <Checkbox
                   id="sem-responsavel"
                   checked={semResponsavel}
@@ -352,9 +352,10 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
                       setAssinaturaUrl(null)
                     }
                   }}
-                  className="data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
+                  style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px' }}
+                  className="mt-0.5 data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
                 />
-                <Label htmlFor="sem-responsavel" className="cursor-pointer font-normal text-sm">
+                <Label htmlFor="sem-responsavel" className="cursor-pointer font-normal text-sm leading-tight">
                   Responsável não encontrado no local
                 </Label>
               </div>
@@ -368,7 +369,8 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
                       placeholder="Nome completo do responsável"
                       value={nomeResponsavel}
                       onChange={(e) => setNomeResponsavel(e.target.value)}
-                      className="mt-1.5 bg-background"
+                      className="mt-1.5"
+                      style={{ backgroundColor: 'hsl(var(--background))' }}
                     />
                     <p className="text-xs text-muted-foreground mt-1.5">
                       Preencha o nome antes de coletar a assinatura

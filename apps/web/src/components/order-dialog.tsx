@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -8,7 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Pencil, Clock, Navigation, PlayCircle, Printer, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Plus, Pencil, Clock, Navigation, PlayCircle, Printer, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import type { OrdemServico, Cliente, Equipamento, Colaborador } from '@/lib/supabase'
@@ -57,6 +67,15 @@ export function OrderDialog({
   const isView = localMode === 'view'
   const supabase = createSupabaseBrowser()
   const { profile } = useAuth()
+
+  // Estado para dialog de técnico ocupado
+  const [showTecnicoOcupadoDialog, setShowTecnicoOcupadoDialog] = useState(false)
+  const [tecnicoOcupadoInfo, setTecnicoOcupadoInfo] = useState<{
+    tecnicoNome: string
+    osNumero: string
+    osStatus: string
+  } | null>(null)
+  const [pendingSubmit, setPendingSubmit] = useState(false)
 
   // Verificar se o usuário logado é o técnico atribuído à OS
   const isAssignedTechnician = ordem?.tecnico_id && profile?.tecnico_id && ordem.tecnico_id === profile.tecnico_id
@@ -241,38 +260,70 @@ export function OrderDialog({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isView) { setOpen(false); return }
-    setLoading(true)
+  // Função para verificar se o técnico está ocupado
+  const checkTecnicoOcupado = useCallback(async (tecnicoId: string, token: string): Promise<{ ocupado: boolean; osNumero?: string; osStatus?: string }> => {
+    if (!tecnicoId) return { ocupado: false }
+    
+    try {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico?empresaId=${empresaId}&tecnicoId=${tecnicoId}&status=em_deslocamento,checkin,em_atendimento`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!res.ok) return { ocupado: false }
+      
+      const result = await res.json()
+      const osEmAndamento = (result.data || result || []).filter((os: OrdemServico) => 
+        ['em_deslocamento', 'checkin', 'em_atendimento'].includes(os.status)
+      )
+      
+      if (osEmAndamento.length > 0) {
+        const os = osEmAndamento[0]
+        const statusLabels: Record<string, string> = {
+          em_deslocamento: 'Em Deslocamento',
+          checkin: 'Em Atendimento',
+          em_atendimento: 'Em Atendimento'
+        }
+        return { 
+          ocupado: true, 
+          osNumero: os.numero_os || `#${os.id.slice(0, 8)}`,
+          osStatus: statusLabels[os.status] || os.status
+        }
+      }
+      
+      return { ocupado: false }
+    } catch (err) {
+      console.error('[OrderDialog] Erro ao verificar técnico:', err)
+      return { ocupado: false }
+    }
+  }, [empresaId])
 
+  // Função principal de submit (chamada após validações)
+  const executeSubmit = async (skipTecnico: boolean = false) => {
+    setLoading(true)
+    
     try {
       const { createSupabaseBrowser } = await import('@/lib/supabase')
       const supabase = createSupabaseBrowser()
 
-      // Validações básicas
-      if (!formData.cliente_id) {
-        toast.error('Selecione um cliente')
+      // Pegar token de autenticação
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      if (!token) {
+        toast.error('Sessão expirada. Por favor, faça login novamente.')
         setLoading(false)
         return
       }
 
-      if (!formData.equipamento_id) {
-        toast.error('Selecione um equipamento')
-        setLoading(false)
-        return
-      }
-
-      // Preparar dados (numero_os será gerado automaticamente no backend)
-      // Converter data_abertura do datetime-local para timestamp UTC corretamente
+      // Preparar dados
       let dataAberturaISO: string
       if (formData.data_abertura) {
-        // formData.data_abertura está em formato "2025-12-15T23:26" (horário local)
-        // Criar Date assumindo que é horário local
         const localDate = new Date(formData.data_abertura)
-        // Obter o offset do timezone em minutos e converter para milissegundos
         const timezoneOffset = localDate.getTimezoneOffset() * 60000
-        // Criar nova data ajustando pelo offset (invertendo a conversão que toISOString faz)
         const adjustedDate = new Date(localDate.getTime() + timezoneOffset)
         dataAberturaISO = adjustedDate.toISOString()
       } else {
@@ -283,7 +334,7 @@ export function OrderDialog({
         empresa_id: empresaId,
         cliente_id: formData.cliente_id,
         equipamento_id: formData.equipamento_id,
-        tecnico_id: formData.tecnico_id && formData.tecnico_id.trim() !== '' ? formData.tecnico_id : null,
+        tecnico_id: skipTecnico ? null : (formData.tecnico_id && formData.tecnico_id.trim() !== '' ? formData.tecnico_id : null),
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
         status: 'novo' as const,
@@ -295,24 +346,11 @@ export function OrderDialog({
 
       console.log('[OrderDialog] Dados enviados:', ordemData)
 
-      // Pegar token de autenticação
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-
-      if (!token) {
-        toast.error('Sessão expirada. Por favor, faça login novamente.')
-        return
-      }
-
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
       if (localMode === 'edit' && ordem) {
-        // Para edição, não enviar campos que não devem ser alterados
         const { status, origem, ...editData } = ordemData
 
-        console.log('[OrderDialog] Editando OS:', ordem.id, 'Dados:', editData)
-
-        // Atualizar ordem via backend
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico/${ordem.id}`, {
           method: 'PATCH',
           headers: {
@@ -323,23 +361,12 @@ export function OrderDialog({
         })
 
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ message: 'Erro ao atualizar ordem' }))
-          // Erro específico de permissão RLS
-          if (res.status === 500 && errorData.message?.includes('0 rows')) {
-            throw new Error('Você não tem permissão para editar esta ordem de serviço. Apenas administradores podem editar OSs.')
-          }
-          throw new Error(errorData.message || 'Erro ao atualizar ordem')
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.message || 'Erro ao atualizar ordem de serviço')
         }
 
-        toast.success('Ordem de serviço atualizada com sucesso!')
-        // Telemetry
-        fetch('/api/telemetry/logsnag', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ channel: 'orders', event: 'Order Updated', icon: '✏️', tags: { os_id: ordem.id } }),
-        }).catch(() => { })
+        toast.success('Ordem de serviço atualizada!')
       } else {
-        // Criar nova ordem via backend
         const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico`, {
           method: 'POST',
           headers: {
@@ -350,43 +377,96 @@ export function OrderDialog({
         })
 
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ message: 'Erro ao criar ordem' }))
-          throw new Error(errorData.message || 'Erro ao criar ordem')
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.message || 'Erro ao criar ordem de serviço')
         }
 
-        const data = await res.json()
-
-        toast.success('Ordem de serviço criada com sucesso!')
-        // Telemetry
-        if (data?.id) {
-          fetch('/api/telemetry/logsnag', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel: 'orders', event: 'Order Created', icon: '🆕', tags: { os_id: data.id } }),
-          }).catch(() => { })
-        }
+        toast.success('Ordem de serviço criada!')
       }
 
-      setOpen(false)
-      if (onSuccess) onSuccess()
-
-      // Resetar form
+      // Limpar form e fechar
       setFormData({
         cliente_id: '',
         equipamento_id: '',
         tecnico_id: '',
-        tipo: 'preventiva',
+        tipo: defaultTipo || 'preventiva',
         prioridade: 'media',
         observacoes: '',
-        data_abertura: formatDateTimeLocal(null),
+        data_abertura: '',
         quem_solicitou: '',
       })
-    } catch (error) {
-      console.error('Erro ao salvar ordem de serviço:', error)
-      toast.error(error instanceof Error ? error.message : 'Erro ao salvar ordem de serviço')
+      setOpen(false)
+      onOpenChange?.(false)
+      onSuccess?.()
+
+    } catch (err) {
+      console.error('[OrderDialog] Erro:', err)
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar ordem de serviço')
     } finally {
       setLoading(false)
+      setPendingSubmit(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (isView) { setOpen(false); return }
+
+    // Validações básicas
+    if (!formData.cliente_id) {
+      toast.error('Selecione um cliente')
+      return
+    }
+
+    if (!formData.equipamento_id) {
+      toast.error('Selecione um equipamento')
+      return
+    }
+
+    // Se tem técnico selecionado e é criação (não edição), verificar se está ocupado
+    const tecnicoId = formData.tecnico_id?.trim()
+    if (tecnicoId && localMode !== 'edit') {
+      setLoading(true)
+      setPendingSubmit(true)
+      
+      try {
+        const { createSupabaseBrowser } = await import('@/lib/supabase')
+        const supabase = createSupabaseBrowser()
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+
+        if (!token) {
+          toast.error('Sessão expirada. Por favor, faça login novamente.')
+          setLoading(false)
+          setPendingSubmit(false)
+          return
+        }
+
+        const resultado = await checkTecnicoOcupado(tecnicoId, token)
+        
+        if (resultado.ocupado) {
+          // Encontrar nome do técnico
+          const tecnico = colaboradores.find((t: Colaborador) => t.id === tecnicoId)
+          setTecnicoOcupadoInfo({
+            tecnicoNome: tecnico?.nome || 'Técnico',
+            osNumero: resultado.osNumero || '',
+            osStatus: resultado.osStatus || ''
+          })
+          setShowTecnicoOcupadoDialog(true)
+          setLoading(false)
+          // Não limpa pendingSubmit para saber que estamos esperando decisão do usuário
+          return
+        }
+      } catch (err) {
+        console.error('[OrderDialog] Erro ao verificar técnico:', err)
+        // Em caso de erro na verificação, permitir continuar
+      }
+      
+      setLoading(false)
+    }
+
+    // Se chegou aqui, pode executar o submit normalmente
+    executeSubmit(false)
   }
 
   // Função para iniciar deslocamento
@@ -455,6 +535,7 @@ export function OrderDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
       {!hideTrigger && (
         <DialogTrigger asChild>
@@ -914,5 +995,53 @@ export function OrderDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Dialog de técnico ocupado */}
+    <AlertDialog open={showTecnicoOcupadoDialog} onOpenChange={setShowTecnicoOcupadoDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
+            <AlertTriangle className="h-5 w-5" />
+            Técnico Ocupado
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
+              <p>
+                O técnico <strong>{tecnicoOcupadoInfo?.tecnicoNome}</strong> já está em atendimento em outra ordem de serviço.
+              </p>
+              <p className="text-sm bg-orange-50 dark:bg-orange-950 p-2 rounded border border-orange-200 dark:border-orange-800">
+                <span className="font-medium">OS:</span> {tecnicoOcupadoInfo?.osNumero}<br />
+                <span className="font-medium">Status:</span> {tecnicoOcupadoInfo?.osStatus}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                O que deseja fazer?
+              </p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel 
+            onClick={() => {
+              setShowTecnicoOcupadoDialog(false)
+              setPendingSubmit(false)
+            }}
+          >
+            Escolher Outro Técnico
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setShowTecnicoOcupadoDialog(false)
+              // Limpar técnico e criar OS sem técnico
+              setFormData(prev => ({ ...prev, tecnico_id: '' }))
+              executeSubmit(true)
+            }}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            Criar sem Técnico
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

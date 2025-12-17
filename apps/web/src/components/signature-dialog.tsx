@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef, useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import {
   Dialog,
@@ -137,25 +138,63 @@ export function SignatureDialog({
 
   const canSave = !isEmpty && clientName.trim().length > 0
 
+  // Estado para controlar se estamos no cliente (para evitar SSR issues com createPortal)
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Bloquear scroll do body quando em fullscreen
+  useEffect(() => {
+    if (isFullscreenMode) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+      document.body.style.height = '100%'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.height = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.height = ''
+    }
+  }, [isFullscreenMode])
+
   // Modo tela cheia - ocupa toda a tela sem rotação CSS
   // O cliente assina normalmente, depois rotacionamos a imagem ao salvar
-  if (isFullscreenMode) {
+  // Usando createPortal para garantir que renderize no body, fora de qualquer stacking context
+  if (isFullscreenMode && isMounted) {
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 400
     const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 700
 
-    return (
+    const fullscreenContent = (
       <div 
-        className="fixed inset-0 z-[99999] bg-white flex flex-col"
+        className="bg-white flex flex-col"
         style={{
-          width: '100vw',
-          height: '100vh',
           position: 'fixed',
           top: 0,
           left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 2147483647, // Valor máximo de z-index
+          isolation: 'isolate', // Cria novo stacking context
+          WebkitTransform: 'translateZ(0)', // Force GPU layer no Safari
+          transform: 'translateZ(0)',
         }}
       >
         {/* Header com botões */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 shrink-0">
+        <div 
+          className="flex items-center justify-between px-4 py-3 bg-slate-900 shrink-0"
+          style={{ minHeight: '56px' }}
+        >
           <Button
             type="button"
             variant="secondary"
@@ -187,9 +226,17 @@ export function SignatureDialog({
               size="sm"
               disabled={isEmpty}
               className="h-10 px-4 touch-manipulation active:scale-95 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-              onPointerDown={(e) => {
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 if (!isEmpty && clientName.trim()) {
-                  e.preventDefault()
+                  handleSave()
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!isEmpty && clientName.trim()) {
                   handleSave()
                 }
               }}
@@ -237,6 +284,9 @@ export function SignatureDialog({
         </div>
       </div>
     )
+
+    // Usar createPortal para renderizar diretamente no body
+    return createPortal(fullscreenContent, document.body)
   }
 
   return (
@@ -348,9 +398,17 @@ export function SignatureDialog({
               type="button"
               disabled={!canSave}
               className="touch-manipulation active:scale-95 transition-transform"
-              onPointerDown={(e) => {
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 if (canSave) {
-                  e.preventDefault()
+                  handleSave()
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (canSave) {
                   handleSave()
                 }
               }}
