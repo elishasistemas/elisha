@@ -116,7 +116,7 @@ export default function OrdersPage() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [ordemToChangeStatus, setOrdemToChangeStatus] = useState<OrdemServico | null>(null)
   const [novoStatusPendente, setNovoStatusPendente] = useState<string | null>(null)
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [filtroStatus, setFiltroStatus] = useState<string>('todas')
 
   const { user, session } = useAuth()
   const { profile } = useProfile(user?.id)
@@ -146,6 +146,10 @@ export default function OrdersPage() {
   const { equipamentos, loading: equipLoading } = useEquipamentos(clienteId)
   const orderBy = ordenacao === 'data' ? 'created_at' : (ordenacao === 'status' ? 'status' : 'prioridade')
 
+  // Técnico: pode filtrar por Todas (Em Deslocamento + Em Atendimento), ou filtrar por status específico
+  // Abertas sem técnico vão para "OS para Aceitar", concluídas não aparecem
+  const tecnicoAllowedStatusFilters = ['todas', 'checkin', 'em_deslocamento'] as const
+
   // REGRA: Todos os técnicos da empresa veem TODAS as OSs
   // Após aceitar, a OS fica exclusiva do técnico que aceitou
   // Outros técnicos veem apenas o status (não podem editar/aceitar OSs atribuídas)
@@ -154,8 +158,18 @@ export default function OrdersPage() {
     pageSize,
     search: debouncedSearch,
     orderBy: orderBy as any,
-    status: filtroStatus !== 'todos' ? filtroStatus : undefined,
-    // NÃO filtra por tecnicoId - todos veem todas as OSs
+    status: canTecnico
+      ? (filtroStatus !== 'todas' && tecnicoAllowedStatusFilters.includes(filtroStatus as any) ? filtroStatus : undefined)
+      : (filtroStatus !== 'todas' ? filtroStatus : undefined),
+    // Para técnico: busca apenas suas OS atribuídas
+    tecnicoId: canTecnico ? (profile?.tecnico_id || undefined) : undefined,
+    refreshKey,
+  })
+
+  // Consulta separada para OS disponíveis para aceitar (não depender do filtro de status da lista)
+  const { ordens: ordensParaAceitarRaw } = useOrdensServico(empresaId, {
+    page: 1,
+    pageSize: 50,
     refreshKey,
   })
 
@@ -171,19 +185,43 @@ export default function OrdersPage() {
   const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
 
+  // IDs das OS que aparecem na seção "OS para Aceitar" (para não duplicar na lista principal)
+  const ordensAbertasIds = new Set(
+    ordensParaAceitarRaw
+      .filter(o => (o.status === 'novo' || o.status === 'parado') && !o.tecnico_id)
+      .map(o => o.id)
+  )
+
   // Filtrar ordens com base no filtro de técnico
   const ordensFiltradas = ordens.filter((ordem) => {
+    // No perfil técnico: mostrar apenas OS atribuídas ao técnico (Em Deslocamento ou Em Atendimento)
+    if (canTecnico) {
+      // Exclui OS concluídas/canceladas
+      if (['concluido', 'cancelado'].includes(ordem.status)) {
+        return false
+      }
+      // Exclui OS abertas sem técnico (vão para "OS para Aceitar")
+      if (!ordem.tecnico_id || ordem.tecnico_id !== profile?.tecnico_id) {
+        return false
+      }
+      // Só mostra Em Deslocamento e Em Atendimento
+      if (!['checkin', 'em_deslocamento'].includes(ordem.status)) {
+        return false
+      }
+      return true
+    }
+
     if (filtroTecnico === 'sem_tecnico') {
       return !ordem.tecnico_id
     }
-    if (filtroTecnico === 'minhas' && canTecnico) {
+    if (filtroTecnico === 'minhas') {
       return ordem.tecnico_id === profile?.tecnico_id
     }
     return true // 'todas'
   })
 
   // OS abertas para aceitar/recusar (todos os tipos sem técnico)
-  const ordensAbertas = ordens.filter(o =>
+  const ordensAbertas = ordensParaAceitarRaw.filter(o =>
     (o.status === 'novo' || o.status === 'parado') &&
     !o.tecnico_id
   )
@@ -192,8 +230,18 @@ export default function OrdersPage() {
   // Minhas OS (atribuídas ao técnico logado, não finalizadas)
   // Usar a lista dedicada 'minhasOrdensRaw' se disponível
   const minhasOS = (canTecnico && profile?.tecnico_id)
-    ? minhasOrdensRaw.filter(o => !['concluido', 'cancelado'].includes(o.status))
+    ? minhasOrdensRaw.filter(o => ['novo', 'checkin', 'em_deslocamento'].includes(o.status))
     : []
+
+  const tecnicoHasAnotherWithStatus = (status: 'em_deslocamento' | 'checkin', currentOsId: string) => {
+    if (!canTecnico) return false
+    const tecnicoId = profile?.tecnico_id
+    if (!tecnicoId) return false
+
+    return minhasOrdensRaw.some(
+      (o) => o.tecnico_id === tecnicoId && o.status === status && o.id !== currentOsId
+    )
+  }
 
   const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
@@ -244,6 +292,10 @@ export default function OrdersPage() {
 
   // Handler para iniciar deslocamento
   const handleStartDeslocamento = async (ordem: OrdemServico) => {
+    if (tecnicoHasAnotherWithStatus('em_deslocamento', ordem.id)) {
+      toast.error('Você já está em deslocamento em outra OS. Finalize antes de iniciar outra.')
+      return
+    }
     try {
       const { data, error } = await supabase.rpc('os_start_deslocamento', { p_os_id: ordem.id })
       if (error) throw error
@@ -262,6 +314,10 @@ export default function OrdersPage() {
 
   // Handler para iniciar atendimento (checkin)
   const handleStartAtendimento = async (ordem: OrdemServico) => {
+    if (tecnicoHasAnotherWithStatus('checkin', ordem.id)) {
+      toast.error('Você já está em atendimento em outra OS. Finalize antes de iniciar outra.')
+      return
+    }
     try {
       const { data, error } = await supabase.rpc('os_checkin', { p_os_id: ordem.id, p_location: null })
       if (error) throw error
@@ -457,10 +513,12 @@ export default function OrdersPage() {
     }
   }
 
-  const total = count || 0
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const startIdx = total > 0 ? (page - 1) * pageSize + 1 : 0
-  const endIdx = Math.min(page * pageSize, total)
+  // Para técnico, usar a contagem das OS filtradas (apenas suas OS em deslocamento/atendimento)
+  // Para admin/gestor, usar o count total da query
+  const totalDisplay = canTecnico ? ordensFiltradas.length : (count || 0)
+  const totalPages = Math.max(1, Math.ceil(totalDisplay / pageSize))
+  const startIdx = totalDisplay > 0 ? (page - 1) * pageSize + 1 : 0
+  const endIdx = Math.min(page * pageSize, totalDisplay)
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto w-full py-2 md:py-4 px-2 md:px-4 min-w-0">
@@ -507,68 +565,113 @@ export default function OrdersPage() {
                     <p>Não existem ordens de serviço disponíveis para aceitar no momento.</p>
                   </div>
                 ) : (
-                <div className="overflow-x-auto max-w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Equipamento</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ordensAbertas.slice(0, 10).map((ordem) => {
-                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
-                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
-                    return (
-                      <TableRow key={ordem.id}>
-                        <TableCell className="font-medium">
-                          {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
-                        </TableCell>
-                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">-</TableCell>
-                        <TableCell className="capitalize">{ordem.tipo}</TableCell>
-                        <TableCell>
-                          {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                          {ordem.prioridade === 'media' && <Badge variant="secondary" className="gap-1 capitalize"><ArrowRight className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                          {ordem.prioridade === 'baixa' && <Badge variant="outline" className="gap-1 capitalize"><ArrowDown className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                  <>
+                    {/* Mobile: Cards */}
+                    <div className="flex flex-col gap-3 sm:hidden">
+                      {ordensAbertas.slice(0, 10).map((ordem) => {
+                        const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                        const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                        return (
+                          <div key={ordem.id} className="border rounded-lg p-4 bg-card space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">
+                                  {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {cliente?.nome_local || 'Cliente'}
+                                </p>
+                              </div>
+                              <Badge className={status.className + ' shrink-0 text-xs'}>
+                                {status.label}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="capitalize">{ordem.tipo}</span>
+                              <span>•</span>
+                              {ordem.prioridade === 'alta' && <span className="text-red-600 font-medium flex items-center gap-1"><ArrowUp className="h-3 w-3" />Alta</span>}
+                              {ordem.prioridade === 'media' && <span className="text-yellow-600 font-medium flex items-center gap-1"><ArrowRight className="h-3 w-3" />Média</span>}
+                              {ordem.prioridade === 'baixa' && <span className="text-green-600 font-medium flex items-center gap-1"><ArrowDown className="h-3 w-3" />Baixa</span>}
+                              <span>•</span>
+                              <span>{new Date(ordem.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAccept(ordem)}
+                              disabled={!canAcceptOrDecline(ordem)}
+                              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Aceitar OS
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Desktop: Table */}
+                    <div className="hidden sm:block overflow-x-auto max-w-full">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Número</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Equipamento</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Prioridade</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Data</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ordensAbertas.slice(0, 10).map((ordem) => {
+                            const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                            const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
+                            return (
+                              <TableRow key={ordem.id}>
+                                <TableCell className="font-medium">
+                                  {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
+                                </TableCell>
+                                <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                                <TableCell className="capitalize">{ordem.tipo}</TableCell>
+                                <TableCell>
+                                  {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                                  {ordem.prioridade === 'media' && <Badge variant="secondary" className="gap-1 capitalize"><ArrowRight className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                                  {ordem.prioridade === 'baixa' && <Badge variant="outline" className="gap-1 capitalize"><ArrowDown className="h-3 w-3" />{ordem.prioridade}</Badge>}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={status.className}>
+                                    {status.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </TableCell>
+                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }}
+                                    disabled={!canAcceptOrDecline(ordem)}
+                                    variant="default"
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                  >
+                                    <Check className="h-4 w-4 mr-1" /> Aceitar
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            )
                           })}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }}
-                            disabled={!canAcceptOrDecline(ordem)}
-                            variant="default"
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                          >
-                            <Check className="h-4 w-4 mr-1" /> Aceitar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </CollapsibleContent>
@@ -576,184 +679,208 @@ export default function OrdersPage() {
         </Collapsible>
       )}
 
-      {/* Seção Minhas OS (atribuídas ao técnico) */}
-      {canTecnico && minhasOS.length > 0 && (
+      {/* Para TÉCNICO: Card único com a OS em andamento */}
+      {canTecnico && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Minhas OS</CardTitle>
-                <CardDescription>Ordens de serviço atribuídas a você</CardDescription>
-              </div>
-            </div>
+            <CardTitle>Minha OS em Andamento</CardTitle>
+            <CardDescription>Sua ordem de serviço atual</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto max-w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {minhasOS.slice(0, 10).map((ordem) => {
-                    const cliente = clientes.find(c => c.id === ordem.cliente_id)
-                    const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
-                    return (
-                      <TableRow key={ordem.id} className="cursor-pointer" onClick={() => setViewOrder(ordem)}>
-                        <TableCell className="font-medium">
-                          {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
-                        </TableCell>
-                        <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
-                        <TableCell className="capitalize">{ordem.tipo}</TableCell>
-                        <TableCell>
-                          {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                          {ordem.prioridade === 'media' && <Badge variant="secondary" className="gap-1 capitalize"><ArrowRight className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                          {ordem.prioridade === 'baixa' && <Badge variant="outline" className="gap-1 capitalize"><ArrowDown className="h-3 w-3" />{ordem.prioridade}</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          {getActionButton(ordem)}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                Carregando...
+              </div>
+            ) : ordensFiltradas.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <p className="text-lg">Você não tem nenhuma OS em andamento</p>
+                <p className="text-sm mt-2">Aceite uma OS na seção acima para começar</p>
+              </div>
+            ) : (() => {
+              const osAtual = ordensFiltradas[0]
+              const cliente = clientes.find(c => c.id === osAtual.cliente_id)
+              const status = statusConfig[osAtual.status as keyof typeof statusConfig] || statusConfig.novo
+              return (
+                <div className="space-y-4">
+                  {/* Card da OS atual */}
+                  <div className="border rounded-xl p-4 sm:p-6 bg-card space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-lg sm:text-xl">
+                          {osAtual.numero_os || `#${osAtual.id.slice(0, 8)}`}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {cliente?.nome_local || 'Cliente'}
+                        </p>
+                      </div>
+                      <Badge className={status.className + ' shrink-0 text-sm px-3 py-1'}>
+                        {status.label}
+                      </Badge>
+                    </div>
+
+                    {/* Info */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Tipo</p>
+                        <p className="font-medium capitalize">{osAtual.tipo}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Prioridade</p>
+                        <div className="flex items-center gap-1">
+                          {osAtual.prioridade === 'alta' && <><ArrowUp className="h-4 w-4 text-red-500" /><span className="text-red-600 font-medium">Alta</span></>}
+                          {osAtual.prioridade === 'media' && <><ArrowRight className="h-4 w-4 text-yellow-500" /><span className="text-yellow-600 font-medium">Média</span></>}
+                          {osAtual.prioridade === 'baixa' && <><ArrowDown className="h-4 w-4 text-green-500" /><span className="text-green-600 font-medium">Baixa</span></>}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Data Abertura</p>
+                        <p className="font-medium">
+                          {new Date(osAtual.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Hora</p>
+                        <p className="font-medium">
+                          {new Date(osAtual.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Descrição se existir */}
+                    {osAtual.descricao && (
+                      <div>
+                        <p className="text-muted-foreground text-sm">Descrição</p>
+                        <p className="text-sm mt-1">{osAtual.descricao}</p>
+                      </div>
+                    )}
+
+                    {/* Botão de ação principal */}
+                    <Button
+                      size="lg"
+                      className="w-full mt-2"
+                      onClick={() => router.push(`/os/${osAtual.id}/full`)}
+                    >
+                      {osAtual.status === 'em_deslocamento' ? (
+                        <>Iniciar Atendimento</>
+                      ) : (
+                        <>Continuar Atendimento</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div>
-              <CardTitle>Lista de OS</CardTitle>
-              <CardDescription className="text-sm">
-                {ordensFiltradas.length} {search ? 'resultado(s)' : 'registros'}
-                {filtroTecnico === 'sem_tecnico' && ' sem técnico'}
-                {filtroTecnico === 'minhas' && ' atribuídas a você'}
-              </CardDescription>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Status:</span>
-                <Select value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v); setPage(1); }}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    {Object.entries(statusConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {/* Para ADMIN/GESTOR: Lista completa com filtros */}
+      {!canTecnico && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div>
+                <CardTitle>Lista de OS</CardTitle>
+                <CardDescription className="text-sm">Use os filtros e a busca para encontrar ordens</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Filtrar:</span>
-                <Select value={filtroTecnico} onValueChange={(v: 'todas' | 'sem_tecnico' | 'minhas') => setFiltroTecnico(v)}>
-                  <SelectTrigger className="w-full sm:w-[160px]">
-                    <SelectValue placeholder="Filtrar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todas">Todas OSs</SelectItem>
-                    <SelectItem value="sem_tecnico">Sem Técnico</SelectItem>
-                    {canTecnico && <SelectItem value="minhas">Minhas OSs</SelectItem>}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Ordenar:</span>
-                <Select value={ordenacao} onValueChange={setOrdenacao}>
-                  <SelectTrigger className="w-full sm:w-[160px]">
-                    <SelectValue placeholder="Ordenar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prioridade">Prioridade</SelectItem>
-                    <SelectItem value="data">Data</SelectItem>
-                    <SelectItem value="status">Status</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input
-                placeholder="Buscar OS..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="w-full sm:w-[240px] md:w-[320px]"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-10 text-muted-foreground">
-              Carregando...
-            </div>
-          ) : hasError ? (
-            <div className="text-destructive p-4">{hasError}</div>
-          ) : ordensFiltradas.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
-                filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
-                  'Nenhuma ordem encontrada'}
-            </div>
-          ) : (
-            <>
-              {/* Versão Mobile - Cards */}
-              <div className="block sm:hidden">
-                <OSListMobile
-                  ordens={ordensFiltradas}
-                  clientes={clientes}
-                  colaboradores={colaboradores}
-                  zonas={zonas}
-                  onViewOrder={setViewOrder}
-                  onAcceptOrder={canTecnico ? handleAccept : undefined}
-                  onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}
-                  canAccept={canTecnico}
-                  isLoading={isLoading}
-                  emptyMessage={
-                    filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
-                      filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
-                        'Nenhuma ordem encontrada'
-                  }
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Status:</span>
+                  <Select value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v); setPage(1); }}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todos</SelectItem>
+                      {Object.entries(statusConfig).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Filtrar:</span>
+                  <Select value={filtroTecnico} onValueChange={(v: 'todas' | 'sem_tecnico' | 'minhas') => setFiltroTecnico(v)}>
+                    <SelectTrigger className="w-full sm:w-[160px]">
+                      <SelectValue placeholder="Filtrar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas OSs</SelectItem>
+                      <SelectItem value="sem_tecnico">Sem Técnico</SelectItem>
+                      <SelectItem value="minhas">Minhas OSs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Ordenar:</span>
+                  <Select value={ordenacao} onValueChange={setOrdenacao}>
+                    <SelectTrigger className="w-full sm:w-[160px]">
+                      <SelectValue placeholder="Ordenar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prioridade">Prioridade</SelectItem>
+                      <SelectItem value="data">Data</SelectItem>
+                      <SelectItem value="status">Status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input
+                  placeholder="Buscar OS..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                  className="w-full sm:w-[240px] md:w-[320px]"
                 />
               </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 sm:p-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                Carregando...
+              </div>
+            ) : hasError ? (
+              <div className="text-destructive p-4">{hasError}</div>
+            ) : ordensFiltradas.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                {filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
+                  filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+                    'Nenhuma ordem encontrada'}
+              </div>
+            ) : (
+              <>
+                {/* Versão Mobile - Cards */}
+                <div className="block sm:hidden">
+                  <OSListMobile
+                    ordens={ordensFiltradas}
+                    clientes={clientes}
+                    colaboradores={colaboradores}
+                    zonas={zonas}
+                    onViewOrder={setViewOrder}
+                    onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}
+                    isLoading={isLoading}
+                    emptyMessage={
+                      filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :
+                        filtroTecnico === 'minhas' ? 'Você não tem OSs atribuídas' :
+                          'Nenhuma ordem encontrada'
+                    }
+                  />
+                </div>
 
-              {/* Versão Desktop - Tabela */}
-              <div className="hidden sm:block overflow-x-auto max-w-full">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Número OS</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Técnico</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Prioridade</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Data</TableHead>
-                      {canManage && <TableHead className="w-[80px]">Ações</TableHead>}
-                    </TableRow>
+                {/* Versão Desktop - Tabela */}
+                <div className="hidden sm:block overflow-x-auto max-w-full">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Número OS</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Técnico</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Prioridade</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Data</TableHead>
+                        {canManage && <TableHead className="w-[80px]">Ações</TableHead>}
+                      </TableRow>
                   </TableHeader>
                   <TableBody>
                     {ordensFiltradas.map((ordem) => {
@@ -892,10 +1019,11 @@ export default function OrdersPage() {
               </div>
             </>
           )}
-          {total > 0 && (
+          {/* Paginação */}
+          {totalDisplay > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 text-sm text-muted-foreground">
               <div className="text-center sm:text-left">
-                {startIdx}-{endIdx} de {total}
+                {startIdx}-{endIdx} de {totalDisplay}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
@@ -912,6 +1040,7 @@ export default function OrdersPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {viewOrder && empresaId && (
         <OrderDialog
