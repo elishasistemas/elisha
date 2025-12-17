@@ -409,7 +409,6 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
                 id="file-foto"
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
@@ -430,7 +429,6 @@ export function OSAtendimentoChecklist({ osId, empresaId }: OSAtendimentoCheckli
                 id="file-video"
                 type="file"
                 accept="video/*"
-                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]

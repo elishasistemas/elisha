@@ -482,7 +482,6 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
                   id="file-foto-preventiva"
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
