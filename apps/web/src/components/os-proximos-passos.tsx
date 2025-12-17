@@ -36,15 +36,43 @@ interface OSProximosPassosProps {
 }
 
 export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: OSProximosPassosProps) {
-  const [estadoElevador, setEstadoElevador] = useState('')
-  const [nomeResponsavel, setNomeResponsavel] = useState('')
-  const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(null)
+  // Chave única para persistência baseada no osId
+  const storageKey = `os-proximos-passos-${osId}`
+
+  // Função para carregar dados salvos
+  const loadSavedData = () => {
+    if (typeof window === 'undefined') return null
+    try {
+      const saved = sessionStorage.getItem(storageKey)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  }
+
+  const savedData = loadSavedData()
+
+  const [estadoElevador, setEstadoElevador] = useState(savedData?.estadoElevador || '')
+  const [nomeResponsavel, setNomeResponsavel] = useState(savedData?.nomeResponsavel || '')
+  const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(savedData?.assinaturaUrl || null)
   const [showSignatureDialog, setShowSignatureDialog] = useState(false)
   const [realizandoCheckout, setRealizandoCheckout] = useState(false)
   const [showPdfDialog, setShowPdfDialog] = useState(false)
-  const [semResponsavel, setSemResponsavel] = useState(false)
+  const [semResponsavel, setSemResponsavel] = useState(savedData?.semResponsavel || false)
 
   const supabase = createSupabaseBrowser()
+
+  // Salvar dados no sessionStorage quando mudam
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const dataToSave = {
+      estadoElevador,
+      nomeResponsavel,
+      assinaturaUrl,
+      semResponsavel,
+    }
+    sessionStorage.setItem(storageKey, JSON.stringify(dataToSave))
+  }, [estadoElevador, nomeResponsavel, assinaturaUrl, semResponsavel, storageKey])
 
   // Mensagem de feedback baseada no estado do elevador
   const getEstadoFeedback = () => {
@@ -108,6 +136,9 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
           assinatura_cliente: assinaturaParaEnviar
         }, token)
       )
+
+      // Limpar dados salvos após checkout bem-sucedido
+      sessionStorage.removeItem(storageKey)
 
       toast.success('OS finalizada com sucesso!')
 
