@@ -130,6 +130,9 @@ export default function OrdersPage() {
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
 
+  // Estado para todos os equipamentos da empresa (para lookup rápido)
+  const [allEquipamentos, setAllEquipamentos] = useState<Record<string, { tipo: string | null; fabricante: string | null; modelo: string | null }>>({})
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -190,6 +193,26 @@ export default function OrdersPage() {
 
   const isLoading = profileLoading || empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
+
+  // Buscar todos os equipamentos da empresa para lookup rápido
+  useEffect(() => {
+    if (!empresaId) return
+    const supabase = createSupabaseBrowser()
+    const fetchAllEquipamentos = async () => {
+      const { data } = await supabase
+        .from('equipamentos')
+        .select('id, tipo, fabricante, modelo')
+        .eq('empresa_id', empresaId)
+      if (data) {
+        const map: Record<string, { tipo: string | null; fabricante: string | null; modelo: string | null }> = {}
+        data.forEach(eq => {
+          map[eq.id] = { tipo: eq.tipo, fabricante: eq.fabricante, modelo: eq.modelo }
+        })
+        setAllEquipamentos(map)
+      }
+    }
+    fetchAllEquipamentos()
+  }, [empresaId, refreshKey])
 
   // Abre automaticamente o diálogo de criação quando new=true
   useEffect(() => {
@@ -592,9 +615,11 @@ export default function OrdersPage() {
                     <div className="flex flex-col gap-3 sm:hidden">
                       {ordensAbertas.slice(0, 10).map((ordem) => {
                         const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                        const equipamento = allEquipamentos[ordem.equipamento_id]
+                        const zona = cliente?.zona_id ? zonas.find(z => z.id === cliente.zona_id) : null
                         const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                         return (
-                          <div key={ordem.id} className="border rounded-lg p-4 bg-card space-y-3">
+                          <div key={ordem.id} className="border rounded-lg p-4 bg-card space-y-2">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-sm truncate">
@@ -608,15 +633,30 @@ export default function OrdersPage() {
                                 {status.label}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            
+                            {/* Equipamento */}
+                            {equipamento && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                🛗 {[equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') || 'Equipamento'}
+                              </p>
+                            )}
+                            
+                            {/* Zona */}
+                            <p className="text-xs text-muted-foreground">
+                              📍 Zona: <span className={zona ? 'text-blue-600 font-medium' : ''}>{zona?.nome || 'Sem zona'}</span>
+                            </p>
+                            
+                            {/* Tipo, Prioridade e Data */}
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
                               <span className="capitalize">{ordem.tipo}</span>
                               <span>•</span>
                               {ordem.prioridade === 'alta' && <span className="text-red-600 font-medium flex items-center gap-1"><ArrowUp className="h-3 w-3" />Alta</span>}
                               {ordem.prioridade === 'media' && <span className="text-yellow-600 font-medium flex items-center gap-1"><ArrowRight className="h-3 w-3" />Média</span>}
                               {ordem.prioridade === 'baixa' && <span className="text-green-600 font-medium flex items-center gap-1"><ArrowDown className="h-3 w-3" />Baixa</span>}
                               <span>•</span>
-                              <span>{new Date(ordem.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                              <span>{new Date(ordem.data_abertura || ordem.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
+                            
                             <Button
                               size="sm"
                               onClick={() => handleAccept(ordem)}
@@ -638,6 +678,7 @@ export default function OrdersPage() {
                             <TableHead>Número</TableHead>
                             <TableHead>Cliente</TableHead>
                             <TableHead>Equipamento</TableHead>
+                            <TableHead>Zona</TableHead>
                             <TableHead>Tipo</TableHead>
                             <TableHead>Prioridade</TableHead>
                             <TableHead>Status</TableHead>
@@ -648,6 +689,8 @@ export default function OrdersPage() {
                         <TableBody>
                           {ordensAbertas.slice(0, 10).map((ordem) => {
                             const cliente = clientes.find(c => c.id === ordem.cliente_id)
+                            const equipamento = allEquipamentos[ordem.equipamento_id]
+                            const zona = cliente?.zona_id ? zonas.find(z => z.id === cliente.zona_id) : null
                             const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                             return (
                               <TableRow key={ordem.id}>
@@ -655,7 +698,12 @@ export default function OrdersPage() {
                                   {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
                                 </TableCell>
                                 <TableCell>{cliente?.nome_local || 'Cliente'}</TableCell>
-                                <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {equipamento ? [equipamento.tipo, equipamento.modelo].filter(Boolean).join(' ') : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  <span className={zona ? 'text-blue-600 font-medium' : 'text-muted-foreground'}>{zona?.nome || 'Sem zona'}</span>
+                                </TableCell>
                                 <TableCell className="capitalize">{ordem.tipo}</TableCell>
                                 <TableCell>
                                   {ordem.prioridade === 'alta' && <Badge variant="destructive" className="gap-1 capitalize"><ArrowUp className="h-3 w-3" />{ordem.prioridade}</Badge>}
