@@ -130,19 +130,20 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
       toast.info('Gerando PDF...')
 
       // Buscar dados completos da OS
-      const { data: osCompleta } = await supabase
+      const { data: osCompleta, error: osError } = await supabase
         .from('ordens_servico')
         .select(`
           *,
-          empresas (nome, logo_url),
-          clientes (nome_local, endereco_completo, responsavel_telefone),
-          equipamentos (tipo, fabricante, modelo, numero_serie),
-          tecnicos (nome)
+          empresas!ordens_servico_empresa_id_fkey (nome, logo_url),
+          clientes!ordens_servico_cliente_id_fkey (nome_local, endereco_completo, responsavel_telefone),
+          equipamentos!ordens_servico_equipamento_id_fkey (tipo, fabricante, modelo, numero_serie),
+          tecnicos!ordens_servico_tecnico_id_fkey (nome)
         `)
         .eq('id', osId)
         .single()
 
-      if (!osCompleta) {
+      if (osError || !osCompleta) {
+        console.error('[proximos-passos] Erro ao buscar OS:', osError)
         throw new Error('OS não encontrada')
       }
 
@@ -356,7 +357,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
                         }
                         setShowSignatureDialog(true)
                       }}
-                      className="w-full h-32 border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                      className="w-full min-h-[128px] border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors touch-manipulation active:scale-[0.98]"
                     >
                       {assinaturaUrl ? (
                         <img src={assinaturaUrl} alt="Assinatura" className="max-h-28" />
