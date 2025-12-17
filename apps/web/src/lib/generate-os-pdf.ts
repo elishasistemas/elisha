@@ -62,7 +62,7 @@ const getEstadoEquipamentoLabel = (estado: string | null | undefined): string =>
     return labels[estado] || estado
 }
 
-export async function generateOSPDF(data: OSPDFData): Promise<void> {
+export async function generateOSPDF(data: OSPDFData, options?: { preview?: boolean }): Promise<void> {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 15
@@ -357,7 +357,18 @@ export async function generateOSPDF(data: OSPDFData): Promise<void> {
     doc.text(`Documento gerado em ${new Date().toLocaleString('pt-BR')}`, margin, footerY)
     doc.text(data.empresa_nome || '', pageWidth - margin, footerY, { align: 'right' })
 
-    // Download PDF (works in PWAs and browsers)
+    // Download or Preview PDF
     const fileName = `OS_${data.numero_os || 'documento'}_${new Date().toISOString().split('T')[0]}.pdf`
-    doc.save(fileName)
+    
+    if (options?.preview) {
+        // Abrir em nova aba para visualização
+        const pdfBlob = doc.output('blob')
+        const pdfUrl = URL.createObjectURL(pdfBlob)
+        window.open(pdfUrl, '_blank')
+        // Limpar URL após um tempo
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000)
+    } else {
+        // Download direto
+        doc.save(fileName)
+    }
 }

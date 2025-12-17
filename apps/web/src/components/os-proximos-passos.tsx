@@ -16,7 +16,6 @@ import {
 } from './ui/select'
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -25,7 +24,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog'
 import { toast } from 'sonner'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Eye, Download } from 'lucide-react'
 import { createSupabaseBrowser } from '@/lib/supabase'
 import { SignatureDialog } from './signature-dialog'
 
@@ -123,11 +122,11 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
     }
   }
 
-  const handleGerarPdf = async () => {
+  const handleGerarPdf = async (preview: boolean = false) => {
     setShowPdfDialog(false)
 
     try {
-      toast.info('Gerando PDF...')
+      toast.info(preview ? 'Abrindo PDF...' : 'Gerando PDF...')
 
       // Buscar dados da OS
       const { data: osCompleta, error: osError } = await supabase
@@ -207,9 +206,9 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         evidencias: evidenciasComUrl as any,
         empresa_nome: empresa?.nome,
         empresa_logo_url: empresa?.logo_url,
-      })
+      }, { preview })
 
-      toast.success('PDF gerado com sucesso!')
+      toast.success(preview ? 'PDF aberto em nova aba!' : 'PDF baixado com sucesso!')
 
       // Redirecionar após sucesso
       setTimeout(() => {
@@ -394,18 +393,30 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
       <AlertDialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gerar PDF da OS?</AlertDialogTitle>
+            <AlertDialogTitle>PDF da Ordem de Serviço</AlertDialogTitle>
             <AlertDialogDescription>
-              Deseja gerar o PDF da Ordem de Serviço agora? Você também pode gerar depois visualizando a OS.
+              O que deseja fazer com o PDF da OS?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handlePularPdf}>
-              Não, gerar depois
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={handlePularPdf} className="sm:mr-auto">
+              Pular
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleGerarPdf}>
-              Sim, gerar agora
-            </AlertDialogAction>
+            <Button 
+              variant="outline" 
+              onClick={() => handleGerarPdf(false)}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Baixar PDF
+            </Button>
+            <Button 
+              onClick={() => handleGerarPdf(true)}
+              className="gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              Visualizar PDF
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
