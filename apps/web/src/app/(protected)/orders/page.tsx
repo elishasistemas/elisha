@@ -117,9 +117,15 @@ export default function OrdersPage() {
   const [ordemToChangeStatus, setOrdemToChangeStatus] = useState<OrdemServico | null>(null)
   const [novoStatusPendente, setNovoStatusPendente] = useState<string | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<string>('todas')
+  
+  // Estados que estavam depois do return condicional - MOVIDOS PARA CÁ
+  const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
+  const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
+  const [openCreate, setOpenCreate] = useState(false)
 
   const { user, session } = useAuth()
-  const { profile } = useProfile(user?.id)
+  const { profile, loading: profileLoading } = useProfile(user?.id)
 
   // Determinar empresa ativa (impersonation ou empresa do perfil)
   const empresaId = profile?.impersonating_empresa_id || profile?.empresa_id || undefined
@@ -182,8 +188,37 @@ export default function OrdersPage() {
     refreshKey,
   })
 
-  const isLoading = empresasLoading || clientesLoading || colLoading || loading || equipLoading
+  const isLoading = profileLoading || empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
+
+  // Abre automaticamente o diálogo de criação quando new=true
+  useEffect(() => {
+    if (newParam === 'true' && empresaId && clientes.length > 0 && canAdmin) {
+      setOpenCreate(true)
+    }
+  }, [newParam, empresaId, clientes.length, canAdmin])
+
+  // Enquanto o perfil não carregar, não sabemos se é técnico ou admin
+  // Mostrar loading para evitar flash de componentes errados
+  if (profileLoading) {
+    return (
+      <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto w-full py-2 md:py-4 px-2 md:px-4 min-w-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Crie, acompanhe e finalize ordens</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="py-10">
+            <div className="flex items-center justify-center text-muted-foreground">
+              Carregando...
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // IDs das OS que aparecem na seção "OS para Aceitar" (para não duplicar na lista principal)
   const ordensAbertasIds = new Set(
@@ -242,19 +277,6 @@ export default function OrdersPage() {
       (o) => o.tecnico_id === tecnicoId && o.status === status && o.id !== currentOsId
     )
   }
-
-  const [viewOrder, setViewOrder] = useState<OrdemServico | null>(null)
-  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
-  const [ordemToFinalize, setOrdemToFinalize] = useState<OrdemServico | null>(null)
-
-  const [openCreate, setOpenCreate] = useState(false)
-  
-  // Abre automaticamente o diálogo de criação quando new=true
-  useEffect(() => {
-    if (newParam === 'true' && empresaId && clientes.length > 0 && canAdmin) {
-      setOpenCreate(true)
-    }
-  }, [newParam, empresaId, clientes.length, canAdmin])
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1)

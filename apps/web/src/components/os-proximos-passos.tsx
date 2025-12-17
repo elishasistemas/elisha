@@ -129,16 +129,10 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
     try {
       toast.info('Gerando PDF...')
 
-      // Buscar dados completos da OS
+      // Buscar dados da OS
       const { data: osCompleta, error: osError } = await supabase
         .from('ordens_servico')
-        .select(`
-          *,
-          empresas!ordens_servico_empresa_id_fkey (nome, logo_url),
-          clientes!ordens_servico_cliente_id_fkey (nome_local, endereco_completo, responsavel_telefone),
-          equipamentos!ordens_servico_equipamento_id_fkey (tipo, fabricante, modelo, numero_serie),
-          tecnicos!ordens_servico_tecnico_id_fkey (nome)
-        `)
+        .select('*')
         .eq('id', osId)
         .single()
 
@@ -147,27 +141,32 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         throw new Error('OS não encontrada')
       }
 
-      // Buscar laudo
-      const { data: laudo } = await supabase
-        .from('laudos_tecnicos')
-        .select('*')
-        .eq('os_id', osId)
-        .single()
+      // Buscar dados relacionados em paralelo
+      const [empresaResult, clienteResult, equipamentoResult, tecnicoResult, laudoResult, checklistResult, evidenciasResult] = await Promise.all([
+        osCompleta.empresa_id 
+          ? supabase.from('empresas').select('nome, logo_url').eq('id', osCompleta.empresa_id).single()
+          : Promise.resolve({ data: null }),
+        osCompleta.cliente_id
+          ? supabase.from('clientes').select('nome_local, endereco_completo, responsavel_telefone').eq('id', osCompleta.cliente_id).single()
+          : Promise.resolve({ data: null }),
+        osCompleta.equipamento_id
+          ? supabase.from('equipamentos').select('tipo, fabricante, modelo, numero_serie').eq('id', osCompleta.equipamento_id).single()
+          : Promise.resolve({ data: null }),
+        osCompleta.tecnico_id
+          ? supabase.from('tecnicos').select('nome').eq('id', osCompleta.tecnico_id).single()
+          : Promise.resolve({ data: null }),
+        supabase.from('laudos_tecnicos').select('*').eq('os_id', osId).single(),
+        supabase.from('checklist_items').select('*').eq('os_id', osId).order('ordem', { ascending: true }),
+        supabase.from('os_evidencias').select('*').eq('os_id', osId).eq('tipo', 'foto').order('created_at', { ascending: true })
+      ])
 
-      // Buscar checklist
-      const { data: checklist } = await supabase
-        .from('checklist_items')
-        .select('*')
-        .eq('os_id', osId)
-        .order('ordem', { ascending: true })
-
-      // Buscar evidências (fotos)
-      const { data: evidencias } = await supabase
-        .from('os_evidencias')
-        .select('*')
-        .eq('os_id', osId)
-        .eq('tipo', 'foto')
-        .order('created_at', { ascending: true })
+      const empresa = empresaResult.data
+      const cliente = clienteResult.data
+      const equipamento = equipamentoResult.data
+      const tecnico = tecnicoResult.data
+      const laudo = laudoResult.data
+      const checklist = checklistResult.data
+      const evidencias = evidenciasResult.data
 
       // Converter storage_path para URL pública
       const evidenciasComUrl = evidencias?.map(ev => {
@@ -188,15 +187,15 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         tipo: osCompleta.tipo,
         data_abertura: osCompleta.data_abertura,
         data_fim: osCompleta.data_fim,
-        cliente_nome: osCompleta.clientes?.nome_local,
-        cliente_endereco: osCompleta.clientes?.endereco_completo,
-        cliente_telefone: osCompleta.clientes?.responsavel_telefone,
+        cliente_nome: cliente?.nome_local,
+        cliente_endereco: cliente?.endereco_completo,
+        cliente_telefone: cliente?.responsavel_telefone,
         quem_solicitou: osCompleta.quem_solicitou,
-        equipamento_tipo: osCompleta.equipamentos?.tipo,
-        equipamento_fabricante: osCompleta.equipamentos?.fabricante,
-        equipamento_modelo: osCompleta.equipamentos?.modelo,
-        equipamento_numero_serie: osCompleta.equipamentos?.numero_serie,
-        tecnico_nome: osCompleta.tecnicos?.nome,
+        equipamento_tipo: equipamento?.tipo,
+        equipamento_fabricante: equipamento?.fabricante,
+        equipamento_modelo: equipamento?.modelo,
+        equipamento_numero_serie: equipamento?.numero_serie,
+        tecnico_nome: tecnico?.nome,
         descricao: osCompleta.descricao,
         observacoes: osCompleta.observacoes,
         laudo_o_que_foi_feito: laudo?.o_que_foi_feito,
@@ -206,8 +205,8 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
         assinatura_cliente: osCompleta.assinatura_cliente,
         checklist: checklist || [],
         evidencias: evidenciasComUrl as any,
-        empresa_nome: osCompleta.empresas?.nome,
-        empresa_logo_url: osCompleta.empresas?.logo_url,
+        empresa_nome: empresa?.nome,
+        empresa_logo_url: empresa?.logo_url,
       })
 
       toast.success('PDF gerado com sucesso!')

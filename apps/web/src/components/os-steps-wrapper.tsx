@@ -41,7 +41,7 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
   // Mobile: renderizar com tabs
   if (isMobile) {
     return (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-hidden">
         <TabsList className={`grid w-full ${step4 ? 'grid-cols-4' : 'grid-cols-3'} sticky top-0 z-10 bg-background`}>
           <TabsTrigger value="descricao">
             <FileText className="w-4 h-4" />
@@ -63,20 +63,20 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
           )}
         </TabsList>
 
-        <TabsContent value="descricao" className="mt-4">
+        <TabsContent value="descricao" className="mt-4 overflow-x-hidden">
           {step1}
         </TabsContent>
 
-        <TabsContent value="laudo" className="mt-4">
+        <TabsContent value="laudo" className="mt-4 overflow-x-hidden">
           {step2}
         </TabsContent>
 
-        <TabsContent value="concluir" className="mt-4">
+        <TabsContent value="concluir" className="mt-4 overflow-x-hidden">
           {step3}
         </TabsContent>
 
         {step4 && (
-          <TabsContent value="historico" className="mt-4">
+          <TabsContent value="historico" className="mt-4 overflow-x-hidden">
             {step4}
           </TabsContent>
         )}

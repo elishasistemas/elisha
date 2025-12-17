@@ -384,7 +384,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
 
   // STEP 1: Checklist de Atendimento
   const step1 = (
-    <Card className="flex-1">
+    <Card className="flex-1 min-w-0 overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -445,7 +445,7 @@ export function OSPreventiva({ osId, empresaId, osData, readOnly = false }: OSPr
 
   // STEP 2: Observações e Evidências
   const step2 = (
-    <Card className="flex-1">
+    <Card className="flex-1 min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5" />

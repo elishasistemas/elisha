@@ -389,7 +389,7 @@ export default function OSFullScreenPage() {
 
   // Modo full-screen (sobrepõe tudo, incluindo sidebar)
   return (
-    <div className="fixed inset-0 z-[9999] bg-background overflow-auto">
+    <div className="fixed inset-0 z-[9999] bg-background overflow-y-auto overflow-x-hidden">
       {/* Header fixo no topo com fundo branco */}
       <div className="bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
@@ -453,7 +453,7 @@ export default function OSFullScreenPage() {
       </div>
 
       {/* Conteúdo principal com padding */}
-      <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6 overflow-x-hidden">
 
         {/* Cronômetro e Ações lado a lado (apenas durante deslocamento) */}
         {os.status === 'em_deslocamento' && tempoDecorrido && (

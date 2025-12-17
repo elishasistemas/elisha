@@ -333,14 +333,14 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
 
   // Step 1: Descrição do Cliente
   const step1 = (
-    <div className="flex gap-4">
+    <div className="flex gap-4 min-w-0 overflow-hidden">
       <div className="hidden md:flex flex-col items-center">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
           1
         </div>
         <div className="w-0.5 flex-1 bg-border mt-2"></div>
       </div>
-      <Card className="flex-1">
+      <Card className="flex-1 min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
@@ -386,14 +386,14 @@ export function OSChamadoCorretiva({ osId, empresaId, osData, readOnly = false }
 
   // Step 2: Laudo Técnico
   const step2 = (
-    <div className="flex gap-4">
+    <div className="flex gap-4 min-w-0 overflow-hidden">
       <div className="hidden md:flex flex-col items-center">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shrink-0">
           2
         </div>
         <div className="w-0.5 flex-1 bg-border mt-2"></div>
       </div>
-      <Card className="flex-1">
+      <Card className="flex-1 min-w-0 overflow-hidden">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
