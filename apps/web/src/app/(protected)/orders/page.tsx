@@ -619,13 +619,14 @@ export default function OrdersPage() {
                         const zona = cliente?.zona_id ? zonas.find(z => z.id === cliente.zona_id) : null
                         const status = statusConfig[ordem.status as keyof typeof statusConfig] || statusConfig.novo
                         return (
-                          <div key={ordem.id} className="border rounded-lg p-4 bg-card space-y-2">
-                            <div className="flex items-start justify-between gap-2">
+                          <div key={ordem.id} className="border rounded-lg p-4 bg-card space-y-3">
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-sm truncate">
+                                <p className="font-bold text-base">
                                   {ordem.numero_os || `#${ordem.id.slice(0, 8)}`}
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate">
+                                <p className="text-sm text-muted-foreground">
                                   {cliente?.nome_local || 'Cliente'}
                                 </p>
                               </div>
@@ -633,21 +634,21 @@ export default function OrdersPage() {
                                 {status.label}
                               </Badge>
                             </div>
-                            
+
                             {/* Equipamento */}
-                            {equipamento && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                🛗 {[equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') || 'Equipamento'}
-                              </p>
-                            )}
-                            
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">🛗 </span>
+                              <span>{equipamento ? [equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') : 'Sem equipamento'}</span>
+                            </div>
+
                             {/* Zona */}
-                            <p className="text-xs text-muted-foreground">
-                              📍 Zona: <span className={zona ? 'text-blue-600 font-medium' : ''}>{zona?.nome || 'Sem zona'}</span>
-                            </p>
-                            
-                            {/* Tipo, Prioridade e Data */}
-                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">📍 Zona: </span>
+                              <span className={zona ? 'text-blue-600 font-medium' : ''}>{zona?.nome || 'Sem zona'}</span>
+                            </div>
+
+                            {/* Info em linha */}
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
                               <span className="capitalize">{ordem.tipo}</span>
                               <span>•</span>
                               {ordem.prioridade === 'alta' && <span className="text-red-600 font-medium flex items-center gap-1"><ArrowUp className="h-3 w-3" />Alta</span>}
@@ -769,66 +770,55 @@ export default function OrdersPage() {
             ) : (() => {
               const osAtual = ordensFiltradas[0]
               const cliente = clientes.find(c => c.id === osAtual.cliente_id)
+              const equipamento = allEquipamentos[osAtual.equipamento_id]
+              const zona = cliente?.zona_id ? zonas.find(z => z.id === cliente.zona_id) : null
               const status = statusConfig[osAtual.status as keyof typeof statusConfig] || statusConfig.novo
               return (
                 <div className="space-y-4">
                   {/* Card da OS atual */}
-                  <div className="border rounded-xl p-4 sm:p-6 bg-card space-y-4">
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-lg sm:text-xl">
-                          {osAtual.numero_os || `#${osAtual.id.slice(0, 8)}`}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {cliente?.nome_local || 'Cliente'}
-                        </p>
-                      </div>
-                      <Badge className={status.className + ' shrink-0 text-sm px-3 py-1'}>
+                  <div className="border rounded-xl p-4 bg-card space-y-2">
+                    {/* Header - Número e Status */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-base">
+                        {osAtual.numero_os || `#${osAtual.id.slice(0, 8)}`}
+                      </p>
+                      <Badge className={status.className + ' shrink-0 text-xs'}>
                         {status.label}
                       </Badge>
                     </div>
+                    
+                    {/* Cliente */}
+                    <p className="text-sm text-muted-foreground">
+                      {cliente?.nome_local || 'Cliente'}
+                    </p>
 
-                    {/* Info */}
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Tipo</p>
-                        <p className="font-medium capitalize">{osAtual.tipo}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Prioridade</p>
-                        <div className="flex items-center gap-1">
-                          {osAtual.prioridade === 'alta' && <><ArrowUp className="h-4 w-4 text-red-500" /><span className="text-red-600 font-medium">Alta</span></>}
-                          {osAtual.prioridade === 'media' && <><ArrowRight className="h-4 w-4 text-yellow-500" /><span className="text-yellow-600 font-medium">Média</span></>}
-                          {osAtual.prioridade === 'baixa' && <><ArrowDown className="h-4 w-4 text-green-500" /><span className="text-green-600 font-medium">Baixa</span></>}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Data Abertura</p>
-                        <p className="font-medium">
-                          {new Date(osAtual.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Hora</p>
-                        <p className="font-medium">
-                          {new Date(osAtual.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
+                    {/* Equipamento */}
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">🛗 </span>
+                      {equipamento ? [equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') : 'Sem equipamento'}
+                    </p>
+
+                    {/* Zona */}
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">📍 Zona: </span>
+                      <span className={zona ? 'text-blue-600 font-medium' : ''}>{zona?.nome || 'Sem zona'}</span>
+                    </p>
+
+                    {/* Info em linha */}
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                      <span className="capitalize">{osAtual.tipo}</span>
+                      <span>•</span>
+                      {osAtual.prioridade === 'alta' && <span className="text-red-600 font-medium flex items-center gap-1"><ArrowUp className="h-3 w-3" />Alta</span>}
+                      {osAtual.prioridade === 'media' && <span className="text-yellow-600 font-medium flex items-center gap-1"><ArrowRight className="h-3 w-3" />Média</span>}
+                      {osAtual.prioridade === 'baixa' && <span className="text-green-600 font-medium flex items-center gap-1"><ArrowDown className="h-3 w-3" />Baixa</span>}
+                      <span>•</span>
+                      <span>{new Date(osAtual.data_abertura || osAtual.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-
-                    {/* Descrição se existir */}
-                    {osAtual.descricao && (
-                      <div>
-                        <p className="text-muted-foreground text-sm">Descrição</p>
-                        <p className="text-sm mt-1">{osAtual.descricao}</p>
-                      </div>
-                    )}
 
                     {/* Botão de ação principal */}
                     <Button
-                      size="lg"
-                      className="w-full mt-2"
+                      size="default"
+                      className="w-full"
                       onClick={() => router.push(`/os/${osAtual.id}/full`)}
                     >
                       {osAtual.status === 'em_deslocamento' ? (
