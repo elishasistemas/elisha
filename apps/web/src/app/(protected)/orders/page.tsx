@@ -194,15 +194,17 @@ export default function OrdersPage() {
   const isLoading = profileLoading || empresasLoading || clientesLoading || colLoading || loading || equipLoading
   const hasError = empresasError || clientesError || colError || error
 
-  // Buscar todos os equipamentos da empresa para lookup rápido
+  // Buscar todos os equipamentos dos clientes para lookup rápido
   useEffect(() => {
-    if (!empresaId) return
+    if (!empresaId || clientes.length === 0) return
     const supabase = createSupabaseBrowser()
     const fetchAllEquipamentos = async () => {
+      // Buscar equipamentos de todos os clientes da empresa
+      const clienteIds = clientes.map(c => c.id)
       const { data } = await supabase
         .from('equipamentos')
         .select('id, tipo, fabricante, modelo')
-        .eq('empresa_id', empresaId)
+        .in('cliente_id', clienteIds)
       if (data) {
         const map: Record<string, { tipo: string | null; fabricante: string | null; modelo: string | null }> = {}
         data.forEach(eq => {
@@ -212,7 +214,7 @@ export default function OrdersPage() {
       }
     }
     fetchAllEquipamentos()
-  }, [empresaId, refreshKey])
+  }, [empresaId, clientes, refreshKey])
 
   // Abre automaticamente o diálogo de criação quando new=true
   useEffect(() => {
