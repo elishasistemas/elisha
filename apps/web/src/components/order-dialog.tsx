@@ -604,8 +604,8 @@ export function OrderDialog({
                       id="data_abertura"
                       type="datetime-local"
                       value={formData.data_abertura}
-                      onChange={(e) => handleChange('data_abertura', e.target.value)}
-                      disabled={isView}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -625,6 +625,7 @@ export function OrderDialog({
                     onChange={(e) => handleChange('quem_solicitou', e.target.value)}
                     placeholder="Nome de quem solicitou"
                     disabled={isView}
+                    className={isView ? '' : 'bg-white'}
                   />
                 </div>
               </AccordionContent>
@@ -714,8 +715,8 @@ export function OrderDialog({
             {/* Observações */}
             <AccordionItem value="observacoes">
               <AccordionTrigger>Observações</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
+              <AccordionContent className="px-1">
+                <div className="space-y-2 pt-1">
                   <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
                   <Textarea
                     id="observacoes"
@@ -724,6 +725,7 @@ export function OrderDialog({
                     placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
                     rows={4}
                     disabled={isView}
+                    className={isView ? '' : 'bg-white'}
                   />
                 </div>
               </AccordionContent>

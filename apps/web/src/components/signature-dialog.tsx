@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Eraser, Check, X, RotateCcw } from 'lucide-react'
+import { Eraser, Check, X, Maximize2 } from 'lucide-react'
 
 interface SignatureDialogProps {
   open: boolean
@@ -38,12 +38,11 @@ export function SignatureDialog({
   showNameField = true,
 }: SignatureDialogProps) {
   const signatureRef = useRef<SignatureCanvas>(null)
-  const landscapeSignatureRef = useRef<SignatureCanvas>(null)
+  const fullscreenSignatureRef = useRef<SignatureCanvas>(null)
   const [clientName, setClientName] = useState(initialName)
   const [clientEmail, setClientEmail] = useState('')
   const [isEmpty, setIsEmpty] = useState(true)
-  const [isLandscapeMode, setIsLandscapeMode] = useState(false)
-  const [canvasSize, setCanvasSize] = useState({ width: 468, height: 200 })
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -51,39 +50,22 @@ export function SignatureDialog({
       setClientName(initialName)
       setClientEmail('')
       setIsEmpty(true)
-      setIsLandscapeMode(false)
-      // Clear signature after a small delay to ensure canvas is mounted
+      setIsFullscreenMode(false)
       setTimeout(() => {
         signatureRef.current?.clear()
       }, 100)
     }
   }, [open, initialName])
 
-  // Update canvas size for landscape mode
-  useEffect(() => {
-    if (isLandscapeMode) {
-      const updateSize = () => {
-        // Use full viewport for landscape
-        setCanvasSize({
-          width: window.innerWidth,
-          height: window.innerHeight - 80, // Leave space for buttons
-        })
-      }
-      updateSize()
-      window.addEventListener('resize', updateSize)
-      return () => window.removeEventListener('resize', updateSize)
-    }
-  }, [isLandscapeMode])
-
   const handleClose = () => {
-    setIsLandscapeMode(false)
+    setIsFullscreenMode(false)
     onOpenChange?.(false)
     onClose?.()
   }
 
   const handleClear = () => {
-    if (isLandscapeMode) {
-      landscapeSignatureRef.current?.clear()
+    if (isFullscreenMode) {
+      fullscreenSignatureRef.current?.clear()
     } else {
       signatureRef.current?.clear()
     }
@@ -91,15 +73,34 @@ export function SignatureDialog({
   }
 
   const handleEnd = useCallback(() => {
-    const ref = isLandscapeMode ? landscapeSignatureRef : signatureRef
+    const ref = isFullscreenMode ? fullscreenSignatureRef : signatureRef
     setIsEmpty(ref.current?.isEmpty() ?? true)
-  }, [isLandscapeMode])
+  }, [isFullscreenMode])
 
-  const handleSave = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
-    e?.preventDefault()
-    e?.stopPropagation()
+  // Função para rotacionar a imagem 90 graus anti-horário (para deixar horizontal corretamente)
+  const rotateImage90CounterClockwise = useCallback((dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        // Inverter dimensões para rotação
+        canvas.width = img.height
+        canvas.height = img.width
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          // Rotacionar 90 graus anti-horário
+          ctx.translate(0, canvas.height)
+          ctx.rotate(-Math.PI / 2)
+          ctx.drawImage(img, 0, 0)
+        }
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.src = dataUrl
+    })
+  }, [])
 
-    const ref = isLandscapeMode ? landscapeSignatureRef : signatureRef
+  const handleSave = useCallback(async () => {
+    const ref = isFullscreenMode ? fullscreenSignatureRef : signatureRef
 
     if (!ref.current || ref.current.isEmpty()) {
       return
@@ -109,133 +110,128 @@ export function SignatureDialog({
       return
     }
 
-    // Get signature as data URL (PNG with transparent background)
-    const signatureDataUrl = ref.current.getTrimmedCanvas().toDataURL('image/png')
+    let signatureDataUrl = ref.current.getTrimmedCanvas().toDataURL('image/png')
+
+    // Se estiver no modo fullscreen, rotacionar 90 graus anti-horário para ficar horizontal
+    if (isFullscreenMode) {
+      signatureDataUrl = await rotateImage90CounterClockwise(signatureDataUrl)
+    }
 
     onSubmit?.(signatureDataUrl, clientName.trim(), clientEmail.trim() || undefined)
-    setIsLandscapeMode(false)
+    setIsFullscreenMode(false)
     handleClose()
-  }, [clientName, clientEmail, onSubmit, isLandscapeMode])
+  }, [clientName, clientEmail, onSubmit, isFullscreenMode, rotateImage90CounterClockwise])
 
-  const enterLandscapeMode = useCallback(() => {
-    // Copy signature data if exists
-    const signatureData = signatureRef.current?.toData()
-    setIsLandscapeMode(true)
-    
-    // Restore signature in landscape canvas after it mounts
-    if (signatureData && signatureData.length > 0) {
-      setTimeout(() => {
-        landscapeSignatureRef.current?.fromData(signatureData)
-        setIsEmpty(false)
-      }, 150)
-    }
+  const enterFullscreenMode = useCallback(() => {
+    setIsFullscreenMode(true)
+    setIsEmpty(true)
+    setTimeout(() => {
+      fullscreenSignatureRef.current?.clear()
+    }, 100)
   }, [])
 
-  const exitLandscapeMode = useCallback(() => {
-    // Copy signature data back to normal canvas
-    const signatureData = landscapeSignatureRef.current?.toData()
-    setIsLandscapeMode(false)
-    
-    if (signatureData && signatureData.length > 0) {
-      setTimeout(() => {
-        signatureRef.current?.fromData(signatureData)
-        setIsEmpty(false)
-      }, 150)
-    }
+  const exitFullscreenMode = useCallback(() => {
+    setIsFullscreenMode(false)
+    setIsEmpty(true)
   }, [])
 
   const canSave = !isEmpty && clientName.trim().length > 0
 
-  // Landscape fullscreen mode for signature
-  if (isLandscapeMode) {
+  // Modo tela cheia - ocupa toda a tela sem rotação CSS
+  // O cliente assina normalmente, depois rotacionamos a imagem ao salvar
+  if (isFullscreenMode) {
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 400
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 700
+
     return (
       <div 
-        className="fixed inset-0 z-[10002] bg-white flex flex-col"
-        style={{ 
-          // Force landscape-like layout by rotating on portrait screens
-          transform: typeof window !== 'undefined' && window.innerHeight > window.innerWidth 
-            ? 'rotate(90deg)' 
-            : 'none',
-          transformOrigin: 'center center',
-          width: typeof window !== 'undefined' && window.innerHeight > window.innerWidth 
-            ? '100vh' 
-            : '100vw',
-          height: typeof window !== 'undefined' && window.innerHeight > window.innerWidth 
-            ? '100vw' 
-            : '100vh',
+        className="fixed inset-0 z-[99999] bg-white flex flex-col"
+        style={{
+          width: '100vw',
+          height: '100vh',
           position: 'fixed',
-          top: typeof window !== 'undefined' && window.innerHeight > window.innerWidth 
-            ? `calc(50% - 50vw)` 
-            : 0,
-          left: typeof window !== 'undefined' && window.innerHeight > window.innerWidth 
-            ? `calc(50% - 50vh)` 
-            : 0,
+          top: 0,
+          left: 0,
         }}
       >
         {/* Header com botões */}
-        <div className="flex items-center justify-between p-3 bg-gray-100 border-b shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 shrink-0">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
-            onClick={exitLandscapeMode}
-            className="h-10 px-4"
+            onClick={exitFullscreenMode}
+            className="h-10 px-3 text-sm"
           >
-            <RotateCcw className="h-4 w-4 mr-2" />
+            <X className="h-4 w-4 mr-1" />
             Voltar
           </Button>
           
-          <span className="text-sm font-medium text-gray-600">
-            Assinatura de: {clientName || 'Cliente'}
+          <span className="text-white text-sm font-medium truncate mx-2">
+            {clientName || 'Assinatura'}
           </span>
-
+          
           <div className="flex gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               size="sm"
               onClick={handleClear}
-              className="h-10 px-4"
+              className="h-10 px-3"
             >
-              <Eraser className="h-4 w-4 mr-2" />
+              <Eraser className="h-4 w-4 mr-1" />
               Limpar
             </Button>
             <Button
               type="button"
               size="sm"
-              onClick={handleSave}
-              onTouchEnd={(e) => {
-                if (canSave) handleSave(e)
+              disabled={isEmpty}
+              className="h-10 px-4 touch-manipulation active:scale-95 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              onPointerDown={(e) => {
+                if (!isEmpty && clientName.trim()) {
+                  e.preventDefault()
+                  handleSave()
+                }
               }}
-              disabled={!canSave}
-              className="h-10 px-6 touch-manipulation"
             >
-              <Check className="h-4 w-4 mr-2" />
+              <Check className="h-4 w-4 mr-1" />
               Confirmar
             </Button>
           </div>
         </div>
 
-        {/* Canvas de assinatura fullscreen */}
-        <div className="flex-1 bg-white relative">
+        {/* Área de assinatura - ocupa todo o resto da tela */}
+        <div className="flex-1 bg-white relative overflow-hidden">
           <SignatureCanvas
-            ref={landscapeSignatureRef}
+            ref={fullscreenSignatureRef}
             penColor="black"
+            backgroundColor="white"
+            minWidth={1.5}
+            maxWidth={3}
             canvasProps={{
-              className: 'signature-canvas absolute inset-0',
+              width: screenWidth,
+              height: screenHeight - 70,
+              className: 'signature-canvas',
               style: {
                 width: '100%',
                 height: '100%',
                 touchAction: 'none',
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
+                display: 'block',
               },
             }}
             onEnd={handleEnd}
           />
-          {/* Linha guia */}
-          <div className="absolute bottom-16 left-8 right-8 border-b-2 border-dashed border-gray-300 pointer-events-none" />
-          <p className="absolute bottom-4 left-0 right-0 text-center text-sm text-gray-400 pointer-events-none">
+          {/* Linha guia para assinatura */}
+          <div 
+            className="absolute left-6 right-6 border-b-2 border-dashed border-gray-300 pointer-events-none"
+            style={{ bottom: '20%' }}
+          />
+          <p 
+            className="absolute left-0 right-0 text-center text-sm text-gray-400 pointer-events-none"
+            style={{ bottom: '12%' }}
+          >
             Assine acima da linha
           </p>
         </div>
@@ -260,8 +256,8 @@ export function SignatureDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Nome do cliente - só mostra se showNameField for true */}
+          <div className="space-y-4 py-2">
+            {/* Nome do cliente */}
             {showNameField && (
               <div className="space-y-2">
                 <Label htmlFor="client-name">Nome do Responsável *</Label>
@@ -288,39 +284,33 @@ export function SignatureDialog({
               </div>
             )}
 
-            {/* Botão para girar para assinar */}
-            <Button
-              type="button"
-              variant="default"
-              size="lg"
-              onClick={enterLandscapeMode}
-              disabled={!clientName.trim()}
-              className="w-full h-14 text-base font-medium"
-            >
-              <RotateCcw className="h-5 w-5 mr-2" />
-              Girar para Assinar
-            </Button>
-
-            {!clientName.trim() && (
-              <p className="text-xs text-amber-600 text-center">
-                Preencha o nome do responsável antes de assinar
-              </p>
-            )}
-
             {/* Canvas de assinatura compacto */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Assinatura *</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClear}
-                  className="h-8 px-2 text-muted-foreground"
-                >
-                  <Eraser className="h-4 w-4 mr-1" />
-                  Limpar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClear}
+                    className="h-8 px-2 text-muted-foreground"
+                  >
+                    <Eraser className="h-4 w-4 mr-1" />
+                    Limpar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={enterFullscreenMode}
+                    disabled={!clientName.trim()}
+                    className="h-8 px-3"
+                  >
+                    <Maximize2 className="h-4 w-4 mr-1" />
+                    Tela Cheia
+                  </Button>
+                </div>
               </div>
               <div className="border-2 border-dashed rounded-lg bg-white overflow-hidden">
                 <SignatureCanvas
@@ -341,9 +331,11 @@ export function SignatureDialog({
                   onEnd={handleEnd}
                 />
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Ou toque em "Girar para Assinar" para mais espaço
-              </p>
+              {!clientName.trim() && (
+                <p className="text-xs text-amber-600 text-center">
+                  Preencha o nome do responsável antes de assinar
+                </p>
+              )}
             </div>
           </div>
 
@@ -354,12 +346,14 @@ export function SignatureDialog({
             </Button>
             <Button
               type="button"
-              onClick={handleSave}
-              onTouchEnd={(e) => {
-                if (canSave) handleSave(e)
-              }}
               disabled={!canSave}
-              className="touch-manipulation"
+              className="touch-manipulation active:scale-95 transition-transform"
+              onPointerDown={(e) => {
+                if (canSave) {
+                  e.preventDefault()
+                  handleSave()
+                }
+              }}
             >
               <Check className="h-4 w-4 mr-2" />
               Confirmar Assinatura
