@@ -104,24 +104,34 @@ export function SignatureDialog({
     const ref = isFullscreenMode ? fullscreenSignatureRef : signatureRef
 
     if (!ref.current || ref.current.isEmpty()) {
+      console.log('[SignatureDialog] Canvas vazio ou ref inválida')
       return
     }
 
     if (!clientName.trim()) {
+      console.log('[SignatureDialog] Nome do cliente vazio')
       return
     }
 
-    let signatureDataUrl = ref.current.getTrimmedCanvas().toDataURL('image/png')
+    try {
+      let signatureDataUrl = ref.current.getTrimmedCanvas().toDataURL('image/png')
 
-    // Se estiver no modo fullscreen, rotacionar 90 graus anti-horário para ficar horizontal
-    if (isFullscreenMode) {
-      signatureDataUrl = await rotateImage90CounterClockwise(signatureDataUrl)
+      // Se estiver no modo fullscreen, rotacionar 90 graus anti-horário para ficar horizontal
+      if (isFullscreenMode) {
+        signatureDataUrl = await rotateImage90CounterClockwise(signatureDataUrl)
+      }
+
+      console.log('[SignatureDialog] Chamando onSubmit')
+      onSubmit?.(signatureDataUrl, clientName.trim(), clientEmail.trim() || undefined)
+      
+      // Fechar o dialog
+      setIsFullscreenMode(false)
+      onOpenChange?.(false)
+      onClose?.()
+    } catch (error) {
+      console.error('[SignatureDialog] Erro ao salvar:', error)
     }
-
-    onSubmit?.(signatureDataUrl, clientName.trim(), clientEmail.trim() || undefined)
-    setIsFullscreenMode(false)
-    handleClose()
-  }, [clientName, clientEmail, onSubmit, isFullscreenMode, rotateImage90CounterClockwise])
+  }, [clientName, clientEmail, onSubmit, isFullscreenMode, rotateImage90CounterClockwise, onOpenChange, onClose])
 
   const enterFullscreenMode = useCallback(() => {
     setIsFullscreenMode(true)
@@ -227,6 +237,7 @@ export function SignatureDialog({
               disabled={isEmpty}
               className="h-10 px-4 touch-manipulation bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
               onClick={() => {
+                console.log('[SignatureDialog] Botão fullscreen clicado, isEmpty:', isEmpty, 'clientName:', clientName)
                 if (!isEmpty && clientName.trim()) {
                   handleSave()
                 }
@@ -390,6 +401,7 @@ export function SignatureDialog({
               disabled={!canSave}
               className="touch-manipulation"
               onClick={() => {
+                console.log('[SignatureDialog] Botão clicado, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
                 if (canSave) {
                   handleSave()
                 }
