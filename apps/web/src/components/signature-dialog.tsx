@@ -225,17 +225,8 @@ export function SignatureDialog({
               type="button"
               size="sm"
               disabled={isEmpty}
-              className="h-10 px-4 touch-manipulation active:scale-95 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (!isEmpty && clientName.trim()) {
-                  handleSave()
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+              className="h-10 px-4 touch-manipulation bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              onClick={() => {
                 if (!isEmpty && clientName.trim()) {
                   handleSave()
                 }
@@ -389,7 +380,7 @@ export function SignatureDialog({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
             <Button type="button" variant="outline" onClick={handleClose}>
               <X className="h-4 w-4 mr-2" />
               Cancelar
@@ -397,17 +388,8 @@ export function SignatureDialog({
             <Button
               type="button"
               disabled={!canSave}
-              className="touch-manipulation active:scale-95 transition-transform"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (canSave) {
-                  handleSave()
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+              className="touch-manipulation"
+              onClick={() => {
                 if (canSave) {
                   handleSave()
                 }
