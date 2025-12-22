@@ -40,11 +40,48 @@ export function SignatureDialog({
 }: SignatureDialogProps) {
   const signatureRef = useRef<SignatureCanvas>(null)
   const fullscreenSignatureRef = useRef<SignatureCanvas>(null)
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null)
   const [clientName, setClientName] = useState(initialName)
   const [clientEmail, setClientEmail] = useState('')
   const [isEmpty, setIsEmpty] = useState(true)
   const [isFullscreenMode, setIsFullscreenMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [fullscreenCanvasSize, setFullscreenCanvasSize] = useState({ width: 400, height: 600 })
+
+  // Ajustar tamanho do canvas fullscreen quando entrar nesse modo
+  useEffect(() => {
+    if (isFullscreenMode && fullscreenContainerRef.current) {
+      const updateCanvasSize = () => {
+        const container = fullscreenContainerRef.current
+        if (!container) return
+
+        const rect = container.getBoundingClientRect()
+        const ratio = window.devicePixelRatio || 1
+
+        // O canvas interno deve ser maior para telas HiDPI
+        setFullscreenCanvasSize({
+          width: Math.floor(rect.width * ratio),
+          height: Math.floor(rect.height * ratio)
+        })
+
+        // Escalar o contexto do canvas
+        const canvas = fullscreenSignatureRef.current?.getCanvas()
+        if (canvas) {
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+          }
+        }
+      }
+
+      // Pequeno delay para garantir que o DOM está pronto
+      setTimeout(updateCanvasSize, 50)
+
+      // Re-ajustar se a janela mudar de tamanho
+      window.addEventListener('resize', updateCanvasSize)
+      return () => window.removeEventListener('resize', updateCanvasSize)
+    }
+  }, [isFullscreenMode])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -200,10 +237,8 @@ export function SignatureDialog({
   // O cliente assina normalmente, depois rotacionamos a imagem ao salvar
   // Usando createPortal para garantir que renderize no body, fora de qualquer stacking context
   if (isFullscreenMode && isMounted) {
-    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 400
-    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 700
-
     // Handler para botões em mobile - previne problemas de toque
+
     const handleButtonAction = (action: () => void) => (e: React.MouseEvent | React.TouchEvent) => {
       e.preventDefault()
       e.stopPropagation()
@@ -281,6 +316,7 @@ export function SignatureDialog({
 
         {/* Área de assinatura - ocupa todo o resto da tela */}
         <div
+          ref={fullscreenContainerRef}
           className="flex-1 bg-white relative overflow-hidden"
           onTouchStart={(e) => e.stopPropagation()}
         >
@@ -290,9 +326,10 @@ export function SignatureDialog({
             backgroundColor="white"
             minWidth={1.5}
             maxWidth={3}
+            clearOnResize={false}
             canvasProps={{
-              width: screenWidth,
-              height: screenHeight - 70,
+              width: fullscreenCanvasSize.width,
+              height: fullscreenCanvasSize.height,
               className: 'signature-canvas',
               style: {
                 width: '100%',
@@ -319,6 +356,7 @@ export function SignatureDialog({
             Assine acima da linha
           </p>
         </div>
+
       </div>
     )
 
@@ -399,22 +437,22 @@ export function SignatureDialog({
                   </Button>
                 </div>
               </div>
-              <div className="border-2 border-dashed rounded-lg bg-white overflow-hidden">
+              <div className="border-2 border-dashed rounded-lg bg-white overflow-hidden" style={{ height: '150px' }}>
                 <SignatureCanvas
                   ref={signatureRef}
                   penColor="black"
+                  clearOnResize={false}
                   canvasProps={{
-                    width: 468,
-                    height: 150,
                     className: 'signature-canvas',
                     style: {
                       width: '100%',
-                      height: '150px',
+                      height: '100%',
                       touchAction: 'none',
                       WebkitUserSelect: 'none',
                       userSelect: 'none',
                     },
                   }}
+
                   onBegin={handleBegin}
                   onEnd={handleEnd}
                 />
