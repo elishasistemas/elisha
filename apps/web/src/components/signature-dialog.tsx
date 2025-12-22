@@ -123,7 +123,7 @@ export function SignatureDialog({
 
       console.log('[SignatureDialog] Chamando onSubmit')
       onSubmit?.(signatureDataUrl, clientName.trim(), clientEmail.trim() || undefined)
-      
+
       // Fechar o dialog
       setIsFullscreenMode(false)
       onOpenChange?.(false)
@@ -150,7 +150,7 @@ export function SignatureDialog({
 
   // Estado para controlar se estamos no cliente (para evitar SSR issues com createPortal)
   const [isMounted, setIsMounted] = useState(false)
-  
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -183,8 +183,15 @@ export function SignatureDialog({
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 400
     const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 700
 
+    // Handler para botões em mobile - previne problemas de toque
+    const handleButtonAction = (action: () => void) => (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      action()
+    }
+
     const fullscreenContent = (
-      <div 
+      <div
         className="bg-white flex flex-col"
         style={{
           position: 'fixed',
@@ -199,34 +206,40 @@ export function SignatureDialog({
           WebkitTransform: 'translateZ(0)', // Force GPU layer no Safari
           transform: 'translateZ(0)',
         }}
+        // Previne que toques no container fechem qualquer coisa
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
         {/* Header com botões */}
-        <div 
+        <div
           className="flex items-center justify-between px-4 py-3 bg-slate-900 shrink-0"
           style={{ minHeight: '56px' }}
+          onTouchStart={(e) => e.stopPropagation()}
         >
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            onClick={exitFullscreenMode}
-            className="h-10 px-3 text-sm"
+            onClick={handleButtonAction(exitFullscreenMode)}
+            onTouchEnd={handleButtonAction(exitFullscreenMode)}
+            className="h-10 px-3 text-sm touch-manipulation"
           >
             <X className="h-4 w-4 mr-1" />
             Voltar
           </Button>
-          
+
           <span className="text-white text-sm font-medium truncate mx-2">
             {clientName || 'Assinatura'}
           </span>
-          
+
           <div className="flex gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              onClick={handleClear}
-              className="h-10 px-3"
+              onClick={handleButtonAction(handleClear)}
+              onTouchEnd={handleButtonAction(handleClear)}
+              className="h-10 px-3 touch-manipulation"
             >
               <Eraser className="h-4 w-4 mr-1" />
               Limpar
@@ -235,9 +248,19 @@ export function SignatureDialog({
               type="button"
               size="sm"
               disabled={isEmpty}
-              className="h-10 px-4 touch-manipulation bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-              onClick={() => {
-                console.log('[SignatureDialog] Botão fullscreen clicado, isEmpty:', isEmpty, 'clientName:', clientName)
+              className="h-10 px-4 touch-manipulation bg-green-600 hover:bg-green-700 active:bg-green-800 text-white disabled:opacity-50"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('[SignatureDialog] Botão fullscreen clicado via onClick, isEmpty:', isEmpty, 'clientName:', clientName)
+                if (!isEmpty && clientName.trim()) {
+                  handleSave()
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('[SignatureDialog] Botão fullscreen clicado via onTouchEnd, isEmpty:', isEmpty, 'clientName:', clientName)
                 if (!isEmpty && clientName.trim()) {
                   handleSave()
                 }
@@ -250,7 +273,10 @@ export function SignatureDialog({
         </div>
 
         {/* Área de assinatura - ocupa todo o resto da tela */}
-        <div className="flex-1 bg-white relative overflow-hidden">
+        <div
+          className="flex-1 bg-white relative overflow-hidden"
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           <SignatureCanvas
             ref={fullscreenSignatureRef}
             penColor="black"
@@ -267,17 +293,18 @@ export function SignatureDialog({
                 touchAction: 'none',
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
+                WebkitTouchCallout: 'none',
                 display: 'block',
               },
             }}
             onEnd={handleEnd}
           />
           {/* Linha guia para assinatura */}
-          <div 
+          <div
             className="absolute left-6 right-6 border-b-2 border-dashed border-gray-300 pointer-events-none"
             style={{ bottom: '20%' }}
           />
-          <p 
+          <p
             className="absolute left-0 right-0 text-center text-sm text-gray-400 pointer-events-none"
             style={{ bottom: '12%' }}
           >
@@ -392,16 +419,33 @@ export function SignatureDialog({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              onTouchEnd={(e) => {
+                e.preventDefault()
+                handleClose()
+              }}
+              className="touch-manipulation min-h-[44px]"
+            >
               <X className="h-4 w-4 mr-2" />
               Cancelar
             </Button>
             <Button
               type="button"
               disabled={!canSave}
-              className="touch-manipulation"
-              onClick={() => {
-                console.log('[SignatureDialog] Botão clicado, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
+              className="touch-manipulation min-h-[44px]"
+              onClick={(e) => {
+                e.preventDefault()
+                console.log('[SignatureDialog] Botão clicado via onClick, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
+                if (canSave) {
+                  handleSave()
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault()
+                console.log('[SignatureDialog] Botão clicado via onTouchEnd, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
                 if (canSave) {
                   handleSave()
                 }
@@ -411,6 +455,7 @@ export function SignatureDialog({
               Confirmar Assinatura
             </Button>
           </DialogFooter>
+
           <DialogPrimitive.Close
             className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
           >
