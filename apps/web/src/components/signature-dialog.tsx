@@ -50,28 +50,19 @@ export function SignatureDialog({
 
   // Ajustar tamanho do canvas fullscreen quando entrar nesse modo
   useEffect(() => {
-    if (isFullscreenMode && fullscreenContainerRef.current) {
+    if (isFullscreenMode) {
       const updateCanvasSize = () => {
-        const container = fullscreenContainerRef.current
-        if (!container) return
+        // Usar dimensões da janela diretamente (sem multiplicar por devicePixelRatio)
+        // O CSS vai fazer a exibição correta
+        const width = window.innerWidth
+        const height = window.innerHeight - 60 // Desconta o header
 
-        const rect = container.getBoundingClientRect()
-        const ratio = window.devicePixelRatio || 1
+        setFullscreenCanvasSize({ width, height })
 
-        // O canvas interno deve ser maior para telas HiDPI
-        setFullscreenCanvasSize({
-          width: Math.floor(rect.width * ratio),
-          height: Math.floor(rect.height * ratio)
-        })
-
-        // Escalar o contexto do canvas
-        const canvas = fullscreenSignatureRef.current?.getCanvas()
-        if (canvas) {
-          const ctx = canvas.getContext('2d')
-          if (ctx) {
-            ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-          }
-        }
+        // Limpar o canvas quando mudar de tamanho
+        setTimeout(() => {
+          fullscreenSignatureRef.current?.clear()
+        }, 100)
       }
 
       // Pequeno delay para garantir que o DOM está pronto
@@ -82,6 +73,7 @@ export function SignatureDialog({
       return () => window.removeEventListener('resize', updateCanvasSize)
     }
   }, [isFullscreenMode])
+
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -167,7 +159,15 @@ export function SignatureDialog({
 
     try {
       console.log('[SignatureDialog] handleSave: Gerando imagem...')
-      let signatureDataUrl = ref.current.getTrimmedCanvas().toDataURL('image/png')
+
+      // Usar toDataURL diretamente do canvas (getTrimmedCanvas causa erros em alguns casos)
+      const canvas = ref.current.getCanvas()
+      if (!canvas) {
+        console.error('[SignatureDialog] Canvas não disponível')
+        return
+      }
+
+      let signatureDataUrl = canvas.toDataURL('image/png')
 
       // Se estiver no modo fullscreen, rotacionar 90 graus anti-horário para ficar horizontal
       if (isFullscreenMode) {
@@ -443,6 +443,8 @@ export function SignatureDialog({
                   penColor="black"
                   clearOnResize={false}
                   canvasProps={{
+                    width: 400,
+                    height: 150,
                     className: 'signature-canvas',
                     style: {
                       width: '100%',
@@ -452,11 +454,11 @@ export function SignatureDialog({
                       userSelect: 'none',
                     },
                   }}
-
                   onBegin={handleBegin}
                   onEnd={handleEnd}
                 />
               </div>
+
 
               {!clientName.trim() && (
                 <p className="text-xs text-amber-600 text-center">
