@@ -101,14 +101,14 @@ export function OrderDialog({
       const minutes = String(now.getMinutes()).padStart(2, '0')
       return `${year}-${month}-${day}T${hours}:${minutes}`
     }
-    
+
     // Criar data a partir da string UTC
     const date = new Date(dateString)
-    
+
     // Ajustar para timezone local (São Paulo = UTC-3)
     const timezoneOffset = date.getTimezoneOffset() * 60000
     const localDate = new Date(date.getTime() - timezoneOffset)
-    
+
     // Formatar para datetime-local (YYYY-MM-DDTHH:mm)
     return localDate.toISOString().slice(0, 16)
   }
@@ -263,7 +263,7 @@ export function OrderDialog({
   // Função para verificar se o técnico está ocupado
   const checkTecnicoOcupado = useCallback(async (tecnicoId: string, token: string): Promise<{ ocupado: boolean; osNumero?: string; osStatus?: string }> => {
     if (!tecnicoId) return { ocupado: false }
-    
+
     try {
       const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const res = await fetch(`${BACKEND_URL}/api/v1/ordens-servico?empresaId=${empresaId}&tecnicoId=${tecnicoId}&status=em_deslocamento,checkin,em_atendimento`, {
@@ -272,14 +272,14 @@ export function OrderDialog({
           'Content-Type': 'application/json'
         }
       })
-      
+
       if (!res.ok) return { ocupado: false }
-      
+
       const result = await res.json()
-      const osEmAndamento = (result.data || result || []).filter((os: OrdemServico) => 
+      const osEmAndamento = (result.data || result || []).filter((os: OrdemServico) =>
         ['em_deslocamento', 'checkin', 'em_atendimento'].includes(os.status)
       )
-      
+
       if (osEmAndamento.length > 0) {
         const os = osEmAndamento[0]
         const statusLabels: Record<string, string> = {
@@ -287,13 +287,13 @@ export function OrderDialog({
           checkin: 'Em Atendimento',
           em_atendimento: 'Em Atendimento'
         }
-        return { 
-          ocupado: true, 
+        return {
+          ocupado: true,
           osNumero: os.numero_os || `#${os.id.slice(0, 8)}`,
           osStatus: statusLabels[os.status] || os.status
         }
       }
-      
+
       return { ocupado: false }
     } catch (err) {
       console.error('[OrderDialog] Erro ao verificar técnico:', err)
@@ -304,7 +304,7 @@ export function OrderDialog({
   // Função principal de submit (chamada após validações)
   const executeSubmit = async (skipTecnico: boolean = false) => {
     setLoading(true)
-    
+
     try {
       const { createSupabaseBrowser } = await import('@/lib/supabase')
       const supabase = createSupabaseBrowser()
@@ -423,12 +423,17 @@ export function OrderDialog({
       return
     }
 
-    // Se tem técnico selecionado e é criação (não edição), verificar se está ocupado
+    // Se tem técnico selecionado, verificar se está ocupado
+    // Em criação: sempre verifica
+    // Em edição: verifica apenas se o técnico mudou (diferente do original)
     const tecnicoId = formData.tecnico_id?.trim()
-    if (tecnicoId && localMode !== 'edit') {
+    const tecnicoMudou = tecnicoId && ordem?.tecnico_id !== tecnicoId
+    const deveVerificarTecnico = tecnicoId && (localMode === 'create' || (localMode === 'edit' && tecnicoMudou))
+
+    if (deveVerificarTecnico) {
       setLoading(true)
       setPendingSubmit(true)
-      
+
       try {
         const { createSupabaseBrowser } = await import('@/lib/supabase')
         const supabase = createSupabaseBrowser()
@@ -443,7 +448,7 @@ export function OrderDialog({
         }
 
         const resultado = await checkTecnicoOcupado(tecnicoId, token)
-        
+
         if (resultado.ocupado) {
           // Encontrar nome do técnico
           const tecnico = colaboradores.find((t: Colaborador) => t.id === tecnicoId)
@@ -461,7 +466,7 @@ export function OrderDialog({
         console.error('[OrderDialog] Erro ao verificar técnico:', err)
         // Em caso de erro na verificação, permitir continuar
       }
-      
+
       setLoading(false)
     }
 
@@ -536,512 +541,512 @@ export function OrderDialog({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
-      {!hideTrigger && (
-        <DialogTrigger asChild>
-          {trigger || (
-            <Button>
-              {mode === 'edit' ? (
-                <>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Editar
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Ordem
-                </>
-              )}
-            </Button>
-          )}
-        </DialogTrigger>
-      )}
-      <DialogContent>
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <DialogTitle>
-                {isView
-                  ? (ordem?.numero_os || 'Ordem de Serviço')
-                  : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
-                }
-              </DialogTitle>
-              <DialogDescription>
-                {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
-              </DialogDescription>
-            </div>
-            {/* Botão Editar removido do topo em modo visualização */}
-          </div>
-        </DialogHeader>
-
-        {/* Alerta de tempo em deslocamento */}
-        {ordem?.status === 'em_deslocamento' && calcularTempoDeslocamento() && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                <Clock className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-purple-900">Em Deslocamento</p>
-                <p className="text-sm text-purple-700">Tempo decorrido: <strong>{calcularTempoDeslocamento()}</strong></p>
-              </div>
-            </div>
-          </div>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); onOpenChange?.(o) }}>
+        {!hideTrigger && (
+          <DialogTrigger asChild>
+            {trigger || (
+              <Button>
+                {mode === 'edit' ? (
+                  <>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Ordem
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogTrigger>
         )}
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <DialogTitle>
+                  {isView
+                    ? (ordem?.numero_os || 'Ordem de Serviço')
+                    : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
+                  }
+                </DialogTitle>
+                <DialogDescription>
+                  {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
+                </DialogDescription>
+              </div>
+              {/* Botão Editar removido do topo em modo visualização */}
+            </div>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Cliente e Equipamento (Accordion) */}
-          <Accordion type="multiple" value={openSections} onValueChange={onAccordionChange} className="w-full space-y-3">
-            <AccordionItem value="cliente">
-              <AccordionTrigger>Cliente e Equipamento</AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cliente_id">Cliente <span className="text-destructive">*</span></Label>
-                    <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
-                      <SelectTrigger disabled={isView}><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
-                      <SelectContent>
-                        {clientes.map((cliente) => (
-                          <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome_local}</SelectItem>
+          {/* Alerta de tempo em deslocamento */}
+          {ordem?.status === 'em_deslocamento' && calcularTempoDeslocamento() && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                  <Clock className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-purple-900">Em Deslocamento</p>
+                  <p className="text-sm text-purple-700">Tempo decorrido: <strong>{calcularTempoDeslocamento()}</strong></p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Cliente e Equipamento (Accordion) */}
+            <Accordion type="multiple" value={openSections} onValueChange={onAccordionChange} className="w-full space-y-3">
+              <AccordionItem value="cliente">
+                <AccordionTrigger>Cliente e Equipamento</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cliente_id">Cliente <span className="text-destructive">*</span></Label>
+                      <Select value={formData.cliente_id} onValueChange={(value) => handleChange('cliente_id', value)}>
+                        <SelectTrigger disabled={isView}><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                        <SelectContent>
+                          {clientes.map((cliente) => (
+                            <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome_local}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="equipamento_id">Equipamento <span className="text-destructive">*</span></Label>
+                      <Select value={formData.equipamento_id} onValueChange={(value) => handleChange('equipamento_id', value)} disabled={!formData.cliente_id || isView}>
+                        <SelectTrigger disabled={!formData.cliente_id || isView}><SelectValue placeholder={formData.cliente_id ? 'Selecione o equipamento' : 'Selecione um cliente primeiro'} /></SelectTrigger>
+                        <SelectContent>
+                          {equipamentosFiltrados.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
+                          ) : (
+                            equipamentosFiltrados.map((eq) => (
+                              <SelectItem key={eq.id} value={eq.id}>{eq.nome || `${eq.tipo} - ${eq.fabricante} ${eq.modelo}`.trim()}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="detalhes">
+                <AccordionTrigger>Detalhes da Ordem</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tipo">Tipo</Label>
+                      <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
+                        <SelectTrigger disabled={isView}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="preventiva">Preventiva</SelectItem>
+                          <SelectItem value="corretiva">Corretiva</SelectItem>
+                          <SelectItem value="emergencial">Emergencial</SelectItem>
+                          <SelectItem value="chamado">Chamado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="prioridade">Prioridade</Label>
+                      <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
+                        <SelectTrigger disabled={isView}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="alta">Alta</SelectItem>
+                          <SelectItem value="media">Média</SelectItem>
+                          <SelectItem value="baixa">Baixa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="tecnico_id">Técnico Responsável</Label>
+                    <Select
+                      value={formData.tecnico_id || '__none__'}
+                      onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
+                    >
+                      <SelectTrigger disabled={isView}>
+                        <SelectValue placeholder="Nenhum técnico atribuído" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4}>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {colaboradores.filter(c => c.ativo).map((tecnico) => (
+                          <SelectItem key={tecnico.id} value={tecnico.id}>
+                            {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="equipamento_id">Equipamento <span className="text-destructive">*</span></Label>
-                    <Select value={formData.equipamento_id} onValueChange={(value) => handleChange('equipamento_id', value)} disabled={!formData.cliente_id || isView}>
-                      <SelectTrigger disabled={!formData.cliente_id || isView}><SelectValue placeholder={formData.cliente_id ? 'Selecione o equipamento' : 'Selecione um cliente primeiro'} /></SelectTrigger>
-                      <SelectContent>
-                        {equipamentosFiltrados.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground">Nenhum equipamento disponível</div>
-                        ) : (
-                          equipamentosFiltrados.map((eq) => (
-                            <SelectItem key={eq.id} value={eq.id}>{eq.nome || `${eq.tipo} - ${eq.fabricante} ${eq.modelo}`.trim()}</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="detalhes">
-              <AccordionTrigger>Detalhes da Ordem</AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo">Tipo</Label>
-                    <Select value={formData.tipo} onValueChange={(value) => handleChange('tipo', value)}>
-                      <SelectTrigger disabled={isView}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="preventiva">Preventiva</SelectItem>
-                        <SelectItem value="corretiva">Corretiva</SelectItem>
-                        <SelectItem value="emergencial">Emergencial</SelectItem>
-                        <SelectItem value="chamado">Chamado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="prioridade">Prioridade</Label>
-                    <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
-                      <SelectTrigger disabled={isView}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="alta">Alta</SelectItem>
-                        <SelectItem value="media">Média</SelectItem>
-                        <SelectItem value="baixa">Baixa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2 mt-4">
-                  <Label htmlFor="tecnico_id">Técnico Responsável</Label>
-                  <Select
-                    value={formData.tecnico_id || '__none__'}
-                    onValueChange={(value) => handleChange('tecnico_id', value === '__none__' ? '' : value)}
-                  >
-                    <SelectTrigger disabled={isView}>
-                      <SelectValue placeholder="Nenhum técnico atribuído" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      <SelectItem value="__none__">Nenhum</SelectItem>
-                      {colaboradores.filter(c => c.ativo).map((tecnico) => (
-                        <SelectItem key={tecnico.id} value={tecnico.id}>
-                          {tecnico.nome} {tecnico.funcao ? `(${tecnico.funcao})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
-                    <Input
-                      id="data_abertura"
-                      type="datetime-local"
-                      value={formData.data_abertura}
-                      readOnly
-                      className="bg-muted cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-                {ordem && (
                   <div className="space-y-2 mt-4">
-                    <Label>Número da OS</Label>
-                    <div className="p-2 bg-muted rounded-md text-sm font-mono">
-                      {ordem.numero_os || '(Será gerado automaticamente)'}
+                    <div className="space-y-2">
+                      <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
+                      <Input
+                        id="data_abertura"
+                        type="datetime-local"
+                        value={formData.data_abertura}
+                        readOnly
+                        className="bg-muted cursor-not-allowed"
+                      />
                     </div>
                   </div>
-                )}
-                <div className="space-y-2 mt-2">
-                  <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
-                  <Input
-                    id="quem_solicitou"
-                    value={formData.quem_solicitou}
-                    onChange={(e) => handleChange('quem_solicitou', e.target.value)}
-                    placeholder="Nome de quem solicitou"
-                    disabled={isView}
-                    className={isView ? '' : 'bg-white'}
-                  />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Detalhes da Execução (Apenas visualização e se já tiver iniciado) */}
-            {isView && ordem && !['novo', 'parado'].includes(ordem.status) && (
-              <AccordionItem value="execucao">
-                <AccordionTrigger>Detalhes da Execução</AccordionTrigger>
-                <AccordionContent>
-                  <div className="pt-2">
-                    {ordem.tipo === 'preventiva' ? (
-                      <OSPreventiva
-                        osId={ordem.id}
-                        empresaId={empresaId}
-                        osData={fullOrder || ordem}
-                        readOnly
-                      />
-                    ) : (
-                      <OSChamadoCorretiva
-                        osId={ordem.id}
-                        empresaId={empresaId}
-                        osData={fullOrder || ordem}
-                        readOnly
-                      />
-                    )}
+                  {ordem && (
+                    <div className="space-y-2 mt-4">
+                      <Label>Número da OS</Label>
+                      <div className="p-2 bg-muted rounded-md text-sm font-mono">
+                        {ordem.numero_os || '(Será gerado automaticamente)'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2 mt-2">
+                    <Label htmlFor="quem_solicitou">Quem solicitou o atendimento</Label>
+                    <Input
+                      id="quem_solicitou"
+                      value={formData.quem_solicitou}
+                      onChange={(e) => handleChange('quem_solicitou', e.target.value)}
+                      placeholder="Nome de quem solicitou"
+                      disabled={isView}
+                      className={isView ? '' : 'bg-white'}
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
-            )}
 
-            {/* Histórico da OS (Timeline) - Apenas View */}
-            {isView && statusHistory.length > 0 && (
-              <AccordionItem value="historico_timeline">
-                <AccordionTrigger>Histórico de Alterações</AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-3 pt-2">
-                    {(() => {
-                      // Status label mapping
-                      const getStatusLabel = (status: string) => {
-                        const labels: Record<string, string> = {
-                          novo: 'Novo',
-                          em_deslocamento: 'Em Deslocamento',
-                          checkin: 'Em Atendimento',
-                          em_atendimento: 'Em Atendimento',
-                          concluido: 'Concluído',
-                          cancelado: 'Cancelado',
-                          parado: 'Parado',
-                        }
-                        return labels[status] || status.replace(/_/g, ' ')
-                      }
-                      // Deduplicate by status_novo, keeping only the first (most recent) occurrence
-                      const seen = new Set<string>()
-                      return statusHistory
-                        .filter((history) => {
-                          if (seen.has(history.status_novo)) {
-                            return false
+              {/* Detalhes da Execução (Apenas visualização e se já tiver iniciado) */}
+              {isView && ordem && !['novo', 'parado'].includes(ordem.status) && (
+                <AccordionItem value="execucao">
+                  <AccordionTrigger>Detalhes da Execução</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-2">
+                      {ordem.tipo === 'preventiva' ? (
+                        <OSPreventiva
+                          osId={ordem.id}
+                          empresaId={empresaId}
+                          osData={fullOrder || ordem}
+                          readOnly
+                        />
+                      ) : (
+                        <OSChamadoCorretiva
+                          osId={ordem.id}
+                          empresaId={empresaId}
+                          osData={fullOrder || ordem}
+                          readOnly
+                        />
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Histórico da OS (Timeline) - Apenas View */}
+              {isView && statusHistory.length > 0 && (
+                <AccordionItem value="historico_timeline">
+                  <AccordionTrigger>Histórico de Alterações</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-2">
+                      {(() => {
+                        // Status label mapping
+                        const getStatusLabel = (status: string) => {
+                          const labels: Record<string, string> = {
+                            novo: 'Novo',
+                            em_deslocamento: 'Em Deslocamento',
+                            checkin: 'Em Atendimento',
+                            em_atendimento: 'Em Atendimento',
+                            concluido: 'Concluído',
+                            cancelado: 'Cancelado',
+                            parado: 'Parado',
                           }
-                          seen.add(history.status_novo)
-                          return true
-                        })
-                        .map((history) => (
-                          <div
-                            key={history.id}
-                            className="flex items-start gap-3 pb-3 border-b last:border-0"
-                          >
-                            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm">{getStatusLabel(history.status_novo)}</span>
+                          return labels[status] || status.replace(/_/g, ' ')
+                        }
+                        // Deduplicate by status_novo, keeping only the first (most recent) occurrence
+                        const seen = new Set<string>()
+                        return statusHistory
+                          .filter((history) => {
+                            if (seen.has(history.status_novo)) {
+                              return false
+                            }
+                            seen.add(history.status_novo)
+                            return true
+                          })
+                          .map((history) => (
+                            <div
+                              key={history.id}
+                              className="flex items-start gap-3 pb-3 border-b last:border-0"
+                            >
+                              <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-sm">{getStatusLabel(history.status_novo)}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(history.changed_at).toLocaleString('pt-BR')}
+                                </p>
+                                {history.reason && (
+                                  <p className="text-sm mt-1">Motivo: {history.reason}</p>
+                                )}
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(history.changed_at).toLocaleString('pt-BR')}
-                              </p>
-                              {history.reason && (
-                                <p className="text-sm mt-1">Motivo: {history.reason}</p>
-                              )}
                             </div>
-                          </div>
-                        ))
-                    })()}
+                          ))
+                      })()}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Observações */}
+              <AccordionItem value="observacoes">
+                <AccordionTrigger>Observações</AccordionTrigger>
+                <AccordionContent className="px-1">
+                  <div className="space-y-2 pt-1">
+                    <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
+                    <Textarea
+                      id="observacoes"
+                      value={formData.observacoes}
+                      onChange={(e) => handleChange('observacoes', e.target.value)}
+                      placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
+                      rows={4}
+                      disabled={isView}
+                      className={isView ? '' : 'bg-white'}
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
-            )}
+            </Accordion>
 
-            {/* Observações */}
-            <AccordionItem value="observacoes">
-              <AccordionTrigger>Observações</AccordionTrigger>
-              <AccordionContent className="px-1">
-                <div className="space-y-2 pt-1">
-                  <Label htmlFor="observacoes">Descrição do Problema/Serviço</Label>
-                  <Textarea
-                    id="observacoes"
-                    value={formData.observacoes}
-                    onChange={(e) => handleChange('observacoes', e.target.value)}
-                    placeholder="Descreva o problema, serviço a ser realizado, ou observações relevantes..."
-                    rows={4}
-                    disabled={isView}
-                    className={isView ? '' : 'bg-white'}
-                  />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+            <DialogFooter>
+              {isView ? (
+                <>
+                  <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
 
-          <DialogFooter>
-            {isView ? (
-              <>
-                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }}>Fechar</Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    const osData = fullOrder || ordem
-                    if (!osData) {
-                      toast.error('Dados da OS não disponíveis')
-                      return
-                    }
-
-                    try {
-                      // Fetch additional data for PDF
-                      const supabase = createSupabaseBrowser()
-                      const { data: { session } } = await supabase.auth.getSession()
-                      if (!session?.access_token) {
-                        toast.error('Sessão expirada')
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      const osData = fullOrder || ordem
+                      if (!osData) {
+                        toast.error('Dados da OS não disponíveis')
                         return
                       }
 
-                      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-                      const headers = { 'Authorization': `Bearer ${session.access_token}` }
+                      try {
+                        // Fetch additional data for PDF
+                        const supabase = createSupabaseBrowser()
+                        const { data: { session } } = await supabase.auth.getSession()
+                        if (!session?.access_token) {
+                          toast.error('Sessão expirada')
+                          return
+                        }
 
-                      // Fetch related data
-                      const [clienteRes, equipamentoRes, tecnicoRes, laudoRes, checklistRes, empresaRes] = await Promise.all([
-                        osData.cliente_id ? fetch(`${BACKEND_URL}/api/v1/clientes/${osData.cliente_id}`, { headers }) : null,
-                        osData.equipamento_id ? fetch(`${BACKEND_URL}/api/v1/equipamentos/${osData.equipamento_id}`, { headers }) : null,
-                        osData.tecnico_id ? fetch(`${BACKEND_URL}/api/v1/colaboradores/${osData.tecnico_id}`, { headers }) : null,
-                        fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/laudo`, { headers }),
-                        fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/checklist`, { headers }),
-                        supabase.from('empresas').select('nome, logo_url').eq('id', empresaId).single(),
-                      ])
+                        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                        const headers = { 'Authorization': `Bearer ${session.access_token}` }
 
-                      const cliente = clienteRes?.ok ? await clienteRes.json() : null
-                      const equipamento = equipamentoRes?.ok ? await equipamentoRes.json() : null
-                      const tecnico = tecnicoRes?.ok ? await tecnicoRes.json() : null
+                        // Fetch related data
+                        const [clienteRes, equipamentoRes, tecnicoRes, laudoRes, checklistRes, empresaRes] = await Promise.all([
+                          osData.cliente_id ? fetch(`${BACKEND_URL}/api/v1/clientes/${osData.cliente_id}`, { headers }) : null,
+                          osData.equipamento_id ? fetch(`${BACKEND_URL}/api/v1/equipamentos/${osData.equipamento_id}`, { headers }) : null,
+                          osData.tecnico_id ? fetch(`${BACKEND_URL}/api/v1/colaboradores/${osData.tecnico_id}`, { headers }) : null,
+                          fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/laudo`, { headers }),
+                          fetch(`${BACKEND_URL}/api/v1/ordens-servico/${osData.id}/checklist`, { headers }),
+                          supabase.from('empresas').select('nome, logo_url').eq('id', empresaId).single(),
+                        ])
 
-                      // Fetch laudo - try API first, then direct Supabase
-                      let laudo = null
-                      if (laudoRes?.ok) {
-                        laudo = await laudoRes.json()
-                        console.log('[PDF] Laudo from API:', laudo)
-                      } else {
-                        console.log('[PDF] Laudo API returned:', laudoRes?.status, '- trying direct query')
-                        // Try direct Supabase query if API fails
-                        const { data: laudoData } = await supabase
-                          .from('os_laudos')
+                        const cliente = clienteRes?.ok ? await clienteRes.json() : null
+                        const equipamento = equipamentoRes?.ok ? await equipamentoRes.json() : null
+                        const tecnico = tecnicoRes?.ok ? await tecnicoRes.json() : null
+
+                        // Fetch laudo - try API first, then direct Supabase
+                        let laudo = null
+                        if (laudoRes?.ok) {
+                          laudo = await laudoRes.json()
+                          console.log('[PDF] Laudo from API:', laudo)
+                        } else {
+                          console.log('[PDF] Laudo API returned:', laudoRes?.status, '- trying direct query')
+                          // Try direct Supabase query if API fails
+                          const { data: laudoData } = await supabase
+                            .from('os_laudos')
+                            .select('*')
+                            .eq('os_id', osData.id)
+                            .single()
+                          if (laudoData) {
+                            laudo = laudoData
+                            console.log('[PDF] Laudo from Supabase:', laudo)
+                          } else {
+                            console.log('[PDF] No laudo found in database')
+                          }
+                        }
+
+                        const checklist = checklistRes?.ok ? await checklistRes.json() : []
+
+                        // Buscar evidências (fotos)
+                        const { data: evidencias } = await supabase
+                          .from('os_evidencias')
                           .select('*')
                           .eq('os_id', osData.id)
-                          .single()
-                        if (laudoData) {
-                          laudo = laudoData
-                          console.log('[PDF] Laudo from Supabase:', laudo)
-                        } else {
-                          console.log('[PDF] No laudo found in database')
-                        }
+                          .eq('tipo', 'foto')
+                          .order('created_at', { ascending: true })
+
+                        // Converter storage_path para URL pública
+                        const evidenciasComUrl = evidencias?.map(ev => {
+                          if (!ev.storage_path) return null
+                          const { data } = supabase.storage
+                            .from('evidencias')
+                            .getPublicUrl(ev.storage_path)
+                          return {
+                            tipo: ev.tipo,
+                            url: data.publicUrl,
+                            created_at: ev.created_at
+                          }
+                        }).filter(Boolean) || []
+
+                        await generateOSPDF({
+                          numero_os: osData.numero_os || '',
+                          tipo: osData.tipo,
+                          data_abertura: osData.data_abertura,
+                          data_fim: osData.data_fim,
+                          cliente_nome: cliente?.nome_local,
+                          cliente_endereco: cliente?.endereco_completo,
+                          cliente_telefone: cliente?.responsavel_telefone,
+                          quem_solicitou: osData.quem_solicitou,
+                          equipamento_tipo: equipamento?.tipo,
+                          equipamento_fabricante: equipamento?.fabricante,
+                          equipamento_modelo: equipamento?.modelo,
+                          equipamento_numero_serie: equipamento?.numero_serie,
+                          tecnico_nome: tecnico?.nome,
+                          descricao: osData.descricao,
+                          observacoes: osData.observacoes,
+                          laudo_o_que_foi_feito: laudo?.o_que_foi_feito,
+                          laudo_observacao: laudo?.observacao,
+                          estado_equipamento: osData.estado_equipamento,
+                          nome_cliente_assinatura: osData.nome_cliente_assinatura,
+                          assinatura_cliente: osData.assinatura_cliente,
+                          checklist: checklist || [],
+                          evidencias: evidenciasComUrl as any,
+                          empresa_nome: empresaRes.data?.nome,
+                          empresa_logo_url: empresaRes.data?.logo_url,
+                        })
+
+                        toast.success('PDF gerado com sucesso!')
+                      } catch (error) {
+                        console.error('Erro ao gerar PDF:', error)
+                        toast.error('Erro ao gerar PDF')
                       }
-
-                      const checklist = checklistRes?.ok ? await checklistRes.json() : []
-
-                      // Buscar evidências (fotos)
-                      const { data: evidencias } = await supabase
-                        .from('os_evidencias')
-                        .select('*')
-                        .eq('os_id', osData.id)
-                        .eq('tipo', 'foto')
-                        .order('created_at', { ascending: true })
-
-                      // Converter storage_path para URL pública
-                      const evidenciasComUrl = evidencias?.map(ev => {
-                        if (!ev.storage_path) return null
-                        const { data } = supabase.storage
-                          .from('evidencias')
-                          .getPublicUrl(ev.storage_path)
-                        return {
-                          tipo: ev.tipo,
-                          url: data.publicUrl,
-                          created_at: ev.created_at
-                        }
-                      }).filter(Boolean) || []
-
-                      await generateOSPDF({
-                        numero_os: osData.numero_os || '',
-                        tipo: osData.tipo,
-                        data_abertura: osData.data_abertura,
-                        data_fim: osData.data_fim,
-                        cliente_nome: cliente?.nome_local,
-                        cliente_endereco: cliente?.endereco_completo,
-                        cliente_telefone: cliente?.responsavel_telefone,
-                        quem_solicitou: osData.quem_solicitou,
-                        equipamento_tipo: equipamento?.tipo,
-                        equipamento_fabricante: equipamento?.fabricante,
-                        equipamento_modelo: equipamento?.modelo,
-                        equipamento_numero_serie: equipamento?.numero_serie,
-                        tecnico_nome: tecnico?.nome,
-                        descricao: osData.descricao,
-                        observacoes: osData.observacoes,
-                        laudo_o_que_foi_feito: laudo?.o_que_foi_feito,
-                        laudo_observacao: laudo?.observacao,
-                        estado_equipamento: osData.estado_equipamento,
-                        nome_cliente_assinatura: osData.nome_cliente_assinatura,
-                        assinatura_cliente: osData.assinatura_cliente,
-                        checklist: checklist || [],
-                        evidencias: evidenciasComUrl as any,
-                        empresa_nome: empresaRes.data?.nome,
-                        empresa_logo_url: empresaRes.data?.logo_url,
-                      })
-
-                      toast.success('PDF gerado com sucesso!')
-                    } catch (error) {
-                      console.error('Erro ao gerar PDF:', error)
-                      toast.error('Erro ao gerar PDF')
-                    }
-                  }}
-                  className="gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  Gerar PDF
-                </Button>
-
-                {/* Botões de ação para técnicos - apenas se for o técnico atribuído */}
-                {ordem && isAssignedTechnician && (
-                  <>
-                    {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
-                    {['novo', 'parado', 'checkin'].includes(ordem.status) && (
-                      <Button
-                        type="button"
-                        onClick={handleStartDeslocamento}
-                        disabled={actionLoading}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        <Navigation className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Iniciando...' : 'Iniciar Deslocamento'}
-                      </Button>
-                    )}
-
-                    {/* Botão: Iniciar Atendimento (apenas se status = em_deslocamento) */}
-                    {ordem.status === 'em_deslocamento' && (
-                      <Button
-                        type="button"
-                        onClick={handleCheckin}
-                        disabled={actionLoading}
-                        className="bg-indigo-600 hover:bg-indigo-700"
-                      >
-                        <PlayCircle className="h-4 w-4 mr-2" />
-                        {actionLoading ? 'Iniciando...' : 'Iniciar Atendimento'}
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {canEdit && (
-                  <Button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
                     }}
+                    className="gap-2"
                   >
-                    Editar
+                    <Printer className="w-4 h-4" />
+                    Gerar PDF
                   </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Salvando...' : localMode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
 
-    {/* Dialog de técnico ocupado */}
-    <AlertDialog open={showTecnicoOcupadoDialog} onOpenChange={setShowTecnicoOcupadoDialog}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
-            <AlertTriangle className="h-5 w-5" />
-            Técnico Ocupado
-          </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-2">
-              <p>
-                O técnico <strong>{tecnicoOcupadoInfo?.tecnicoNome}</strong> já está em atendimento em outra ordem de serviço.
-              </p>
-              <p className="text-sm bg-orange-50 dark:bg-orange-950 p-2 rounded border border-orange-200 dark:border-orange-800">
-                <span className="font-medium">OS:</span> {tecnicoOcupadoInfo?.osNumero}<br />
-                <span className="font-medium">Status:</span> {tecnicoOcupadoInfo?.osStatus}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                O que deseja fazer?
-              </p>
-            </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-          <AlertDialogCancel 
-            onClick={() => {
-              setShowTecnicoOcupadoDialog(false)
-              setPendingSubmit(false)
-            }}
-          >
-            Escolher Outro Técnico
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              setShowTecnicoOcupadoDialog(false)
-              // Limpar técnico e criar OS sem técnico
-              setFormData(prev => ({ ...prev, tecnico_id: '' }))
-              executeSubmit(true)
-            }}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            Criar sem Técnico
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+                  {/* Botões de ação para técnicos - apenas se for o técnico atribuído */}
+                  {ordem && isAssignedTechnician && (
+                    <>
+                      {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
+                      {['novo', 'parado', 'checkin'].includes(ordem.status) && (
+                        <Button
+                          type="button"
+                          onClick={handleStartDeslocamento}
+                          disabled={actionLoading}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Navigation className="h-4 w-4 mr-2" />
+                          {actionLoading ? 'Iniciando...' : 'Iniciar Deslocamento'}
+                        </Button>
+                      )}
+
+                      {/* Botão: Iniciar Atendimento (apenas se status = em_deslocamento) */}
+                      {ordem.status === 'em_deslocamento' && (
+                        <Button
+                          type="button"
+                          onClick={handleCheckin}
+                          disabled={actionLoading}
+                          className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                          {actionLoading ? 'Iniciando...' : 'Iniciar Atendimento'}
+                        </Button>
+                      )}
+                    </>
+                  )}
+
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onRequestEdit) onRequestEdit(); else setLocalMode('edit')
+                      }}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" onClick={() => { setOpen(false); onOpenChange?.(false) }} disabled={loading}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Salvando...' : localMode === 'edit' ? 'Atualizar' : 'Criar Ordem'}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de técnico ocupado */}
+      <AlertDialog open={showTecnicoOcupadoDialog} onOpenChange={setShowTecnicoOcupadoDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              Técnico Ocupado
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  O técnico <strong>{tecnicoOcupadoInfo?.tecnicoNome}</strong> já está em atendimento em outra ordem de serviço.
+                </p>
+                <p className="text-sm bg-orange-50 dark:bg-orange-950 p-2 rounded border border-orange-200 dark:border-orange-800">
+                  <span className="font-medium">OS:</span> {tecnicoOcupadoInfo?.osNumero}<br />
+                  <span className="font-medium">Status:</span> {tecnicoOcupadoInfo?.osStatus}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  O que deseja fazer?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => {
+                setShowTecnicoOcupadoDialog(false)
+                setPendingSubmit(false)
+              }}
+            >
+              Escolher Outro Técnico
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowTecnicoOcupadoDialog(false)
+                // Limpar técnico e criar OS sem técnico
+                setFormData(prev => ({ ...prev, tecnico_id: '' }))
+                executeSubmit(true)
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Criar sem Técnico
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

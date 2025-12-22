@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateOrdemServicoDto } from './dto/create-ordem-servico.dto';
 import { UpdateOrdemServicoDto } from './dto/update-ordem-servico.dto';
@@ -286,10 +286,59 @@ export class OrdensServicoService {
       }
 
       // Remover numero_os se vier no payload (campo não é editável)
-      const { numero_os, ...updateData } = updateOrdemServicoDto;
+      const { numero_os, ...updateData } = updateOrdemServicoDto as any;
 
       if (numero_os) {
         console.warn('[OrdensServicoService] Tentativa de editar numero_os ignorada. Campo é auto-gerado.');
+      }
+
+      // Verificar se está atribuindo um novo técnico
+      const novoTecnicoId = updateData.tecnico_id;
+      const tecnicoAtual = os.tecnico_id;
+      const atribuindoNovoTecnico = novoTecnicoId && novoTecnicoId !== tecnicoAtual;
+
+      if (atribuindoNovoTecnico) {
+        // Verificar se o técnico já tem OS ativa (em_deslocamento, checkin, em_atendimento)
+        const { data: osAtiva, error: osAtivaError } = await this.supabaseService.client
+          .from('ordens_servico')
+          .select('id, numero_os, status')
+          .eq('tecnico_id', novoTecnicoId)
+          .in('status', ['em_deslocamento', 'checkin', 'em_atendimento'])
+          .neq('id', id)
+          .limit(1)
+          .maybeSingle();
+
+        if (osAtivaError) {
+          console.error('[OrdensServicoService] Erro ao verificar técnico ocupado:', osAtivaError);
+        }
+
+        if (osAtiva) {
+          const statusLabel: Record<string, string> = {
+            em_deslocamento: 'Em Deslocamento',
+            checkin: 'Em Atendimento',
+            em_atendimento: 'Em Atendimento'
+          };
+          const osNumero = osAtiva.numero_os || `#${osAtiva.id.slice(0, 8)}`;
+          const statusAtivo = statusLabel[osAtiva.status] || osAtiva.status;
+
+          throw new BadRequestException(
+            `Técnico já está atuando na OS ${osNumero} (${statusAtivo}). Finalize-a antes de atribuir outra.`
+          );
+        }
+
+        // Auto-atualizar status para 'em_deslocamento' se estiver em 'novo' ou 'parado'
+        if (['novo', 'parado'].includes(os.status)) {
+          console.log('[OrdensServicoService] Admin atribuindo técnico - mudando status para em_deslocamento');
+          updateData.status = 'em_deslocamento';
+
+          // Definir data_inicio se não existir (garantir constraint de datas)
+          if (!os.data_inicio) {
+            const dataInicio = os.data_abertura
+              ? new Date(Math.max(new Date().getTime(), new Date(os.data_abertura).getTime()))
+              : new Date();
+            updateData.data_inicio = dataInicio.toISOString();
+          }
+        }
       }
 
       // Atualizar usando service role (bypassa RLS)
@@ -312,11 +361,38 @@ export class OrdensServicoService {
         }
         throw error;
       }
+
+      // Se atribuiu um técnico e mudou status, registrar no histórico
+      if (atribuindoNovoTecnico && ['novo', 'parado'].includes(os.status)) {
+        try {
+          await this.supabaseService.client
+            .from('os_status_history')
+            .insert({
+              os_id: id,
+              status_anterior: os.status,
+              status_novo: 'em_deslocamento',
+              changed_by: profile.user_id,
+              changed_at: new Date().toISOString(),
+              action_type: 'admin_assign',
+              empresa_id: empresaAtiva,
+              metadata: {
+                tecnico_id: novoTecnicoId,
+                previous_tecnico_id: tecnicoAtual,
+                assigned_by_admin: true
+              }
+            });
+        } catch (historyError) {
+          console.error('[OrdensServicoService] Erro ao registrar histórico:', historyError);
+          // Não falhar se o histórico falhar
+        }
+      }
+
       return data;
     } catch (error) {
       throw error;
     }
   }
+
 
   async remove(id: string, accessToken?: string) {
     if (!accessToken) {
