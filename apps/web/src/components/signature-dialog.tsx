@@ -73,10 +73,20 @@ export function SignatureDialog({
     setIsEmpty(true)
   }
 
+  // Detectar quando começa a desenhar (importante para mobile)
+  const handleBegin = useCallback(() => {
+    // Quando começa a desenhar, não está mais vazio
+    setIsEmpty(false)
+  }, [])
+
   const handleEnd = useCallback(() => {
     const ref = isFullscreenMode ? fullscreenSignatureRef : signatureRef
-    setIsEmpty(ref.current?.isEmpty() ?? true)
+    // Verificar se realmente está vazio após terminar
+    const reallyEmpty = ref.current?.isEmpty() ?? true
+    setIsEmpty(reallyEmpty)
+    console.log('[SignatureDialog] handleEnd chamado, isEmpty:', reallyEmpty)
   }, [isFullscreenMode])
+
 
   // Função para rotacionar a imagem 90 graus anti-horário (para deixar horizontal corretamente)
   const rotateImage90CounterClockwise = useCallback((dataUrl: string): Promise<string> => {
@@ -252,16 +262,22 @@ export function SignatureDialog({
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                console.log('[SignatureDialog] Botão fullscreen clicado via onClick, isEmpty:', isEmpty, 'clientName:', clientName)
-                if (!isEmpty && clientName.trim()) {
+                // Verificar isEmpty direto do canvas para garantir
+                const ref = fullscreenSignatureRef
+                const reallyEmpty = ref.current?.isEmpty() ?? true
+                console.log('[SignatureDialog] Botão fullscreen clicado via onClick, isEmpty state:', isEmpty, 'reallyEmpty:', reallyEmpty, 'clientName:', clientName)
+                if (!reallyEmpty && clientName.trim()) {
                   handleSave()
                 }
               }}
               onTouchEnd={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                console.log('[SignatureDialog] Botão fullscreen clicado via onTouchEnd, isEmpty:', isEmpty, 'clientName:', clientName)
-                if (!isEmpty && clientName.trim()) {
+                // Verificar isEmpty direto do canvas para garantir
+                const ref = fullscreenSignatureRef
+                const reallyEmpty = ref.current?.isEmpty() ?? true
+                console.log('[SignatureDialog] Botão fullscreen clicado via onTouchEnd, isEmpty state:', isEmpty, 'reallyEmpty:', reallyEmpty, 'clientName:', clientName)
+                if (!reallyEmpty && clientName.trim()) {
                   handleSave()
                 }
               }}
@@ -297,6 +313,7 @@ export function SignatureDialog({
                 display: 'block',
               },
             }}
+            onBegin={handleBegin}
             onEnd={handleEnd}
           />
           {/* Linha guia para assinatura */}
@@ -407,9 +424,11 @@ export function SignatureDialog({
                       userSelect: 'none',
                     },
                   }}
+                  onBegin={handleBegin}
                   onEnd={handleEnd}
                 />
               </div>
+
               {!clientName.trim() && (
                 <p className="text-xs text-amber-600 text-center">
                   Preencha o nome do responsável antes de assinar
@@ -438,15 +457,23 @@ export function SignatureDialog({
               className="touch-manipulation min-h-[44px]"
               onClick={(e) => {
                 e.preventDefault()
-                console.log('[SignatureDialog] Botão clicado via onClick, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
-                if (canSave) {
+                e.stopPropagation()
+                // Verificar isEmpty direto do canvas para garantir
+                const ref = signatureRef
+                const reallyEmpty = ref.current?.isEmpty() ?? true
+                console.log('[SignatureDialog] Botão clicado via onClick, canSave:', canSave, 'isEmpty state:', isEmpty, 'reallyEmpty:', reallyEmpty, 'clientName:', clientName)
+                if (!reallyEmpty && clientName.trim()) {
                   handleSave()
                 }
               }}
               onTouchEnd={(e) => {
                 e.preventDefault()
-                console.log('[SignatureDialog] Botão clicado via onTouchEnd, canSave:', canSave, 'isEmpty:', isEmpty, 'clientName:', clientName)
-                if (canSave) {
+                e.stopPropagation()
+                // Verificar isEmpty direto do canvas para garantir
+                const ref = signatureRef
+                const reallyEmpty = ref.current?.isEmpty() ?? true
+                console.log('[SignatureDialog] Botão clicado via onTouchEnd, canSave:', canSave, 'isEmpty state:', isEmpty, 'reallyEmpty:', reallyEmpty, 'clientName:', clientName)
+                if (!reallyEmpty && clientName.trim()) {
                   handleSave()
                 }
               }}
@@ -454,6 +481,7 @@ export function SignatureDialog({
               <Check className="h-4 w-4 mr-2" />
               Confirmar Assinatura
             </Button>
+
           </DialogFooter>
 
           <DialogPrimitive.Close
