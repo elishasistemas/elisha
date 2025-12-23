@@ -42,7 +42,7 @@ export function OSStepsWrapper({ step1, step2, step3, step4 }: OSStepsWrapperPro
   if (isMobile) {
     return (
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="px-4 pt-0 h-[57px] overflow-hidden">
+        <div className="pt-0 h-[57px] overflow-hidden rounded-[20px]">
           <TabsList className={`grid w-full ${step4 ? 'grid-cols-4' : 'grid-cols-3'} h-[65px] p-1.5 pb-0 bg-[#EBEEF2] rounded-[20px]`}>
             <TabsTrigger
               value="descricao"
