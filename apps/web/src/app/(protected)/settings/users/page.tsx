@@ -42,7 +42,7 @@ interface Profile {
   active_role?: string;
   created_at: string;
   email?: string; // pode não existir na tabela profiles
-  name?: string;
+  nome?: string;
   is_elisha_admin?: boolean;
   impersonating_empresa_id?: string | null;
 
@@ -299,7 +299,7 @@ export default function UsersPage() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Papel</TableHead>
-                    <TableHead>Criado em</TableHead>
+                    <TableHead className="w-[150px]">Criado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -310,7 +310,7 @@ export default function UsersPage() {
                         {profile.email || "N/A"}
                       </TableCell>
                       <TableCell>
-                        {profile.name || "-"}
+                        {profile.nome || "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getRoleBadgeVariant(profile.role)}>
