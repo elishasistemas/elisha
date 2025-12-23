@@ -132,35 +132,58 @@ export async function POST(request: Request) {
 
     if (colaboradorError) {
       console.error('[users/create] Erro ao criar colaborador:', colaboradorError)
-      // Não falhar, apenas log
     } else {
       tecnico_id = colaboradorData.id
     }
 
-    const { error: profileError } = await supabase
+    // Verificar se já existe um profile criado por trigger
+    const { data: existingProfileAfterCreate } = await supabase
       .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        user_id: authData.user.id,
-        username,
-        nome,
-        whatsapp_numero: whatsapp,
-        funcao,
-        empresa_id,
-        role,
-        active_role: role,
-        roles: [role],
-        tecnico_id,
-        is_elisha_admin: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      })
+      .select('id')
+      .eq('user_id', authData.user.id)
+      .single()
+
+    const profileData = {
+      username,
+      nome,
+      whatsapp_numero: whatsapp,
+      funcao,
+      empresa_id,
+      role,
+      active_role: role,
+      roles: [role],
+      tecnico_id,
+      is_elisha_admin: false,
+      updated_at: new Date().toISOString()
+    }
+
+    let profileError = null
+
+    if (existingProfileAfterCreate) {
+      // Atualizar existente
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', existingProfileAfterCreate.id)
+      profileError = error
+    } else {
+      // Inserir novo
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          user_id: authData.user.id,
+          created_at: new Date().toISOString(),
+          ...profileData
+        })
+      profileError = error
+    }
 
     if (profileError) {
-      console.error('[users/create] Erro ao criar profile:', profileError)
-      // Tentar deletar usuário criado
+      console.error('[users/create] Erro ao criar/atualizar profile:', profileError)
+      // Tentar deletar usuário criado no auth se falhar o profile, para não deixar "morto"
+      // Mas se o erro for no update do profile existente, talvez não devêssemos deletar o usuário auth?
+      // Nesse caso seguro, melhor deletar para permitir retry limpo
       await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: `Erro ao criar profile: ${profileError.message}` },
