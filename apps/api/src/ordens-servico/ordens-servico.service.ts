@@ -222,11 +222,56 @@ export class OrdensServicoService {
       const numeroFormatado = `OS-${proximoNumero.toString().padStart(4, '0')}-${ano}`;
 
 
-      // Sobrescrever o numero_os com o valor gerado
-      const ordemData = {
+      // Preparar dados da OS
+      const ordemData: any = {
         ...createOrdemServicoDto,
         numero_os: numeroFormatado,
       };
+
+      // NOVO: Verificar se técnico foi atribuído e ajustar status automaticamente
+      const tecnicoAtribuido = createOrdemServicoDto.tecnico_id;
+
+      if (tecnicoAtribuido) {
+        console.log('[OrdensServicoService] Admin criando OS com técnico atribuído:', tecnicoAtribuido);
+
+        // Verificar se o técnico já tem OS ativa (em_deslocamento, checkin, em_atendimento)
+        const { data: osAtiva, error: osAtivaError } = await this.supabaseService.client
+          .from('ordens_servico')
+          .select('id, numero_os, status')
+          .eq('tecnico_id', tecnicoAtribuido)
+          .in('status', ['em_deslocamento', 'checkin', 'em_atendimento'])
+          .limit(1)
+          .maybeSingle();
+
+        if (osAtivaError) {
+          console.error('[OrdensServicoService] Erro ao verificar técnico ocupado:', osAtivaError);
+        }
+
+        if (osAtiva) {
+          const statusLabel: Record<string, string> = {
+            em_deslocamento: 'Em Deslocamento',
+            checkin: 'Em Atendimento',
+            em_atendimento: 'Em Atendimento'
+          };
+          const osNumero = osAtiva.numero_os || `#${osAtiva.id.slice(0, 8)}`;
+          const statusAtivo = statusLabel[osAtiva.status] || osAtiva.status;
+
+          throw new BadRequestException(
+            `Técnico já está atuando na OS ${osNumero} (${statusAtivo}). Finalize-a antes de atribuir outra.`
+          );
+        }
+
+        // Auto-atualizar status para 'em_deslocamento' quando técnico é atribuído
+        console.log('[OrdensServicoService] Técnico livre - mudando status para em_deslocamento');
+        ordemData.status = 'em_deslocamento';
+
+        // Definir data_inicio se não foi fornecida
+        if (!ordemData.data_inicio) {
+          const dataAbertura = ordemData.data_abertura ? new Date(ordemData.data_abertura) : new Date();
+          const dataInicio = new Date(Math.max(new Date().getTime(), dataAbertura.getTime()));
+          ordemData.data_inicio = dataInicio.toISOString();
+        }
+      }
 
       // Inserir usando service role (bypassa RLS)
       const { data, error } = await this.supabaseService.client
@@ -247,6 +292,32 @@ export class OrdensServicoService {
         }
         throw error;
       }
+
+      // Se atribuiu técnico, registrar no histórico
+      if (tecnicoAtribuido) {
+        try {
+          await this.supabaseService.client
+            .from('os_status_history')
+            .insert({
+              os_id: data.id,
+              status_anterior: 'novo',
+              status_novo: 'em_deslocamento',
+              changed_by: profile.user_id,
+              changed_at: new Date().toISOString(),
+              action_type: 'admin_assign_on_create',
+              empresa_id: empresaAtiva,
+              metadata: {
+                tecnico_id: tecnicoAtribuido,
+                assigned_by_admin: true,
+                created_with_assignment: true
+              }
+            });
+        } catch (historyError) {
+          console.error('[OrdensServicoService] Erro ao registrar histórico:', historyError);
+          // Não falhar se o histórico falhar
+        }
+      }
+
       return data;
     } catch (error) {
       throw error;
@@ -292,10 +363,24 @@ export class OrdensServicoService {
         console.warn('[OrdensServicoService] Tentativa de editar numero_os ignorada. Campo é auto-gerado.');
       }
 
-      // Verificar se está atribuindo um novo técnico
+      // Verificar se está atribuindo ou removendo técnico
+      const tecnicoIdPayloadPresent = updateData.hasOwnProperty('tecnico_id');
       const novoTecnicoId = updateData.tecnico_id;
       const tecnicoAtual = os.tecnico_id;
-      const atribuindoNovoTecnico = novoTecnicoId && novoTecnicoId !== tecnicoAtual;
+
+      const removendoTecnico = tecnicoIdPayloadPresent && tecnicoAtual && !novoTecnicoId;
+      const atribuindoNovoTecnico = tecnicoIdPayloadPresent && novoTecnicoId && novoTecnicoId !== tecnicoAtual;
+
+      // Logica para remoção de técnico
+      if (removendoTecnico) {
+        // Se a OS está em um status que exige técnico, volta para 'novo'
+        if (['em_deslocamento', 'checkin', 'em_atendimento'].includes(os.status)) {
+          console.log('[OrdensServicoService] Admin removendo técnico - resetando status para novo');
+          updateData.status = 'novo';
+          // Limpar data_inicio pois a OS volta ao estado inicial
+          updateData.data_inicio = null;
+        }
+      }
 
       if (atribuindoNovoTecnico) {
         // Verificar se o técnico já tem OS ativa (em_deslocamento, checkin, em_atendimento)
@@ -382,8 +467,30 @@ export class OrdensServicoService {
               }
             });
         } catch (historyError) {
-          console.error('[OrdensServicoService] Erro ao registrar histórico:', historyError);
-          // Não falhar se o histórico falhar
+          console.error('[OrdensServicoService] Erro ao registrar histórico de atribuição:', historyError);
+        }
+      }
+
+      // Se removeu técnico e mudou status para novo, registrar no histórico
+      if (removendoTecnico && updateData.status === 'novo') {
+        try {
+          await this.supabaseService.client
+            .from('os_status_history')
+            .insert({
+              os_id: id,
+              status_anterior: os.status,
+              status_novo: 'novo',
+              changed_by: profile.user_id,
+              changed_at: new Date().toISOString(),
+              action_type: 'admin_unassign',
+              empresa_id: empresaAtiva,
+              metadata: {
+                previous_tecnico_id: tecnicoAtual,
+                unassigned_by_admin: true
+              }
+            });
+        } catch (historyError) {
+          console.error('[OrdensServicoService] Erro ao registrar histórico de remoção:', historyError);
         }
       }
 

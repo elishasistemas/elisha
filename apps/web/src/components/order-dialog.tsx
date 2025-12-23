@@ -683,18 +683,21 @@ export function OrderDialog({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
-                      <Input
-                        id="data_abertura"
-                        type="datetime-local"
-                        value={formData.data_abertura}
-                        readOnly
-                        className="bg-muted cursor-not-allowed"
-                      />
+                  {/* Data de Abertura - Apenas visualização/edição */}
+                  {localMode !== 'create' && (
+                    <div className="space-y-2 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="data_abertura">Data/Hora Abertura</Label>
+                        <Input
+                          id="data_abertura"
+                          type="datetime-local"
+                          value={formData.data_abertura}
+                          readOnly
+                          className="bg-muted cursor-not-allowed"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {ordem && (
                     <div className="space-y-2 mt-4">
                       <Label>Número da OS</Label>

@@ -29,13 +29,15 @@ export async function PATCH(
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        name: body.nome,  // <-- FIX: usar 'name' ao invés de 'nome'
+        nome: body.nome,
         empresa_id: body.empresa_id || null,
         active_role: body.role,
         roles: [body.role],
         is_elisha_admin: body.is_elisha_admin || false
       })
-      .eq('user_id', userId)
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .select('id, user_id')
+      .maybeSingle();
 
     if (profileError) {
       return NextResponse.json(
@@ -60,7 +62,7 @@ export async function PATCH(
       event: 'User Updated',
       icon: '✏️',
       tags: { user_id: userId, role: body.role, empresa_id: body.empresa_id || 'null', is_elisha_admin: !!body.is_elisha_admin },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return NextResponse.json({ success: true })
 
@@ -149,10 +151,11 @@ export async function PUT(
     const { data: currentProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
-      .single()
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle()
 
     if (fetchError || !currentProfile) {
+      console.error('[admin/users/edit] Erro ao buscar profile:', fetchError || 'Perfil não encontrado')
       return NextResponse.json(
         { error: 'Usuário não encontrado' },
         { status: 404 }
@@ -282,14 +285,14 @@ export async function DELETE(
     // Primeiro verificar se o usuário existe no profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, user_id, name')  // <-- FIX: usar 'name' ao invés de 'nome' e 'email'
-      .eq('user_id', userId)
-      .single()
+      .select('id, user_id, nome')
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle()
 
-    if (profileError) {
-      console.error('[admin/users/delete] Erro ao buscar profile:', profileError)
+    if (profileError || !profile) {
+      console.error('[admin/users/delete] Erro ao buscar profile:', profileError || 'Perfil não encontrado')
       return NextResponse.json(
-        { error: `Perfil não encontrado: ${profileError.message}` },
+        { error: `Perfil não encontrado${profileError ? ': ' + profileError.message : ''}` },
         { status: 404 }
       )
     }
@@ -324,9 +327,9 @@ export async function DELETE(
       channel: 'users',
       event: 'User Deleted',
       icon: '🗑️',
-      tags: { user_id: userId, name: profile.name || '' },  // <-- FIX: usar 'name' ao invés de 'email'
+      tags: { user_id: userId, name: profile.nome || '' },  // <-- FIX: usar 'name' ao invés de 'email'
       notify: false,
-    }).catch(() => {})
+    }).catch(() => { })
     return NextResponse.json({ success: true })
 
   } catch (error) {

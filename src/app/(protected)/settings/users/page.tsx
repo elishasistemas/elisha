@@ -42,7 +42,7 @@ interface Profile {
   active_role?: string;
   created_at: string;
   email?: string; // pode não existir na tabela profiles
-  name?: string;
+  nome?: string;
   is_elisha_admin?: boolean;
   impersonating_empresa_id?: string | null;
 
@@ -74,7 +74,7 @@ export default function UsersPage() {
   const [searchInvites, setSearchInvites] = useState("");
   const [pageInvites, setPageInvites] = useState(1);
   const [pageSizeInvites, setPageSizeInvites] = useState(10);
-  
+
   // Verificar se é admin usando a função correta
   const canAdmin = isAdmin(session, userProfile);
 
@@ -114,13 +114,13 @@ export default function UsersPage() {
       }
 
       setCurrentProfile(profile);
-      
+
       // Se for elisha_admin impersonando, usar impersonating_empresa_id
       // Caso contrário, usar empresa_id
-      const targetEmpresaId = profile.is_elisha_admin && profile.impersonating_empresa_id 
-        ? profile.impersonating_empresa_id 
+      const targetEmpresaId = profile.is_elisha_admin && profile.impersonating_empresa_id
+        ? profile.impersonating_empresa_id
         : profile.empresa_id;
-      
+
       setEmpresaId(targetEmpresaId);
 
       // Validar se temos uma empresa para buscar
@@ -201,7 +201,7 @@ export default function UsersPage() {
   const handleCopyInviteLink = async (token: string) => {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const inviteUrl = `${baseUrl}/signup?token=${token}`;
-    
+
     try {
       await navigator.clipboard.writeText(inviteUrl);
       toast.success("Link copiado para a área de transferência!");
@@ -382,60 +382,60 @@ export default function UsersPage() {
             const pageRows = filtered.slice(start, end);
 
             return filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Nenhum usuário {q ? 'encontrado' : 'cadastrado'}
-            </p>
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum usuário {q ? 'encontrado' : 'cadastrado'}
+              </p>
             ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Papel</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.map((profile) => (
-                  <TableRow key={profile.id}>
-                    <TableCell className="font-medium">
-                      {profile.email || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      {profile.name || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(profile.role)}>
-                        {getRoleLabel(profile.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(profile.created_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteUser(profile.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Excluir usuário</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Papel</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pageRows.map((profile) => (
+                    <TableRow key={profile.id}>
+                      <TableCell className="font-medium">
+                        {profile.email || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {profile.nome || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(profile.role)}>
+                          {getRoleLabel(profile.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(profile.created_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteUser(profile.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Excluir usuário</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             );
           })()}
           {(() => {
@@ -521,79 +521,79 @@ export default function UsersPage() {
             const pageRows = filtered.slice(start, end);
 
             return filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Nenhum convite {q ? 'encontrado' : 'criado ainda'}
-            </p>
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum convite {q ? 'encontrado' : 'criado ainda'}
+              </p>
             ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Papel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expira em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.map((invite) => (
-                  <TableRow key={invite.id}>
-                    <TableCell className="font-medium">
-                      {invite.email}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(invite.role)}>
-                        {getRoleLabel(invite.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(invite.status, invite.expires_at)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(invite.expires_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {invite.status === "pending" && (
-                        <TooltipProvider>
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleCopyInviteLink(invite.token)}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Copiar link do convite</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleRevokeInvite(invite.id)}
-                                >
-                                  <Trash className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Revogar convite</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TooltipProvider>
-                      )}
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Papel</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expira em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pageRows.map((invite) => (
+                    <TableRow key={invite.id}>
+                      <TableCell className="font-medium">
+                        {invite.email}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(invite.role)}>
+                          {getRoleLabel(invite.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(invite.status, invite.expires_at)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(invite.expires_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {invite.status === "pending" && (
+                          <TooltipProvider>
+                            <div className="flex items-center justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleCopyInviteLink(invite.token)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Copiar link do convite</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => handleRevokeInvite(invite.id)}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Revogar convite</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             );
           })()}
           {(() => {

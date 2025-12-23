@@ -207,7 +207,7 @@ export default function OrdersPage() {
         .in('cliente_id', clienteIds)
       if (data) {
         const map: Record<string, { tipo: string | null; fabricante: string | null; modelo: string | null }> = {}
-        data.forEach(eq => {
+        data.forEach((eq: any) => {
           map[eq.id] = { tipo: eq.tipo, fabricante: eq.fabricante, modelo: eq.modelo }
         })
         setAllEquipamentos(map)
@@ -842,11 +842,17 @@ export default function OrdersPage() {
         <Card>
           <CardHeader>
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-              <div>
+              {/* <div>
                 <CardTitle>Lista de OS</CardTitle>
-                <CardDescription className="text-sm">Use os filtros e a busca para encontrar ordens</CardDescription>
-              </div>
+                <CardDescription className="text-sm whitespace-nowrap">Use os filtros e a busca para encontrar ordens</CardDescription>
+              </div> */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                <Input
+                  placeholder="Buscar OS..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                  className="w-full sm:w-[240px] md:w-[280px]"
+                />
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Status:</span>
                   <Select value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v); setPage(1); }}>
@@ -887,12 +893,6 @@ export default function OrdersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Input
-                  placeholder="Buscar OS..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                  className="w-full sm:w-[240px] md:w-[320px]"
-                />
               </div>
             </div>
           </CardHeader>

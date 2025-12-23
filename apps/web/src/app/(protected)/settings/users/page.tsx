@@ -33,6 +33,16 @@ import { toast } from "sonner";
 import { Trash, RefreshDouble } from "iconoir-react";
 import { isAdmin } from "@/utils/auth";
 import { useAuth, useProfile } from "@/hooks/use-supabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EditUserDialog } from "@/components/edit-user-dialog";
 
 interface Profile {
@@ -62,6 +72,9 @@ export default function UsersPage() {
   const [searchUsers, setSearchUsers] = useState("");
   const [pageUsers, setPageUsers] = useState(1);
   const [pageSizeUsers, setPageSizeUsers] = useState(10);
+  // Delete confirm state
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Verificar se é admin usando a função correta
   const canAdmin = isAdmin(session, userProfile);
@@ -148,13 +161,16 @@ export default function UsersPage() {
 
 
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Deseja realmente excluir este usuário? Esta ação não pode ser desfeita.")) {
-      return;
-    }
+  const handleDeleteUser = (userId: string) => {
+    setDeleteId(userId);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${deleteId}`, {
         method: "DELETE",
       });
 
@@ -164,10 +180,13 @@ export default function UsersPage() {
       }
 
       toast.success("Usuário excluído com sucesso");
+      setDeleteId(null);
       loadData();
     } catch (err: any) {
       console.error("Erro ao excluir usuário:", err);
       toast.error(`Erro ao excluir usuário: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -385,6 +404,30 @@ export default function UsersPage() {
       </Card>
 
 
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o usuário
+              e removerá seu acesso ao sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Excluindo..." : "Excluir Usuário"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
