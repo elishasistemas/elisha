@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { Trash, RefreshDouble } from "iconoir-react";
 import { isAdmin } from "@/utils/auth";
 import { useAuth, useProfile } from "@/hooks/use-supabase";
+import { EditUserDialog } from "@/components/edit-user-dialog";
 
 interface Profile {
   id: string;
@@ -321,23 +322,29 @@ export default function UsersPage() {
                         {formatDate(profile.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteUser(profile.id)}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Excluir usuário</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex items-center justify-end gap-1">
+                          <EditUserDialog
+                            user={profile}
+                            onUserUpdated={loadData}
+                          />
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteUser(profile.id)}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Excluir usuário</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
