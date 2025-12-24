@@ -26,7 +26,7 @@ const statusConfig = {
     className: 'bg-red-600 text-white hover:bg-red-700'
   },
   novo: {
-    label: 'Nova',
+    label: 'Aberta',
     variant: 'default' as const,
     icon: AlertCircle,
     className: 'bg-blue-500 text-white hover:bg-blue-600'
@@ -134,7 +134,7 @@ export default function DashboardPage() {
     }
   }, [isTecnico, isHydrated, router])
 
-  // OS abertas para aceitar/recusar (apenas chamados)
+  // OS abertas para aceitar (apenas chamados)
   const ordensAbertas = useMemo(() => {
     const base = ordens.filter(o =>
       o.tipo === 'chamado' &&
@@ -150,7 +150,7 @@ export default function DashboardPage() {
     return []
   }, [ordens, isAdmin, isImpersonating, isTecnico, tecnicoId])
 
-  const canAcceptOrDecline = (o: OrdemServico) => {
+  const canAccept = (o: OrdemServico) => {
     const ok = o.status === 'novo' || o.status === 'parado'
     if (!ok) return false
     if (isAdmin || isImpersonating) return true
@@ -189,35 +189,6 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDecline = async (o: OrdemServico) => {
-    const reason = typeof window !== 'undefined' ? window.prompt('Motivo da recusa (opcional):', '') : ''
-    if (reason === null) return // Usuário cancelou
-
-    setActionLoading(true)
-    const supabase = createSupabaseBrowser()
-    try {
-      const { data, error } = await supabase.rpc('os_decline', { p_os_id: o.id, p_reason: reason || null })
-      if (error) throw error
-
-      const result = data as { success: boolean; error?: string; message?: string }
-
-      if (!result.success) {
-        // Mostrar mensagem detalhada, não apenas o código do erro
-        const errorMsg = result.message || result.error || 'Erro ao recusar OS'
-        console.error('[dashboard] os_decline failed:', result)
-        toast.error(errorMsg)
-        return
-      }
-
-      toast.success(result.message || 'OS recusada com sucesso')
-      setTimeout(() => setRefreshKey(prev => prev + 1), 300)
-    } catch (e) {
-      console.error('[dashboard] decline error', e)
-      toast.error(e instanceof Error ? e.message : 'Erro ao recusar OS')
-    } finally {
-      setActionLoading(false)
-    }
-  }
 
   // Calcular data inicial baseada no período selecionado
   const dataInicial = useMemo(() => {
@@ -616,7 +587,7 @@ export default function DashboardPage() {
               <div>
                 <CardTitle>Chamados</CardTitle>
                 <CardDescription>
-                  {isAdmin ? 'Ordens disponíveis para aceitar e gerenciar' : 'Ordens disponíveis para aceitar ou recusar'}
+                  Ordens disponíveis para aceitar e gerenciar
                 </CardDescription>
               </div>
             </div>
@@ -661,23 +632,12 @@ export default function DashboardPage() {
                             <Button
                               size="sm"
                               onClick={(e) => { e.stopPropagation(); handleAccept(o); }}
-                              disabled={actionLoading || !canAcceptOrDecline(o)}
+                              disabled={actionLoading || !canAccept(o)}
                               variant="default"
                               className="bg-primary text-primary-foreground hover:bg-primary/90"
                             >
                               <Check className="h-4 w-4 mr-1" /> Aceitar
                             </Button>
-                            {!isAdmin && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => { e.stopPropagation(); handleDecline(o); }}
-                                disabled={actionLoading || !canAcceptOrDecline(o)}
-                                className="border-red-300 text-red-600 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4 mr-1" /> Recusar
-                              </Button>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>

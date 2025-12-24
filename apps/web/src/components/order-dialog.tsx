@@ -337,7 +337,7 @@ export function OrderDialog({
         tecnico_id: skipTecnico ? null : (formData.tecnico_id && formData.tecnico_id.trim() !== '' ? formData.tecnico_id : null),
         tipo: formData.tipo as 'preventiva' | 'corretiva' | 'emergencial' | 'chamado',
         prioridade: formData.prioridade as 'alta' | 'media' | 'baixa',
-        status: 'novo' as const,
+        status: (formData.tecnico_id && formData.tecnico_id.trim() !== '') ? 'em_deslocamento' : 'novo',
         data_abertura: dataAberturaISO,
         observacoes: formData.observacoes?.trim() || null,
         quem_solicitou: formData.quem_solicitou?.trim() || null,
@@ -554,7 +554,7 @@ export function OrderDialog({
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Nova Ordem
+                    Aberta
                   </>
                 )}
               </Button>
@@ -568,11 +568,11 @@ export function OrderDialog({
                 <DialogTitle>
                   {isView
                     ? (ordem?.numero_os || 'Ordem de Serviço')
-                    : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
+                    : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Abrir OS (Aberta)')
                   }
                 </DialogTitle>
                 <DialogDescription>
-                  {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
+                  {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da OS (Aberta) abaixo.')}
                 </DialogDescription>
               </div>
               {/* Botão Editar removido do topo em modo visualização */}

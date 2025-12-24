@@ -280,7 +280,7 @@ export default function OrdersPage() {
     return true // 'todas'
   })
 
-  // OS abertas para aceitar/recusar (todos os tipos sem técnico)
+  // OS abertas para aceitar (todos os tipos sem técnico)
   const ordensAbertas = ordensParaAceitarRaw.filter(o =>
     (o.status === 'novo' || o.status === 'parado') &&
     !o.tecnico_id
@@ -309,7 +309,7 @@ export default function OrdersPage() {
   const supabase = createSupabaseBrowser()
 
   // Apenas pode aceitar OS sem técnico atribuído
-  const canAcceptOrDecline = (ordem: OrdemServico) => {
+  const canAccept = (ordem: OrdemServico) => {
     const statusOk = ordem.status === 'novo' || ordem.status === 'parado'
     if (!statusOk) return false
     // Só pode aceitar se NÃO tem técnico atribuído
@@ -588,8 +588,8 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Seção de Chamados (OS Abertas para aceitar/recusar) - Colapsável */}
-      {canTecnico && (
+      {/* Seção de Chamados (OS Abertas para aceitar) - Colapsável */}
+      {(canAdmin || canTecnico) && (
         <Collapsible defaultOpen={ordensAbertas.length > 0} key={`os-aceitar-${ordensAbertas.length}`}>
           <Card>
             <CollapsibleTrigger className="w-full">
@@ -665,7 +665,7 @@ export default function OrdersPage() {
                             <Button
                               size="sm"
                               onClick={() => handleAccept(ordem)}
-                              disabled={!canAcceptOrDecline(ordem)}
+                              disabled={!canAccept(ordem)}
                               className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                             >
                               <Check className="h-4 w-4 mr-1" /> Aceitar OS
@@ -733,7 +733,7 @@ export default function OrdersPage() {
                                   <Button
                                     size="sm"
                                     onClick={(e) => { e.stopPropagation(); handleAccept(ordem); }}
-                                    disabled={!canAcceptOrDecline(ordem)}
+                                    disabled={!canAccept(ordem)}
                                     variant="default"
                                     className="bg-primary text-primary-foreground hover:bg-primary/90"
                                   >
