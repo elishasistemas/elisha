@@ -93,7 +93,7 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
+    year: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
   })
@@ -659,7 +659,7 @@ export default function OrdersPage() {
                               {ordem.prioridade === 'media' && <span className="text-yellow-600 font-medium flex items-center gap-1"><ArrowRight className="h-3 w-3" />Média</span>}
                               {ordem.prioridade === 'baixa' && <span className="text-green-600 font-medium flex items-center gap-1"><ArrowDown className="h-3 w-3" />Baixa</span>}
                               <span>•</span>
-                              <span>{new Date(ordem.data_abertura || ordem.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                              <span>{new Date(ordem.data_abertura || ordem.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
 
                             <Button
@@ -724,7 +724,7 @@ export default function OrdersPage() {
                                   {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
                                     day: '2-digit',
                                     month: '2-digit',
-                                    year: 'numeric',
+                                    year: '2-digit',
                                     hour: '2-digit',
                                     minute: '2-digit'
                                   })}
@@ -785,6 +785,7 @@ export default function OrdersPage() {
                     }
                   }}
                   currentTecnicoId={profile?.tecnico_id}
+                  equipamentos={allEquipamentos}
                   canAccept={true}
                   isLoading={isLoading}
                 />
@@ -878,6 +879,7 @@ export default function OrdersPage() {
                     onViewOrder={setViewOrder}
                     onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}
                     currentTecnicoId={profile?.tecnico_id}
+                    equipamentos={allEquipamentos}
                     isLoading={isLoading}
                     emptyMessage={
                       filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :

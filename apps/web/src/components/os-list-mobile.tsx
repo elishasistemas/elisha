@@ -12,7 +12,10 @@ import {
   Building2,
   ChevronRight,
   Play,
-  Eye
+  Eye,
+  ArrowUp,
+  ArrowRight,
+  ArrowDown
 } from 'lucide-react'
 import type { OrdemServico } from '@/lib/supabase'
 
@@ -21,6 +24,7 @@ interface OSListMobileProps {
   clientes: Array<{ id: string; nome_local: string; zona_id?: string | null }>
   colaboradores: Array<{ id: string; nome: string }>
   zonas?: Array<{ id: string; nome: string }>
+  equipamentos?: Record<string, { tipo: string | null; fabricante: string | null; modelo: string | null }>
   onViewOrder: (ordem: OrdemServico) => void
   onAcceptOrder?: (ordem: OrdemServico) => void
   onStartOrder?: (ordem: OrdemServico) => void
@@ -81,11 +85,11 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
   }
 }
 
-const prioridadeConfig: Record<string, { label: string; color: string }> = {
-  urgente: { label: '🔴 Urgente', color: 'text-red-600' },
-  alta: { label: '🟠 Alta', color: 'text-orange-600' },
-  media: { label: '🟡 Média', color: 'text-yellow-600' },
-  baixa: { label: '🟢 Baixa', color: 'text-green-600' }
+const prioridadeConfig: Record<string, { label: string; color: string; icon: any }> = {
+  urgente: { label: 'Urgente', color: 'text-red-600', icon: ArrowUp },
+  alta: { label: 'Alta', color: 'text-red-600', icon: ArrowUp },
+  media: { label: 'Média', color: 'text-yellow-600', icon: ArrowRight },
+  baixa: { label: 'Baixa', color: 'text-green-600', icon: ArrowDown }
 }
 
 const tipoConfig: Record<string, { label: string; color: string }> = {
@@ -101,6 +105,7 @@ export function OSListMobile({
   clientes,
   colaboradores,
   zonas = [],
+  equipamentos = {},
   onViewOrder,
   onAcceptOrder,
   onStartOrder,
@@ -146,6 +151,8 @@ export function OSListMobile({
         const prioridade = prioridadeConfig[ordem.prioridade || 'media']
         const tipo = tipoConfig[ordem.tipo || 'corretiva']
         const StatusIcon = status.icon
+        const PriorityIcon = prioridade.icon
+        const equipamento = equipamentos[ordem.equipamento_id]
 
         const isAssignedMe = currentTecnicoId && ordem.tecnico_id === currentTecnicoId
         const canStart = (ordem.status === 'novo' || ordem.status === 'parado') && !ordem.tecnico_id && canAccept
@@ -182,14 +189,24 @@ export function OSListMobile({
                     <span className="text-sm font-medium line-clamp-1 block">
                       {cliente?.nome_local || 'Cliente não encontrado'}
                     </span>
-                    {zona && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        {zona.nome}
-                      </span>
-                    )}
                   </div>
                 </div>
+
+                {/* Equipamento */}
+                <div className="text-sm flex items-center gap-2">
+                  <span className="text-muted-foreground text-xs font-medium">🛗 </span>
+                  <span className="text-gray-600">
+                    {equipamento ? [equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') : 'Sem equipamento'}
+                  </span>
+                </div>
+
+                {/* Zona */}
+                {zona && (
+                  <div className="text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-blue-600 font-medium">{zona.nome}</span>
+                  </div>
+                )}
 
                 {/* Técnico */}
                 <div className="flex items-center gap-2">
@@ -200,22 +217,26 @@ export function OSListMobile({
                 </div>
 
                 {/* Data e Prioridade */}
-                <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {new Date(ordem.created_at).toLocaleDateString('pt-BR', {
                       day: '2-digit',
                       month: '2-digit',
+                      year: '2-digit',
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
                   </span>
-                  <span className={prioridade.color}>{prioridade.label}</span>
+                  <span className={`flex items-center gap-1 font-medium ${prioridade.color}`}>
+                    <PriorityIcon className="w-3 h-3" />
+                    {prioridade.label}
+                  </span>
                 </div>
 
                 {/* Tipo de OS */}
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full text-white ${tipo.color}`}>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded text-white ${tipo.color}`}>
                     {tipo.label}
                   </span>
                 </div>
