@@ -436,7 +436,7 @@ export default function DashboardPage() {
           </Button>
           <Button onClick={() => router.push('/orders?new=true')}>
             <Plus className="mr-2 h-4 w-4" />
-            Novo Chamado
+            Nova Ordem
           </Button>
         </div>
       </div>

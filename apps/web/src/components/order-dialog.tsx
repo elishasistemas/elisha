@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -60,6 +61,7 @@ export function OrderDialog({
   defaultTipo,
   canEdit = true,
 }: OrderDialogProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
@@ -554,25 +556,25 @@ export function OrderDialog({
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Aberta
+                    Nova Ordem
                   </>
                 )}
               </Button>
             )}
           </DialogTrigger>
         )}
-        <DialogContent>
+        <DialogContent drop-shadow-lg>
           <DialogHeader>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <DialogTitle>
                   {isView
                     ? (ordem?.numero_os || 'Ordem de Serviço')
-                    : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Abrir OS (Aberta)')
+                    : (mode === 'edit' ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço')
                   }
                 </DialogTitle>
                 <DialogDescription>
-                  {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da OS (Aberta) abaixo.')}
+                  {isView ? 'Todos os campos estão desabilitados' : (mode === 'edit' ? 'Atualize as informações da ordem de serviço abaixo.' : 'Preencha os dados da nova ordem de serviço abaixo.')}
                 </DialogDescription>
               </div>
               {/* Botão Editar removido do topo em modo visualização */}
@@ -948,8 +950,8 @@ export function OrderDialog({
                   {/* Botões de ação para técnicos ou admins */}
                   {ordem && (isAssignedTechnician || profile?.active_role === 'admin') && (
                     <>
-                      {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
-                      {['novo', 'parado', 'checkin'].includes(ordem.status) && (
+                      {/* Botão: Iniciar Deslocamento (apenas se status = novo ou parado) */}
+                      {['novo', 'parado'].includes(ordem.status) && (
                         <Button
                           type="button"
                           onClick={handleStartDeslocamento}
@@ -971,6 +973,23 @@ export function OrderDialog({
                         >
                           <PlayCircle className="h-4 w-4 mr-2" />
                           {actionLoading ? 'Iniciando...' : 'Iniciar Atendimento'}
+                        </Button>
+                      )}
+
+                      {/* Botão: Encerrar Atendimento (apenas se status = checkin) */}
+                      {ordem.status === 'checkin' && (
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false);
+                            onOpenChange?.(false);
+                            router.push(`/os/${ordem.id}/full`);
+                          }}
+                          disabled={actionLoading}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                          Encerrar Atendimento
                         </Button>
                       )}
                     </>

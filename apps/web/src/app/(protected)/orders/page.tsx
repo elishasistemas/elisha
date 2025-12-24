@@ -288,7 +288,7 @@ export default function OrdersPage() {
 
   // Minhas OS (atribuídas ao técnico logado, não finalizadas)
   // Usar a lista dedicada 'minhasOrdensRaw' se disponível
-  const minhasOS = (canTecnico && profile?.tecnico_id)
+  const minhasOS = ((canTecnico || canAdmin) && profile?.tecnico_id)
     ? minhasOrdensRaw.filter(o => !['concluido', 'cancelado'].includes(o.status))
     : []
 
@@ -754,8 +754,8 @@ export default function OrdersPage() {
         </Collapsible>
       )}
 
-      {/* Para TÉCNICO: Card único com a OS em andamento */}
-      {canTecnico && (
+      {/* Para TÉCNICO ou ADMIN: Card único com a OS em andamento */}
+      {(canAdmin || canTecnico) && (
         <Card>
           <CardHeader>
             <CardTitle>Minha OS em Andamento</CardTitle>
@@ -1004,6 +1004,12 @@ export default function OrdersPage() {
                                     {ordem.status !== 'checkin' && ordem.tecnico_id && (
                                       <DropdownMenuItem onSelect={() => handleChangeStatus(ordem, 'checkin')}>
                                         Marcar como Em Atendimento
+                                      </DropdownMenuItem>
+                                    )}
+                                    {ordem.status === 'checkin' && (
+                                      <DropdownMenuItem onSelect={() => router.push(`/os/${ordem.id}/full`)}>
+                                        <FileSignature className="mr-2 h-4 w-4" />
+                                        Encerrar Atendimento
                                       </DropdownMenuItem>
                                     )}
                                     {ordem.status !== 'concluido' && (
