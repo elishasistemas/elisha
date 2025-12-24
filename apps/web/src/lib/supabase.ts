@@ -37,6 +37,8 @@ export interface Cliente {
   data_inicio_contrato: string | null
   data_fim_contrato: string | null
   status_contrato: 'ativo' | 'em_renovacao' | 'encerrado'
+  valor_mensal_contrato: number | null
+  numero_art: string | null
   zona_id: string | null
   created_at: string
   updated_at: string

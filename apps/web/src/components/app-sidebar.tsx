@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield, Wrench, Calendar } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Building2, Users, HeadphonesIcon, CheckSquare, Shield, Wrench, Calendar, MapPin } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -42,6 +42,7 @@ const data = {
     { title: "Clientes", url: "/clients", icon: Building2 },
     { title: "Técnicos", url: "/technicians", icon: Users },
     { title: "Equipamentos", url: "/equipments", icon: Wrench },
+    { title: "Zonas", url: "/zonas", icon: MapPin },
   ],
 }
 
@@ -59,9 +60,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const filteredItems = ((): typeof data.navMain => {
     if (active === 'supervisor') {
-      // Supervisor: Dashboard + Ordens de Serviço + Checklists
+      // Supervisor: Dashboard + Ordens de Serviço + Checklists + Zonas
       return data.navMain.filter((i) =>
-        i.url === '/dashboard' || i.url === '/orders' || i.url === '/checklists'
+        i.url === '/dashboard' || i.url === '/orders' || i.url === '/checklists' || i.url === '/zonas'
       )
     }
 
