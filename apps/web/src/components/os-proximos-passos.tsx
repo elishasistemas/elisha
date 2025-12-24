@@ -162,7 +162,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
       // Buscar dados da OS
       const { data: osCompleta, error: osError } = await supabase
         .from('ordens_servico')
-        .select('*')
+        .select('*, data_abertura, data_fim')
         .eq('id', osId)
         .single()
 
@@ -173,7 +173,7 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
 
       // Buscar dados relacionados em paralelo
       const [empresaResult, clienteResult, equipamentoResult, tecnicoResult, laudoResult, checklistResult, evidenciasResult] = await Promise.all([
-        osCompleta.empresa_id 
+        osCompleta.empresa_id
           ? supabase.from('empresas').select('nome, logo_url').eq('id', osCompleta.empresa_id).single()
           : Promise.resolve({ data: null }),
         osCompleta.cliente_id
@@ -281,179 +281,179 @@ export function OSProximosPassos({ osId, empresaId, readOnly = false, osData }: 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-        {readOnly ? (
-          <div className="space-y-4">
-            <div className="p-3 bg-muted rounded-md border">
-              <p className="text-sm font-medium text-muted-foreground mb-1">Estado do Equipamento (Checkout)</p>
-              <p className="text-base font-medium">
-                {osData?.estado_equipamento === 'funcionando' ? 'Funcionando normal' :
-                  osData?.estado_equipamento === 'dependendo_de_corretiva' ? 'Funcionando, dependendo de corretiva' :
-                    osData?.estado_equipamento === 'parado' ? 'Parado' :
-                      osData?.estado_equipamento || 'Não informado'}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          {readOnly ? (
+            <div className="space-y-4">
               <div className="p-3 bg-muted rounded-md border">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Responsável no Local</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Estado do Equipamento (Checkout)</p>
                 <p className="text-base font-medium">
-                  {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? (
-                    <span className="text-orange-600">Responsável não encontrado</span>
-                  ) : (
-                    osData?.nome_cliente_assinatura || 'N/A'
-                  )}
+                  {osData?.estado_equipamento === 'funcionando' ? 'Funcionando normal' :
+                    osData?.estado_equipamento === 'dependendo_de_corretiva' ? 'Funcionando, dependendo de corretiva' :
+                      osData?.estado_equipamento === 'parado' ? 'Parado' :
+                        osData?.estado_equipamento || 'Não informado'}
                 </p>
               </div>
-              <div className="p-3 bg-muted rounded-md border flex flex-col items-center justify-center">
-                <p className="text-sm font-medium text-muted-foreground mb-2 w-full text-left">Assinatura</p>
-                {osData?.assinatura_cliente ? (
-                  <img src={osData.assinatura_cliente} alt="Assinatura" className="max-h-20 max-w-full" />
-                ) : (
-                  <span className="text-sm text-muted-foreground">
-                    {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? 'Sem assinatura' : 'Não assinado'}
-                  </span>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted rounded-md border">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Responsável no Local</p>
+                  <p className="text-base font-medium">
+                    {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? (
+                      <span className="text-orange-600">Responsável não encontrado</span>
+                    ) : (
+                      osData?.nome_cliente_assinatura || 'N/A'
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 bg-muted rounded-md border flex flex-col items-center justify-center">
+                  <p className="text-sm font-medium text-muted-foreground mb-2 w-full text-left">Assinatura</p>
+                  {osData?.assinatura_cliente ? (
+                    <img src={osData.assinatura_cliente} alt="Assinatura" className="max-h-20 max-w-full" />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      {osData?.nome_cliente_assinatura === 'Responsável não encontrado' ? 'Sem assinatura' : 'Não assinado'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="estado-elevador">Estado do elevador:</Label>
+                <Select value={estadoElevador} onValueChange={setEstadoElevador}>
+                  <SelectTrigger id="estado-elevador">
+                    <SelectValue placeholder="Selecione o estado do elevador" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="z-[10000]">
+                    <SelectItem value="funcionando">Funcionando normal</SelectItem>
+                    <SelectItem value="dependendo_de_corretiva">Funcionando, dependendo de corretiva</SelectItem>
+                    <SelectItem value="parado">Parado</SelectItem>
+                  </SelectContent>
+                </Select>
+                {estadoFeedback && (
+                  <p className={`text-sm mt-2 ${estadoFeedback.variant === 'success' ? 'text-green-600' :
+                    estadoFeedback.variant === 'warning' ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                    {estadoFeedback.text}
+                  </p>
                 )}
               </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div>
-              <Label htmlFor="estado-elevador">Estado do elevador:</Label>
-              <Select value={estadoElevador} onValueChange={setEstadoElevador}>
-                <SelectTrigger id="estado-elevador">
-                  <SelectValue placeholder="Selecione o estado do elevador" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4} className="z-[10000]">
-                  <SelectItem value="funcionando">Funcionando normal</SelectItem>
-                  <SelectItem value="dependendo_de_corretiva">Funcionando, dependendo de corretiva</SelectItem>
-                  <SelectItem value="parado">Parado</SelectItem>
-                </SelectContent>
-              </Select>
-              {estadoFeedback && (
-                <p className={`text-sm mt-2 ${estadoFeedback.variant === 'success' ? 'text-green-600' :
-                  estadoFeedback.variant === 'warning' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }`}>
-                  {estadoFeedback.text}
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 border rounded-md bg-muted/30">
-                <Checkbox
-                  id="sem-responsavel"
-                  checked={semResponsavel}
-                  onCheckedChange={(checked) => {
-                    setSemResponsavel(checked === true)
-                    if (checked) {
-                      setNomeResponsavel('')
-                      setAssinaturaUrl(null)
-                    }
-                  }}
-                  style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px' }}
-                  className="mt-0.5 data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
-                />
-                <Label htmlFor="sem-responsavel" className="cursor-pointer font-normal text-sm leading-tight">
-                  Responsável não encontrado no local
-                </Label>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3 p-3 border rounded-md bg-muted/30">
+                  <Checkbox
+                    id="sem-responsavel"
+                    checked={semResponsavel}
+                    onCheckedChange={(checked) => {
+                      setSemResponsavel(checked === true)
+                      if (checked) {
+                        setNomeResponsavel('')
+                        setAssinaturaUrl(null)
+                      }
+                    }}
+                    style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px' }}
+                    className="mt-0.5 data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
+                  />
+                  <Label htmlFor="sem-responsavel" className="cursor-pointer font-normal text-sm leading-tight">
+                    Responsável não encontrado no local
+                  </Label>
+                </div>
+
+                {!semResponsavel && (
+                  <>
+                    <div>
+                      <Label htmlFor="nome-responsavel" className="font-medium">Responsável no local *</Label>
+                      <Input
+                        id="nome-responsavel"
+                        placeholder="Nome completo do responsável"
+                        value={nomeResponsavel}
+                        onChange={(e) => setNomeResponsavel(e.target.value)}
+                        className="mt-1.5"
+                        style={{ backgroundColor: 'hsl(var(--background))' }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Preencha o nome antes de coletar a assinatura
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="font-medium">Assinatura do Responsável *</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!nomeResponsavel.trim()) {
+                            toast.error('Preencha o nome do responsável antes de coletar a assinatura')
+                            return
+                          }
+                          setShowSignatureDialog(true)
+                        }}
+                        className="w-full min-h-[128px] border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors touch-manipulation active:scale-[0.98]"
+                      >
+                        {assinaturaUrl ? (
+                          <img src={assinaturaUrl} alt="Assinatura" className="max-h-28" />
+                        ) : (
+                          <span className="text-center">
+                            {nomeResponsavel.trim() ? 'Clique para coletar assinatura' : 'Preencha o nome do responsável primeiro'}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {!semResponsavel && (
-                <>
-                  <div>
-                    <Label htmlFor="nome-responsavel" className="font-medium">Responsável no local *</Label>
-                    <Input
-                      id="nome-responsavel"
-                      placeholder="Nome completo do responsável"
-                      value={nomeResponsavel}
-                      onChange={(e) => setNomeResponsavel(e.target.value)}
-                      className="mt-1.5"
-                      style={{ backgroundColor: 'hsl(var(--background))' }}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      Preencha o nome antes de coletar a assinatura
-                    </p>
-                  </div>
+              <Button
+                onClick={handleRealizarCheckout}
+                disabled={realizandoCheckout}
+                className="w-full"
+                size="lg"
+              >
+                {realizandoCheckout ? 'Encerrando...' : 'Encerrar Atendimento'}
+              </Button>
+            </>
+          )}
+        </CardContent>
 
-                  <div>
-                    <Label className="font-medium">Assinatura do Responsável *</Label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!nomeResponsavel.trim()) {
-                          toast.error('Preencha o nome do responsável antes de coletar a assinatura')
-                          return
-                        }
-                        setShowSignatureDialog(true)
-                      }}
-                      className="w-full min-h-[128px] border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors touch-manipulation active:scale-[0.98]"
-                    >
-                      {assinaturaUrl ? (
-                        <img src={assinaturaUrl} alt="Assinatura" className="max-h-28" />
-                      ) : (
-                        <span className="text-center">
-                          {nomeResponsavel.trim() ? 'Clique para coletar assinatura' : 'Preencha o nome do responsável primeiro'}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+        <SignatureDialog
+          open={showSignatureDialog}
+          onOpenChange={setShowSignatureDialog}
+          onSubmit={handleSaveAssinatura}
+          showNameField={false}
+          initialName={nomeResponsavel}
+        />
 
-            <Button
-              onClick={handleRealizarCheckout}
-              disabled={realizandoCheckout}
-              className="w-full"
-              size="lg"
-            >
-              {realizandoCheckout ? 'Encerrando...' : 'Encerrar Atendimento'}
-            </Button>
-          </>
-        )}
-      </CardContent>
-
-      <SignatureDialog
-        open={showSignatureDialog}
-        onOpenChange={setShowSignatureDialog}
-        onSubmit={handleSaveAssinatura}
-        showNameField={false}
-        initialName={nomeResponsavel}
-      />
-
-      <AlertDialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>PDF da Ordem de Serviço</AlertDialogTitle>
-            <AlertDialogDescription>
-              O que deseja fazer com o PDF da OS?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel onClick={handlePularPdf} className="sm:mr-auto">
-              Pular
-            </AlertDialogCancel>
-            <Button 
-              variant="outline" 
-              onClick={() => handleGerarPdf(false)}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Baixar PDF
-            </Button>
-            <Button 
-              onClick={() => handleGerarPdf(true)}
-              className="gap-2"
-            >
-              <Eye className="h-4 w-4" />
-              Visualizar PDF
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
+        <AlertDialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>PDF da Ordem de Serviço</AlertDialogTitle>
+              <AlertDialogDescription>
+                O que deseja fazer com o PDF da OS?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel onClick={handlePularPdf} className="sm:mr-auto">
+                Pular
+              </AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={() => handleGerarPdf(false)}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Baixar PDF
+              </Button>
+              <Button
+                onClick={() => handleGerarPdf(true)}
+                className="gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Visualizar PDF
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </Card>
     </div>
   )
 }
