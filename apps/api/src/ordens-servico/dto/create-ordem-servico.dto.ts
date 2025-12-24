@@ -16,7 +16,7 @@ export class CreateOrdemServicoDto {
   tecnico_id?: string;
 
   @IsString()
-  @IsIn(['preventiva', 'corretiva', 'emergencial', 'chamado'])
+  @IsIn(['preventiva', 'corretiva', 'emergencial', 'chamado', 'corretiva_programada'])
   tipo: string;
 
   @IsString()
@@ -25,7 +25,18 @@ export class CreateOrdemServicoDto {
   prioridade?: string;
 
   @IsString()
-  @IsIn(['novo', 'agendado', 'em_andamento', 'pausado', 'concluido', 'cancelado'])
+  @IsIn([
+    'novo',
+    'em_deslocamento',
+    'checkin',
+    'em_andamento',
+    'checkout',
+    'aguardando_assinatura',
+    'concluido',
+    'cancelado',
+    'parado',
+    'reaberta'
+  ])
   @IsOptional()
   status?: string;
 

@@ -285,7 +285,7 @@ export async function DELETE(
     // Primeiro verificar se o usuário existe no profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, user_id, nome')
+      .select('id, user_id, nome, role')
       .or(`id.eq.${userId},user_id.eq.${userId}`)
       .maybeSingle()
 
@@ -296,6 +296,51 @@ export async function DELETE(
         { status: 404 }
       )
     }
+
+    // REGRA: Técnicos não podem ser excluídos, apenas desativados
+    if (profile.role === 'tecnico') {
+      // 1. Desativar no profile
+      const { error: deactivateError } = await supabase
+        .from('profiles')
+        .update({ is_active: false })
+        .eq('user_id', profile.user_id)
+
+      if (deactivateError) {
+        console.error('[admin/users/deactivate] Erro ao desativar profile:', deactivateError)
+        return NextResponse.json(
+          { error: `Erro ao desativar profile: ${deactivateError.message}` },
+          { status: 500 }
+        )
+      }
+
+      // 2. Banir no Auth para impedir login (10 anos)
+      const { error: banError } = await supabase.auth.admin.updateUserById(profile.user_id, {
+        ban_duration: '87600h'
+      })
+
+      if (banError) {
+        console.error('[admin/users/deactivate] Erro ao banir usuário:', banError)
+        return NextResponse.json(
+          { error: `Erro ao banir usuário: ${banError.message}` },
+          { status: 500 }
+        )
+      }
+
+      // Telemetry: technician deactivated
+      logEvent({
+        channel: 'users',
+        event: 'Technician Deactivated',
+        icon: '🚫',
+        tags: { user_id: userId, name: profile.nome || '' },
+        notify: false,
+      }).catch(() => { })
+
+      return NextResponse.json({ success: true, message: 'Técnico desativado com sucesso' })
+    }
+
+    // Para outros papéis (Admin/Supervisor), mantemos a exclusão por enquanto
+    // ou podemos desativar todos se o usuário preferir. 
+    // Como ele foi específico sobre técnicos, vou manter a exclusão para os outros.
 
     // Primeiro deletar profile manualmente (opcional, mas evita triggers pendentes)
     const { error: deleteProfileError } = await supabase
@@ -327,9 +372,10 @@ export async function DELETE(
       channel: 'users',
       event: 'User Deleted',
       icon: '🗑️',
-      tags: { user_id: userId, name: profile.nome || '' },  // <-- FIX: usar 'name' ao invés de 'email'
+      tags: { user_id: userId, name: profile.nome || '' },
       notify: false,
     }).catch(() => { })
+
     return NextResponse.json({ success: true })
 
   } catch (error) {

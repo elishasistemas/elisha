@@ -226,6 +226,40 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
 
     } catch (error: any) {
       console.error('[create-user-colaborador-dialog] Erro:', error)
+
+      // Se o usuário estiver inativo, dar a opção de reativar
+      if (error.message.includes('Usuário inativo') || error.message.includes('reativá-lo')) {
+        toast.error('Este e-mail pertence a um usuário inativo.', {
+          duration: 6000,
+          action: {
+            label: 'Reativar Usuário',
+            onClick: async () => {
+              toast.info('Iniciando reativação...')
+              try {
+                const reactivateResponse = await fetch('/api/admin/users/reactivate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: formData.email.trim().toLowerCase() })
+                })
+
+                if (!reactivateResponse.ok) {
+                  const errData = await reactivateResponse.json()
+                  throw new Error(errData.error || 'Erro ao reativar')
+                }
+
+                toast.success('Usuário reativado com sucesso! Agora você pode editá-lo na lista.')
+                setOpen(false)
+                onUserCreated?.()
+              } catch (e: any) {
+                console.error('Erro na reativação:', e)
+                toast.error(`Erro ao reativar: ${e.message}`)
+              }
+            }
+          }
+        })
+        return
+      }
+
       toast.error(`Erro: ${error.message}`)
     } finally {
       setLoading(false)

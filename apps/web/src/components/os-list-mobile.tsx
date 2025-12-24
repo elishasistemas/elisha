@@ -3,12 +3,12 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  MapPin, 
-  User, 
+import {
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  MapPin,
+  User,
   Building2,
   ChevronRight,
   Play,
@@ -24,6 +24,7 @@ interface OSListMobileProps {
   onViewOrder: (ordem: OrdemServico) => void
   onAcceptOrder?: (ordem: OrdemServico) => void
   onStartOrder?: (ordem: OrdemServico) => void
+  currentTecnicoId?: string | null
   canAccept?: boolean
   isLoading?: boolean
   emptyMessage?: string
@@ -103,6 +104,7 @@ export function OSListMobile({
   onViewOrder,
   onAcceptOrder,
   onStartOrder,
+  currentTecnicoId,
   canAccept = false,
   isLoading = false,
   emptyMessage = 'Nenhuma OS encontrada'
@@ -145,15 +147,16 @@ export function OSListMobile({
         const tipo = tipoConfig[ordem.tipo || 'corretiva']
         const StatusIcon = status.icon
 
-        const canStart = ordem.status === 'novo' && !ordem.tecnico_id && canAccept
-        const isInProgress = ['em_deslocamento', 'checkin', 'em_andamento'].includes(ordem.status)
+        const isAssignedMe = currentTecnicoId && ordem.tecnico_id === currentTecnicoId
+        const canStart = (ordem.status === 'novo' || ordem.status === 'parado') && !ordem.tecnico_id && canAccept
+        const isReadyToStart = (ordem.status === 'novo' || ordem.status === 'parado') && isAssignedMe
+        const isInProgress = ['em_deslocamento', 'checkin', 'em_andamento', 'aguardando_assinatura'].includes(ordem.status) && isAssignedMe
 
         return (
-          <Card 
-            key={ordem.id} 
-            className={`overflow-hidden transition-all active:scale-[0.98] ${
-              isInProgress ? 'border-l-4 border-l-primary shadow-md' : ''
-            }`}
+          <Card
+            key={ordem.id}
+            className={`overflow-hidden transition-all active:scale-[0.98] ${isInProgress ? 'border-l-4 border-l-primary shadow-md' : ''
+              }`}
           >
             <CardContent className="p-0">
               {/* Header com número e status */}
@@ -221,7 +224,7 @@ export function OSListMobile({
               {/* Botões de ação */}
               <div className="px-4 py-3 bg-gray-50 border-t flex gap-2">
                 {canStart && onAcceptOrder ? (
-                  <Button 
+                  <Button
                     onClick={(e) => { e.stopPropagation(); onAcceptOrder(ordem); }}
                     className="flex-1 h-11"
                     size="lg"
@@ -229,17 +232,26 @@ export function OSListMobile({
                     <Play className="w-4 h-4 mr-2" />
                     Aceitar OS
                   </Button>
-                ) : isInProgress && onStartOrder ? (
-                  <Button 
+                ) : (isReadyToStart || isInProgress) && onStartOrder ? (
+                  <Button
                     onClick={(e) => { e.stopPropagation(); onStartOrder(ordem); }}
-                    className="flex-1 h-11"
+                    className={`flex-1 h-11 ${isReadyToStart ? 'bg-primary' : 'bg-orange-600 hover:bg-orange-700'}`}
                     size="lg"
                   >
-                    <ChevronRight className="w-4 h-4 mr-2" />
-                    Continuar
+                    {isReadyToStart ? (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Iniciar Deslocamento
+                      </>
+                    ) : (
+                      <>
+                        <ChevronRight className="w-4 h-4 mr-2" />
+                        {ordem.status === 'em_deslocamento' ? 'Iniciar Atendimento' : 'Continuar'}
+                      </>
+                    )}
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={(e) => { e.stopPropagation(); onViewOrder(ordem); }}
                     className="flex-1 h-11"

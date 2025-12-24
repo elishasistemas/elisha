@@ -157,7 +157,7 @@ export default function OrdersPage() {
 
   // Técnico: pode filtrar por Todas (Em Deslocamento + Em Atendimento), ou filtrar por status específico
   // Abertas sem técnico vão para "OS para Aceitar", concluídas não aparecem
-  const tecnicoAllowedStatusFilters = ['todas', 'checkin', 'em_deslocamento'] as const
+  const tecnicoAllowedStatusFilters = ['todas', 'novo', 'checkin', 'em_deslocamento'] as const
 
   // REGRA: Todos os técnicos da empresa veem TODAS as OSs
   // Após aceitar, a OS fica exclusiva do técnico que aceitou
@@ -264,8 +264,8 @@ export default function OrdersPage() {
       if (!ordem.tecnico_id || ordem.tecnico_id !== profile?.tecnico_id) {
         return false
       }
-      // Só mostra Em Deslocamento e Em Atendimento
-      if (!['checkin', 'em_deslocamento'].includes(ordem.status)) {
+      // Só mostra OSs que não estão finalizadas/canceladas
+      if (['concluido', 'cancelado'].includes(ordem.status)) {
         return false
       }
       return true
@@ -287,10 +287,9 @@ export default function OrdersPage() {
   )
 
   // Minhas OS (atribuídas ao técnico logado, não finalizadas)
-  // Minhas OS (atribuídas ao técnico logado, não finalizadas)
   // Usar a lista dedicada 'minhasOrdensRaw' se disponível
   const minhasOS = (canTecnico && profile?.tecnico_id)
-    ? minhasOrdensRaw.filter(o => ['novo', 'checkin', 'em_deslocamento'].includes(o.status))
+    ? minhasOrdensRaw.filter(o => !['concluido', 'cancelado'].includes(o.status))
     : []
 
   const tecnicoHasAnotherWithStatus = (status: 'em_deslocamento' | 'checkin', currentOsId: string) => {
@@ -316,7 +315,10 @@ export default function OrdersPage() {
     // Só pode aceitar se NÃO tem técnico atribuído
     if (ordem.tecnico_id) return false
     if (canAdmin) return true
-    if (canTecnico) return true
+    if (canTecnico) {
+      // Se for técnico, só pode aceitar se NÃO tiver nenhuma outra OS ativa
+      return minhasOS.length === 0
+    }
     return false
   }
 
@@ -764,75 +766,30 @@ export default function OrdersPage() {
               <div className="flex items-center justify-center py-10 text-muted-foreground">
                 Carregando...
               </div>
-            ) : ordensFiltradas.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <p className="text-lg">Você não tem nenhuma OS em andamento</p>
-                <p className="text-sm mt-2">Aceite uma OS na seção acima para começar</p>
+            ) : (
+              <div className="mx-[-1rem]">
+                <OSListMobile
+                  ordens={minhasOS}
+                  clientes={clientes}
+                  colaboradores={colaboradores}
+                  zonas={zonas}
+                  onViewOrder={setViewOrder}
+                  onAcceptOrder={handleAccept}
+                  onStartOrder={(ordem) => {
+                    if (ordem.status === 'novo' || ordem.status === 'parado') {
+                      handleStartDeslocamento(ordem)
+                    } else if (ordem.status === 'em_deslocamento') {
+                      handleStartAtendimento(ordem)
+                    } else {
+                      router.push(`/os/${ordem.id}/full`)
+                    }
+                  }}
+                  currentTecnicoId={profile?.tecnico_id}
+                  canAccept={true}
+                  isLoading={isLoading}
+                />
               </div>
-            ) : (() => {
-              const osAtual = ordensFiltradas[0]
-              const cliente = clientes.find(c => c.id === osAtual.cliente_id)
-              const equipamento = allEquipamentos[osAtual.equipamento_id]
-              const zona = cliente?.zona_id ? zonas.find(z => z.id === cliente.zona_id) : null
-              const status = statusConfig[osAtual.status as keyof typeof statusConfig] || statusConfig.novo
-              return (
-                <div className="space-y-4">
-                  {/* Card da OS atual */}
-                  <div className="border rounded-xl p-4 bg-card space-y-2">
-                    {/* Header - Número e Status */}
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-bold text-base">
-                        {osAtual.numero_os || `#${osAtual.id.slice(0, 8)}`}
-                      </p>
-                      <Badge className={status.className + ' shrink-0 text-xs'}>
-                        {status.label}
-                      </Badge>
-                    </div>
-
-                    {/* Cliente */}
-                    <p className="text-sm text-muted-foreground">
-                      {cliente?.nome_local || 'Cliente'}
-                    </p>
-
-                    {/* Equipamento */}
-                    <p className="text-sm">
-                      <span className="text-muted-foreground">🛗 </span>
-                      {equipamento ? [equipamento.tipo, equipamento.fabricante, equipamento.modelo].filter(Boolean).join(' - ') : 'Sem equipamento'}
-                    </p>
-
-                    {/* Zona */}
-                    <p className="text-sm">
-                      <span className="text-muted-foreground">📍 Zona: </span>
-                      <span className={zona ? 'text-blue-600 font-medium' : ''}>{zona?.nome || 'Sem zona'}</span>
-                    </p>
-
-                    {/* Info em linha */}
-                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                      <span className="capitalize">{osAtual.tipo}</span>
-                      <span>•</span>
-                      {osAtual.prioridade === 'alta' && <span className="text-red-600 font-medium flex items-center gap-1"><ArrowUp className="h-3 w-3" />Alta</span>}
-                      {osAtual.prioridade === 'media' && <span className="text-yellow-600 font-medium flex items-center gap-1"><ArrowRight className="h-3 w-3" />Média</span>}
-                      {osAtual.prioridade === 'baixa' && <span className="text-green-600 font-medium flex items-center gap-1"><ArrowDown className="h-3 w-3" />Baixa</span>}
-                      <span>•</span>
-                      <span>{new Date(osAtual.data_abertura || osAtual.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-
-                    {/* Botão de ação principal */}
-                    <Button
-                      size="default"
-                      className="w-full"
-                      onClick={() => router.push(`/os/${osAtual.id}/full`)}
-                    >
-                      {osAtual.status === 'em_deslocamento' ? (
-                        <>Iniciar Atendimento</>
-                      ) : (
-                        <>Continuar Atendimento</>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )
-            })()}
+            )}
           </CardContent>
         </Card>
       )}
@@ -920,6 +877,7 @@ export default function OrdersPage() {
                     zonas={zonas}
                     onViewOrder={setViewOrder}
                     onStartOrder={(ordem) => router.push(`/os/${ordem.id}/full`)}
+                    currentTecnicoId={profile?.tecnico_id}
                     isLoading={isLoading}
                     emptyMessage={
                       filtroTecnico === 'sem_tecnico' ? 'Nenhuma OS sem técnico atribuído' :

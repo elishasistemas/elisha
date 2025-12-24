@@ -56,7 +56,7 @@ interface Profile {
   nome?: string;
   is_elisha_admin?: boolean;
   impersonating_empresa_id?: string | null;
-
+  is_active?: boolean;
 }
 
 
@@ -103,7 +103,7 @@ export default function UsersPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, empresa_id, role, roles, active_role, created_at, is_elisha_admin, impersonating_empresa_id")
+        .select("id, empresa_id, role, roles, active_role, created_at, is_elisha_admin, impersonating_empresa_id, is_active")
         .eq("user_id", user.id)
         .single();
 
@@ -165,6 +165,25 @@ export default function UsersPage() {
     setDeleteId(userId);
   };
 
+  const handleReactivateUser = async (profileId: string) => {
+    try {
+      const response = await fetch('/api/admin/users/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profileId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao reativar usuário");
+      }
+
+      toast.success("Usuário reativado com sucesso");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteId) return;
 
@@ -179,7 +198,7 @@ export default function UsersPage() {
         throw new Error(error.error || "Erro ao excluir usuário");
       }
 
-      toast.success("Usuário excluído com sucesso");
+      toast.success(response.status === 200 && (await response.clone().json()).message ? (await response.json()).message : "Usuário removido/desativado com sucesso");
       setDeleteId(null);
       loadData();
     } catch (err: any) {
@@ -319,6 +338,7 @@ export default function UsersPage() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Função</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="w-[150px]">Criado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -337,11 +357,35 @@ export default function UsersPage() {
                           {getRoleLabel(profile.role)}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant={profile.is_active === false ? "destructive" : "secondary"} className={profile.is_active === false ? "" : "bg-green-100 text-green-800 border-green-200"}>
+                          {profile.is_active === false ? "Inativo" : "Ativo"}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(profile.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {profile.is_active === false && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-green-600 hover:text-green-700"
+                                    onClick={() => handleReactivateUser(profile.id)}
+                                  >
+                                    <RefreshDouble className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Reativar usuário</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                           <EditUserDialog
                             user={profile}
                             onUserUpdated={loadData}
@@ -352,14 +396,15 @@ export default function UsersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  className={`h-8 w-8 ${profile.role === 'tecnico' ? 'text-orange-600 hover:text-orange-700' : 'text-destructive hover:text-destructive'}`}
                                   onClick={() => handleDeleteUser(profile.id)}
+                                  disabled={profile.is_active === false}
                                 >
                                   <Trash className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Excluir usuário</p>
+                                <p>{profile.role === 'tecnico' ? 'Desativar técnico' : 'Excluir usuário'}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -407,10 +452,13 @@ export default function UsersPage() {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {profiles.find(p => p.id === deleteId)?.role === 'tecnico' ? 'Desativar Técnico?' : 'Tem certeza?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso excluirá permanentemente o usuário
-              e removerá seu acesso ao sistema.
+              {profiles.find(p => p.id === deleteId)?.role === 'tecnico'
+                ? 'Este técnico não poderá mais acessar o sistema ou aceitar novas OSs, mas seu histórico de atendimentos será preservado.'
+                : 'Esta ação não pode ser desfeita. Isso excluirá permanentemente o usuário e removerá seu acesso ao sistema.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -420,10 +468,10 @@ export default function UsersPage() {
                 e.preventDefault();
                 confirmDelete();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className={profiles.find(p => p.id === deleteId)?.role === 'tecnico' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
               disabled={isDeleting}
             >
-              {isDeleting ? "Excluindo..." : "Excluir Usuário"}
+              {isDeleting ? (profiles.find(p => p.id === deleteId)?.role === 'tecnico' ? 'Desativando...' : "Excluindo...") : (profiles.find(p => p.id === deleteId)?.role === 'tecnico' ? 'Desativar' : "Excluir Usuário")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

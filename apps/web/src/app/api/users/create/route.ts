@@ -85,6 +85,37 @@ export async function POST(request: Request) {
     }
 
     // 3. Criar usuário no Supabase Auth
+    // Verificar se já existe (para dar opção de reativar)
+    const { data: { users: existingUsers } } = await supabase.auth.admin.listUsers()
+    const authUser = existingUsers.find(u => u.email?.toLowerCase() === email.toLowerCase())
+
+    if (authUser) {
+      // Se existe no Auth, verificar se está inativo no profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_active, role')
+        .eq('user_id', authUser.id)
+        .maybeSingle()
+
+      if (profile && profile.is_active === false) {
+        return NextResponse.json(
+          {
+            error: 'Usuário inativo encontrado',
+            inactive: true,
+            userId: authUser.id,
+            role: profile.role,
+            message: 'Este e-mail pertence a um usuário inativo. Deseja reativá-lo?'
+          },
+          { status: 409 }
+        )
+      }
+
+      return NextResponse.json(
+        { error: 'Este e-mail já está em uso por um usuário ativo.' },
+        { status: 409 }
+      )
+    }
+
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
