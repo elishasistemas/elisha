@@ -54,7 +54,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.email) {
       toast.error('Email é obrigatório')
       return
@@ -115,7 +115,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   const handleCopyLink = async () => {
     if (!inviteResult) return
-    
+
     try {
       await navigator.clipboard.writeText(inviteResult.url)
       setCopied(true)
@@ -150,7 +150,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
             {inviteResult ? 'Convite Criado!' : 'Convidar Usuário'}
           </DialogTitle>
           <DialogDescription>
-            {inviteResult 
+            {inviteResult
               ? 'Copie o link abaixo e envie para o usuário'
               : <>Criar convite de acesso para <strong>{company.nome}</strong></>
             }
@@ -179,7 +179,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <Label htmlFor="role">Papel / Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') => 
+                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') =>
                     setFormData({ ...formData, role: value })
                   }
                   disabled={loading}
@@ -227,7 +227,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <p className="font-medium">{inviteResult.email}</p>
               </div>
               <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Papel</Label>
+                <Label className="text-xs text-muted-foreground">Função</Label>
                 <p className="font-medium">{getRoleLabel(inviteResult.role)}</p>
               </div>
             </div>

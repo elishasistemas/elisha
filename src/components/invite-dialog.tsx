@@ -39,7 +39,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !role) {
       toast.error("Preencha todos os campos");
       return;
@@ -56,7 +56,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
 
     try {
       const supabase = createSupabaseBrowser();
-      
+
       const { data, error } = await supabase.rpc("create_invite", {
         p_empresa_id: empresaId,
         p_email: email.trim().toLowerCase(),
@@ -198,7 +198,7 @@ export function InviteDialog({ empresaId, onInviteCreated }: InviteDialogProps) 
                 <p className="font-medium">{email}</p>
               </div>
               <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Papel</Label>
+                <Label className="text-xs text-muted-foreground">Função</Label>
                 <p className="font-medium">{getRoleLabel(role)}</p>
               </div>
             </div>

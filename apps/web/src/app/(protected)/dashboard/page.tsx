@@ -142,7 +142,7 @@ export default function DashboardPage() {
     )
 
     if (isAdmin || isImpersonating) {
-      return base.filter(o => !o.tecnico_id)
+      return base
     }
     if (isTecnico && tecnicoId) {
       return base.filter(o => !o.tecnico_id || o.tecnico_id === tecnicoId)
@@ -153,7 +153,7 @@ export default function DashboardPage() {
   const canAcceptOrDecline = (o: OrdemServico) => {
     const ok = o.status === 'novo' || o.status === 'parado'
     if (!ok) return false
-    if (isAdmin || isImpersonating) return !o.tecnico_id
+    if (isAdmin || isImpersonating) return true
     if (isTecnico && tecnicoId) return !o.tecnico_id || o.tecnico_id === tecnicoId
     return false
   }
@@ -615,7 +615,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Chamados</CardTitle>
-                <CardDescription>Ordens disponíveis para aceitar ou recusar</CardDescription>
+                <CardDescription>
+                  {isAdmin ? 'Ordens disponíveis para aceitar e gerenciar' : 'Ordens disponíveis para aceitar ou recusar'}
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -665,15 +667,17 @@ export default function DashboardPage() {
                             >
                               <Check className="h-4 w-4 mr-1" /> Aceitar
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); handleDecline(o); }}
-                              disabled={actionLoading || !canAcceptOrDecline(o)}
-                              className="border-red-300 text-red-600 hover:bg-red-50"
-                            >
-                              <X className="h-4 w-4 mr-1" /> Recusar
-                            </Button>
+                            {!isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => { e.stopPropagation(); handleDecline(o); }}
+                                disabled={actionLoading || !canAcceptOrDecline(o)}
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4 mr-1" /> Recusar
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

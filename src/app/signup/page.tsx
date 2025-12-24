@@ -184,13 +184,13 @@ function SignupContent() {
             icon: '🎉',
             tags: { source: 'invite' },
           }),
-        }).catch(() => {})
+        }).catch(() => { })
         // Aguardar um pouco para garantir que a sessão foi estabelecida
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Verificar se o usuário está autenticado
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session) {
           // Aceitar convite
           await acceptInvite();
@@ -263,11 +263,11 @@ function SignupContent() {
 
       if (error) {
         console.error("Erro ao aceitar convite:", error);
-        const errorMessage = error.message === "User not authenticated" 
+        const errorMessage = error.message === "User not authenticated"
           ? "Sessão expirou. Faça login novamente para aceitar o convite."
           : (error.message || "Erro ao aceitar convite");
         toast.error(errorMessage);
-        
+
         // Se não autenticado, redirecionar para login
         if (error.message === "User not authenticated") {
           setTimeout(() => {
@@ -288,9 +288,9 @@ function SignupContent() {
           icon: '✅',
           tags: { token: token?.slice(0, 6) + '…' },
         }),
-      }).catch(() => {})
+      }).catch(() => { })
       toast.success("Convite aceito! Bem-vindo(a)!");
-      
+
       // Redirect para dashboard
       setTimeout(() => {
         console.log('[Signup] Redirecionando para dashboard...');
@@ -365,10 +365,10 @@ function SignupContent() {
           <CardHeader className="space-y-3">
             <CardTitle>🎉 Olá, este é um convite exclusivo para você! </CardTitle>
             <CardDescription>
-              <strong>{invite.empresa_nome}</strong> convidou você para acessar 
+              <strong>{invite.empresa_nome}</strong> convidou você para acessar
               o sistema como <Badge variant="secondary" className="ml-1">{getRoleLabel(invite.role)}</Badge>
             </CardDescription>
-            
+
             {/* Info do convite */}
             <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -376,7 +376,7 @@ function SignupContent() {
                 <span className="text-sm font-medium">{invite.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Papel:</span>
+                <span className="text-sm text-muted-foreground">Função:</span>
                 <Badge>{getRoleLabel(invite.role)}</Badge>
               </div>
             </div>
@@ -438,8 +438,8 @@ function SignupContent() {
                 {submitting
                   ? "Processando..."
                   : isAuthenticated
-                  ? "Entrar e aceitar convite"
-                  : "Criar conta e aceitar convite"}
+                    ? "Entrar e aceitar convite"
+                    : "Criar conta e aceitar convite"}
               </Button>
             </form>
 

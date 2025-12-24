@@ -82,8 +82,9 @@ export default function OSFullScreenPage() {
   const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([])
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [historyExpanded, setHistoryExpanded] = useState(true) // Histórico de alterações expandido por padrão
-  const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false) // Histórico de equipamento retraído por padrão
+  const [historyExpanded, setHistoryExpanded] = useState(true)
+  const [equipmentHistoryExpanded, setEquipmentHistoryExpanded] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
 
   const supabase = createSupabaseBrowser()
   const { profile } = useAuth()
@@ -352,6 +353,29 @@ export default function OSFullScreenPage() {
     }
   }
 
+  // Handler para Aceitar
+  const handleAccept = async () => {
+    if (!os) return
+    setActionLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('os_accept', { p_os_id: os.id })
+      if (error) throw error
+
+      const result = data as { success: boolean; error?: string; message?: string }
+      if (!result.success) {
+        toast.error(result.message || result.error || 'Erro ao aceitar OS')
+        return
+      }
+
+      toast.success(result.message || 'OS aceita com sucesso!')
+      setOs(prev => prev ? { ...prev, status: 'em_deslocamento' } : null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao aceitar OS')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -451,6 +475,30 @@ export default function OSFullScreenPage() {
           </div>
         </div>
       </div>
+
+      {/* Botão de Aceite para Admins ou Técnicos (se status novo ou parado) */}
+      {['novo', 'parado'].includes(os.status) && (
+        <div className="max-w-5xl mx-auto px-4 md:px-8 pt-6">
+          <Card className="border-primary bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-lg">Esta OS está aguardando aceite</CardTitle>
+              <CardDescription>
+                Aceite esta ordem de serviço para iniciar o deslocamento ao local.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleAccept}
+                className="w-full md:w-auto px-8"
+                size="lg"
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processando...' : 'Aceitar Ordem de Serviço'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Conteúdo principal com padding */}
       <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 space-y-6 overflow-x-hidden">

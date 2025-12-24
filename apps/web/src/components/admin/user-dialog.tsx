@@ -54,7 +54,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.email) {
       toast.error('Email é obrigatório')
       return
@@ -110,7 +110,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
 
   const handleCopyLink = async () => {
     if (!inviteResult) return
-    
+
     try {
       await navigator.clipboard.writeText(inviteResult.url)
       setCopied(true)
@@ -145,7 +145,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
             {inviteResult ? 'Convite Criado!' : 'Convidar Usuário'}
           </DialogTitle>
           <DialogDescription>
-            {inviteResult 
+            {inviteResult
               ? 'Copie o link abaixo e envie para o usuário'
               : <>Criar convite de acesso para <strong>{company.nome}</strong></>
             }
@@ -174,7 +174,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <Label htmlFor="role">Papel / Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') => 
+                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') =>
                     setFormData({ ...formData, role: value })
                   }
                   disabled={loading}
@@ -183,7 +183,7 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">⚙️ Administrador</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="supervisor">Supervisor</SelectItem>
                     <SelectItem value="tecnico">Técnico</SelectItem>
                   </SelectContent>
@@ -225,32 +225,6 @@ export function UserDialog({ company, onClose }: UserDialogProps) {
                 <Label className="text-xs text-muted-foreground">Papel</Label>
                 <p className="font-medium">{getRoleLabel(inviteResult.role)}</p>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Link do convite</Label>
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={inviteResult.url}
-                  className="font-mono text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopyLink}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                O link expira em 7 dias e só pode ser usado uma vez.
-              </p>
             </div>
 
             <DialogFooter>

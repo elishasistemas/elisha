@@ -894,7 +894,7 @@ export function OrderDialog({
                           .order('created_at', { ascending: true })
 
                         // Converter storage_path para URL pública
-                        const evidenciasComUrl = evidencias?.map(ev => {
+                        const evidenciasComUrl = evidencias?.map((ev: any) => {
                           if (!ev.storage_path) return null
                           const { data } = supabase.storage
                             .from('evidencias')
@@ -945,8 +945,8 @@ export function OrderDialog({
                     Gerar PDF
                   </Button>
 
-                  {/* Botões de ação para técnicos - apenas se for o técnico atribuído */}
-                  {ordem && isAssignedTechnician && (
+                  {/* Botões de ação para técnicos ou admins */}
+                  {ordem && (isAssignedTechnician || profile?.active_role === 'admin') && (
                     <>
                       {/* Botão: Iniciar Deslocamento (apenas se status = novo, parado ou checkin) */}
                       {['novo', 'parado', 'checkin'].includes(ordem.status) && (

@@ -581,6 +581,8 @@ export class OrdensServicoService {
         throw new NotFoundException('Ordem de serviço não encontrada');
       }
 
+      const updateData: any = {};
+
       console.log('[finalize] OS encontrada:', {
         id: os.id,
         status: os.status,
@@ -594,12 +596,47 @@ export class OrdensServicoService {
         throw new ForbiddenException('Você não tem permissão para finalizar esta OS');
       }
 
-      // Validar que a OS tem um técnico atribuído
+      // Validar técnico e permissões
       if (!os.tecnico_id) {
-        throw new ForbiddenException('Esta OS não possui técnico atribuído. É necessário aceitar a OS antes de finalizá-la.');
+        if (this.isAdmin(profile)) {
+          // Admin finalizando OS sem técnico: auto-atribuir admin
+          console.log('[finalize] Admin finalizando OS sem técnico, auto-atribuindo...');
+
+          // Buscar ou criar colaborador para o admin
+          const { data: colab, error: colabError } = await this.supabaseService.client
+            .from('colaboradores')
+            .select('id')
+            .eq('user_id', profile.id)
+            .eq('ativo', true)
+            .maybeSingle();
+
+          let targetTecnicoId = colab?.id;
+
+          if (!targetTecnicoId) {
+            // Criar colaborador se não existir
+            const { data: newColab, error: createError } = await this.supabaseService.client
+              .from('colaboradores')
+              .insert({
+                empresa_id: empresaAtiva,
+                user_id: profile.id,
+                nome: profile.nome || 'Administrador',
+                funcao: 'Administrador',
+                ativo: true
+              })
+              .select('id')
+              .single();
+
+            if (createError) throw new Error('Erro ao criar registro de colaborador para admin');
+            targetTecnicoId = newColab.id;
+          }
+
+          os.tecnico_id = targetTecnicoId;
+          updateData.tecnico_id = targetTecnicoId;
+        } else {
+          throw new ForbiddenException('Esta OS não possui técnico atribuído. É necessário aceitar a OS antes de finalizá-la.');
+        }
       }
 
-      // Validar que apenas técnicos com a OS atribuída ou admins podem finalizar
       if (!this.isAdmin(profile)) {
         // Se não for admin, deve ser técnico com a OS atribuída
         if (profile.active_role !== 'tecnico' || os.tecnico_id !== profile.tecnico_id) {
@@ -641,11 +678,10 @@ export class OrdensServicoService {
         dataInicio = agora;
       }
 
-      // data_fim deve ser >= data_inicio (constraint ordens_servico_datas_logicas)
-      // Se agora for menor que data_inicio (por algum bug de timezone), usar data_inicio
       const dataFim = agora >= dataInicio ? agora : dataInicio;
 
-      const updateData: any = {
+      const updateDataFinal: any = {
+        ...updateData,
         status: 'concluido',
         data_fim: dataFim.toISOString(),
         assinatura_cliente: data.assinatura_cliente,
@@ -657,12 +693,12 @@ export class OrdensServicoService {
       // Se data_inicio não estiver definido, definir agora
       if (!os.data_inicio) {
         console.log('[finalize] data_inicio não definido, definindo agora');
-        updateData.data_inicio = dataInicio.toISOString();
+        updateDataFinal.data_inicio = dataInicio.toISOString();
       }
 
       const { data: updatedOS, error } = await this.supabaseService.client
         .from('ordens_servico')
-        .update(updateData)
+        .update(updateDataFinal)
         .eq('id', id)
         .select()
         .single();

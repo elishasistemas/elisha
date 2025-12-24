@@ -60,7 +60,7 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
   const [secPessoais, setSecPessoais] = useState(true)
   const [secContato, setSecContato] = useState(true)
   const [secZonas, setSecZonas] = useState(true)
-  
+
   const key = (s: string) => `create_user_dialog:${s}`
   useEffect(() => {
     if (!open) return
@@ -69,13 +69,13 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
       setSecPessoais((localStorage.getItem(key('pessoais')) ?? '1') === '1')
       setSecContato((localStorage.getItem(key('contato')) ?? '1') === '1')
       setSecZonas((localStorage.getItem(key('zonas')) ?? '1') === '1')
-    } catch {}
+    } catch { }
   }, [open])
-  
-  const persist = (name: string, val: boolean) => { 
-    try { 
-      localStorage.setItem(key(name), val ? '1' : '0') 
-    } catch {} 
+
+  const persist = (name: string, val: boolean) => {
+    try {
+      localStorage.setItem(key(name), val ? '1' : '0')
+    } catch { }
   }
 
   const formatPhone = (value: string) => {
@@ -96,7 +96,7 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validações antes de setar loading
     if (!formData.username.trim()) {
       toast.error('Nome de usuário é obrigatório')
@@ -185,7 +185,7 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
         const { error: zonasError } = await supabase
           .from('zonas_tecnicos')
           .insert(zonasData)
-        
+
         if (zonasError) {
           console.error('Erro ao criar zonas_tecnicos:', zonasError)
           toast.warning('Usuário criado, mas houve erro ao associar zonas')
@@ -193,18 +193,18 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
       }
 
       toast.success(`Usuário ${formData.email} criado com sucesso!`)
-      
+
       // Telemetry
       fetch('/api/telemetry/logsnag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          channel: 'users', 
-          event: 'User Created', 
-          icon: '👤', 
-          tags: { empresa_id: empresaId, role: formData.role } 
+        body: JSON.stringify({
+          channel: 'users',
+          event: 'User Created',
+          icon: '👤',
+          tags: { empresa_id: empresaId, role: formData.role }
         }),
-      }).catch(() => {})
+      }).catch(() => { })
 
       setOpen(false)
       onUserCreated?.()
@@ -277,14 +277,14 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Accordion 
-            type="multiple" 
+          <Accordion
+            type="multiple"
             value={[
-              secAuth ? 'auth' : '', 
-              secPessoais ? 'pessoais' : '', 
-              secContato ? 'contato' : '', 
+              secAuth ? 'auth' : '',
+              secPessoais ? 'pessoais' : '',
+              secContato ? 'contato' : '',
               secZonas ? 'zonas' : ''
-            ].filter(Boolean) as string[]} 
+            ].filter(Boolean) as string[]}
             onValueChange={(v) => {
               const set = new Set(v as string[])
               const a = set.has('auth')
@@ -299,7 +299,7 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
               persist('pessoais', p)
               persist('contato', c)
               persist('zonas', z)
-            }} 
+            }}
             className="w-full"
           >
             {/* Autenticação e Permissões */}
@@ -395,8 +395,8 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
                   {/* Força da senha */}
                   {formData.password && (
                     <div className="space-y-2">
-                      <PasswordStrength 
-                        password={formData.password} 
+                      <PasswordStrength
+                        password={formData.password}
                         confirm={formData.confirmPassword}
                         minLength={8}
                       />
@@ -405,11 +405,11 @@ export function CreateUserColaboradorDialog({ empresaId, onUserCreated }: Create
 
                   <div className="space-y-2">
                     <Label htmlFor="role">
-                      Papel / Permissão <span className="text-destructive">*</span>
+                      Função / Permissão <span className="text-destructive">*</span>
                     </Label>
                     <Select
                       value={formData.role}
-                      onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') => 
+                      onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') =>
                         handleChange('role', value)
                       }
                       disabled={loading}

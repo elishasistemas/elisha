@@ -51,7 +51,7 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.email) {
       toast.error('Email é obrigatório')
       return
@@ -111,7 +111,7 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
 
   const handleCopyLink = async () => {
     if (!inviteResult) return
-    
+
     try {
       await navigator.clipboard.writeText(inviteResult.url)
       setCopied(true)
@@ -155,7 +155,7 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
             {inviteResult ? 'Usuário Criado!' : 'Criar Novo Usuário'}
           </DialogTitle>
           <DialogDescription>
-            {inviteResult 
+            {inviteResult
               ? 'Convite criado! Copie o link abaixo e envie para o colaborador.'
               : 'Preencha os dados do novo colaborador da empresa.'
             }
@@ -196,7 +196,7 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
                 <Label htmlFor="role">Papel / Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') => 
+                  onValueChange={(value: 'admin' | 'supervisor' | 'tecnico') =>
                     setFormData({ ...formData, role: value })
                   }
                   disabled={loading}
@@ -205,9 +205,9 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">⚙️ Administrador</SelectItem>
-                    <SelectItem value="supervisor">👔 Supervisor</SelectItem>
-                    <SelectItem value="tecnico">🔧 Técnico</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="tecnico">Técnico</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
@@ -234,43 +234,6 @@ export function CreateUserDialog({ empresaId, onUserCreated }: CreateUserDialogP
           </form>
         ) : (
           <div className="space-y-4 py-4">
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">E-mail convidado</Label>
-                <p className="font-medium">{inviteResult.email}</p>
-              </div>
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Papel</Label>
-                <p className="font-medium">{getRoleLabel(inviteResult.role)}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Link do convite</Label>
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={inviteResult.url}
-                  className="font-mono text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopyLink}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                O link expira em 7 dias. Envie para o colaborador completar o cadastro.
-              </p>
-            </div>
-
             <DialogFooter>
               <Button type="button" onClick={handleClose}>
                 Fechar

@@ -92,7 +92,7 @@ export interface OrdemServico {
   equipamento_id: string
   tecnico_id: string | null
   empresa_id: string | null
-  tipo: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado'
+  tipo: 'preventiva' | 'corretiva' | 'emergencial' | 'chamado' | 'corretiva_programada'
   prioridade: 'alta' | 'media' | 'baixa'
   status: 'novo' | 'em_andamento' | 'aguardando_assinatura' | 'concluido' | 'cancelado' | 'parado' | 'em_deslocamento' | 'checkin' | 'checkout' | 'reaberta'
   data_abertura: string

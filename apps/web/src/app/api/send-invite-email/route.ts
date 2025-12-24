@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     
     <div class="invite-box">
       <p><strong>📧 Email:</strong> ${to}</p>
-      <p><strong>👤 Papel:</strong> ${roleLabel}</p>
+      <p><strong>👤 Função:</strong> ${roleLabel}</p>
       <p><strong>🏢 Empresa:</strong> ${empresaNome}</p>
     </div>
     
@@ -180,7 +180,7 @@ Você foi convidado!
 ${empresaNome} convidou você para acessar o Sistema Elisha como ${roleLabel}.
 
 Email: ${to}
-Papel: ${roleLabel}
+Função: ${roleLabel}
 Empresa: ${empresaNome}
 
 Para aceitar o convite, acesse:

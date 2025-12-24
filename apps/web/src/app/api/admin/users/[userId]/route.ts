@@ -297,11 +297,11 @@ export async function DELETE(
       )
     }
 
-    // Primeiro deletar profile
+    // Primeiro deletar profile manualmente (opcional, mas evita triggers pendentes)
     const { error: deleteProfileError } = await supabase
       .from('profiles')
       .delete()
-      .eq('user_id', userId)
+      .eq('user_id', profile.user_id)
 
     if (deleteProfileError) {
       console.error('[admin/users/delete] Erro ao deletar profile:', deleteProfileError)

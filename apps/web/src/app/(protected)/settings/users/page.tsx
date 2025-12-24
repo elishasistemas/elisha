@@ -270,7 +270,7 @@ export default function UsersPage() {
             </div>
             <div className="flex items-center gap-2">
               <Input
-                placeholder="Buscar por e-mail ou papel"
+                placeholder="Buscar por e-mail ou função"
                 value={searchUsers}
                 onChange={(e) => { setSearchUsers(e.target.value); setPageUsers(1); }}
                 className="w-[260px]"
@@ -318,7 +318,7 @@ export default function UsersPage() {
                   <TableRow>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Papel</TableHead>
+                    <TableHead>Função</TableHead>
                     <TableHead className="w-[150px]">Criado em</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
